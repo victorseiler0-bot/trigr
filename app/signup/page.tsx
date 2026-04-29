@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSignUp } from "@clerk/nextjs";
+import { useSignUp, useClerk } from "@clerk/nextjs";
 
 export default function SignupPage() {
   const { signUp, fetchStatus } = useSignUp();
+  const clerk = useClerk();
   const loading = fetchStatus === "fetching";
 
   const [step, setStep] = useState<"idle" | "otp">("idle");
@@ -15,14 +16,13 @@ export default function SignupPage() {
   const [error, setError] = useState("");
 
   async function signUpWithGoogle() {
-    if (!signUp) return;
     setBusy(true);
     setError("");
     try {
-      await signUp.sso({
+      await clerk.client.signUp.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectCallbackUrl: `${window.location.origin}/assistant`,
+        redirectUrlComplete: "/assistant",
       });
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Erreur Google");
@@ -71,7 +71,6 @@ export default function SignupPage() {
       </div>
 
       <div className="relative w-full max-w-sm">
-        {/* Logo */}
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.5)]">
@@ -83,7 +82,6 @@ export default function SignupPage() {
           </Link>
         </div>
 
-        {/* Badge */}
         <div className="flex justify-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-500/20 bg-violet-500/[0.06] text-violet-300 text-xs font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
@@ -91,14 +89,12 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* Card */}
         <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
           <div className="text-center mb-7">
             <h1 className="text-xl font-bold text-white mb-1">Créer un compte</h1>
             <p className="text-sm text-zinc-500">Ton assistant IA en 30 secondes</p>
           </div>
 
-          {/* Google */}
           <button
             onClick={signUpWithGoogle}
             disabled={isBusy}
@@ -115,7 +111,7 @@ export default function SignupPage() {
 
           <div className="flex items-center gap-3 my-5">
             <div className="flex-1 h-px bg-white/[0.07]" />
-            <span className="text-xs text-zinc-600">ou</span>
+            <span className="text-xs text-zinc-600">ou par email</span>
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
 
@@ -131,6 +127,7 @@ export default function SignupPage() {
                   placeholder="vous@exemple.fr"
                   className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 focus:bg-white/[0.06] transition-all"
                 />
+                <p className="text-xs text-zinc-600 mt-1.5">N'importe quelle adresse email fonctionne (Gmail, Outlook, Yahoo…)</p>
               </div>
               <button
                 onClick={sendCode}
@@ -171,7 +168,6 @@ export default function SignupPage() {
             </div>
           )}
 
-          {/* Inclus */}
           {step === "idle" && (
             <div className="mt-5 pt-5 border-t border-white/[0.06]">
               <p className="text-xs text-zinc-500 mb-3 text-center">Inclus dans l'essai gratuit</p>
@@ -197,9 +193,9 @@ export default function SignupPage() {
         </p>
         <p className="text-center text-xs text-zinc-700 mt-2">
           En créant un compte, vous acceptez nos{" "}
-          <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-500 transition-colors">CGU</Link>
-          {" "}et notre{" "}
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-500 transition-colors">Politique de confidentialité</Link>.
+          <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-500">CGU</Link>{" "}
+          et notre{" "}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-500">Politique de confidentialité</Link>.
         </p>
       </div>
     </div>

@@ -2,27 +2,27 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSignIn } from "@clerk/nextjs";
+import { useSignIn, useClerk } from "@clerk/nextjs";
 
 export default function LoginPage() {
   const { signIn, fetchStatus } = useSignIn();
+  const clerk = useClerk();
   const loading = fetchStatus === "fetching";
 
-  const [step, setStep] = useState<"idle" | "otp" | "done">("idle");
+  const [step, setStep] = useState<"idle" | "otp">("idle");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function signInWithGoogle() {
-    if (!signIn) return;
     setBusy(true);
     setError("");
     try {
-      await signIn.sso({
+      await clerk.client.signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectCallbackUrl: `${window.location.origin}/assistant`,
+        redirectUrlComplete: "/assistant",
       });
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Erreur Google");
@@ -69,7 +69,6 @@ export default function LoginPage() {
       </div>
 
       <div className="relative w-full max-w-sm">
-        {/* Logo */}
         <div className="flex justify-center mb-10">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.5)]">
@@ -81,14 +80,12 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        {/* Card */}
         <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
           <div className="text-center mb-7">
             <h1 className="text-xl font-bold text-white mb-1">Se connecter</h1>
             <p className="text-sm text-zinc-500">Bienvenue sur Trigr</p>
           </div>
 
-          {/* Google */}
           <button
             onClick={signInWithGoogle}
             disabled={isBusy}
@@ -105,7 +102,7 @@ export default function LoginPage() {
 
           <div className="flex items-center gap-3 my-5">
             <div className="flex-1 h-px bg-white/[0.07]" />
-            <span className="text-xs text-zinc-600">ou</span>
+            <span className="text-xs text-zinc-600">ou par email</span>
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
 
@@ -170,9 +167,9 @@ export default function LoginPage() {
         </p>
         <p className="text-center text-xs text-zinc-700 mt-2">
           En continuant, vous acceptez nos{" "}
-          <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-500 transition-colors">CGU</Link>
-          {" "}et notre{" "}
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-500 transition-colors">Politique de confidentialité</Link>.
+          <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-500">CGU</Link>{" "}
+          et notre{" "}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-500">Politique de confidentialité</Link>.
         </p>
       </div>
     </div>
