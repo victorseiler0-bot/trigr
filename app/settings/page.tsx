@@ -137,7 +137,9 @@ export default function SettingsPage() {
   }
 
   function waStartConnect() {
-    setWaMode("choose"); setWaStatus("idle"); setWaQr(null); setWaPairingCode(null); setWaError("");
+    // Va directement en mode QR
+    setWaMode("qr"); setWaQr(null); setWaPairingCode(null); setWaError("");
+    waChooseQr();
   }
 
   async function waChooseQr() {
@@ -288,36 +290,14 @@ export default function SettingsPage() {
               </>
             );
 
-            // Choix de méthode
-            if (waStatus === "connecting" && waMode === "choose") return (
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-                <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Connecter WhatsApp</p></div>
-                  <button onClick={() => setWaStatus("idle")} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
-                </div>
-                <div className="p-5 grid grid-cols-2 gap-3">
-                  <button onClick={waChooseQr}
-                    className="flex flex-col items-center gap-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-xl p-4 transition-colors text-center">
-                    <span className="text-2xl">📱</span>
-                    <p className="text-sm font-medium text-white">QR Code</p>
-                    <p className="text-xs text-zinc-500">Scanner avec ton téléphone</p>
-                  </button>
-                  <button onClick={() => setWaMode("phone")}
-                    className="flex flex-col items-center gap-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-xl p-4 transition-colors text-center">
-                    <span className="text-2xl">🔢</span>
-                    <p className="text-sm font-medium text-white">Code à 8 chiffres</p>
-                    <p className="text-xs text-zinc-500">Entrer ton numéro</p>
-                  </button>
-                </div>
-              </div>
-            );
+            // (pas d'écran de choix — on va direct en QR)
 
-            // Mode numéro de téléphone
+            // Formulaire numéro de téléphone (option alternative, visible en overlay dans le QR panel)
             if (waMode === "phone" && waStatus !== "pairing") return (
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
                 <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
                   <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Connexion par numéro</p></div>
-                  <button onClick={() => { setWaStatus("connecting"); setWaMode("choose"); }} className="text-xs text-zinc-600 hover:text-zinc-300">← Retour</button>
+                  <button onClick={waChooseQr} className="text-xs text-zinc-500 hover:text-zinc-300">← Retour au QR</button>
                 </div>
                 <div className="p-5 space-y-3">
                   <div>
@@ -367,25 +347,41 @@ export default function SettingsPage() {
               </div>
             );
 
-            // QR mode
+            // QR mode (mode principal)
             if (waStatus === "qr" || (waStatus === "connecting" && waMode === "qr")) return (
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
                 <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Scanne avec WhatsApp</p></div>
-                  <button onClick={() => { setWaStatus("idle"); setWaMode("choose"); setWaQr(null); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
+                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Connecter WhatsApp</p></div>
+                  <button onClick={() => { setWaStatus("idle"); setWaMode("qr"); setWaQr(null); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
                 </div>
                 <div className="px-6 py-6 flex flex-col items-center gap-4">
                   {waQr ? (
                     <>
-                      <div className="bg-white rounded-2xl p-3"><img src={waQr} alt="QR" className="w-48 h-48" /></div>
-                      <p className="text-xs text-zinc-500 text-center">WhatsApp → <span className="text-zinc-300">⋮</span> → Appareils liés → Lier un appareil</p>
+                      <div className="bg-white rounded-2xl p-3 shadow-lg">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={waQr} alt="QR WhatsApp" className="w-52 h-52" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-white">Scanne avec ton téléphone</p>
+                        <p className="text-xs text-zinc-500 mt-1">
+                          WhatsApp → <span className="text-zinc-300">⋮</span> → <span className="text-zinc-300">Appareils liés</span> → Lier un appareil
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                        En attente du scan — expire dans ~60s
+                      </div>
                     </>
                   ) : (
-                    <div className="flex flex-col items-center gap-3 py-6">
-                      <div className="w-8 h-8 rounded-full border-2 border-zinc-600 border-t-[#25D366] animate-spin" />
-                      <p className="text-sm text-zinc-500">Chargement du QR…</p>
+                    <div className="flex flex-col items-center gap-3 py-8">
+                      <div className="w-10 h-10 rounded-full border-2 border-zinc-700 border-t-[#25D366] animate-spin" />
+                      <p className="text-sm text-zinc-500">Génération du QR code…</p>
                     </div>
                   )}
+                  <button onClick={() => { setWaMode("phone"); setWaStatus("connecting"); }}
+                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mt-1">
+                    Tu ne peux pas scanner ? → Utiliser un code à 8 chiffres
+                  </button>
                 </div>
               </div>
             );
@@ -452,12 +448,62 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {appleStatus === "idle" && (
-            <AccountRow
-              icon={<svg width="20" height="20" viewBox="0 0 814 1000" fill="#52525b"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>}
-              label="Apple iCloud" subtitle="Calendrier · Contacts · Rappels"
-              connected={false} onConnect={() => setAppleStatus("form")} onDisconnect={() => {}}
-            />
+          {(appleStatus === "idle" || appleStatus === "form") && (
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+              {appleStatus === "idle" ? (
+                <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <svg width="20" height="20" viewBox="0 0 814 1000" fill="#52525b"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>
+                    <div>
+                      <p className="text-sm font-medium text-white">Apple iCloud</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Calendrier · Contacts · Rappels</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setAppleStatus("form")}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-all">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
+                    Connecter
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <svg width="18" height="18" viewBox="0 0 814 1000" fill="white"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>
+                      <p className="text-sm font-medium text-white">Connexion iCloud</p>
+                    </div>
+                    <button onClick={() => { setAppleStatus("idle"); setAppleError(""); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Apple ID</label>
+                      <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
+                        placeholder="prenom@icloud.com" autoFocus
+                        className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
+                        Mot de passe d'app spécifique
+                        <a href="https://appleid.apple.com" target="_blank" rel="noreferrer"
+                          className="ml-2 text-violet-400 hover:underline font-normal">
+                          Générer sur appleid.apple.com →
+                        </a>
+                      </label>
+                      <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
+                        placeholder="xxxx-xxxx-xxxx-xxxx"
+                        onKeyDown={e => e.key === "Enter" && appleConnect()}
+                        className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all font-mono" />
+                      <p className="text-xs text-zinc-600 mt-1.5">Sécurité → Mots de passe spécifiques → + → nomme-le "Trigr"</p>
+                    </div>
+                    {appleError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{appleError}</p>}
+                    <button onClick={appleConnect} disabled={!appleId || !applePwd}
+                      className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2">
+                      {"Connecter iCloud →"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </section>
       </main>
