@@ -68,6 +68,8 @@ function storeMessage(jid, m) {
   if (chats[jid]) chats[jid].timestamp = Number(m.messageTimestamp ?? chats[jid].timestamp);
 }
 
+let pairingCode = null; // code à 8 chiffres affiché à l'utilisateur
+
 async function startWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
   const { version } = await fetchLatestBaileysVersion();
@@ -78,19 +80,22 @@ async function startWhatsApp() {
     syncFullHistory: true,
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
+    printQRInTerminal: false,
   });
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
     if (qr) { qrBase64 = await QRCode.toDataURL(qr); waStatus = "qr"; }
-    if (connection === "connecting") waStatus = "connecting";
-    if (connection === "open") { waStatus = "connected"; qrBase64 = null; console.log("[WA] Connecté :", sock.user?.id); }
+    if (connection === "connecting") { if (waStatus !== "qr") waStatus = "connecting"; }
+    if (connection === "open") {
+      waStatus = "connected"; qrBase64 = null; pairingCode = null;
+      console.log("[WA] Connecté :", sock.user?.id);
+    }
     if (connection === "close") {
       const code = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode : 0;
       const loggedOut = code === DisconnectReason.loggedOut;
-      waStatus = "disconnected"; qrBase64 = null;
+      waStatus = "disconnected"; qrBase64 = null; pairingCode = null;
       console.log("[WA] Déconnecté code:", code);
-      // Reconnect toujours, même après logout (nouvelle session + nouveau QR)
       setTimeout(startWhatsApp, loggedOut ? 2000 : 3000);
     }
   });
@@ -225,12 +230,42 @@ app.get("/status", (_, res) => {
     status: waStatus,
     phone: user?.id ? user.id.split(":")[0].split("@")[0] : null,
     name: user?.name ?? null,
+    pairingCode: pairingCode ?? null,
   });
 });
 
 app.get("/qr", (_, res) => {
   if (!qrBase64) return res.status(404).json({ error: "Pas de QR" });
   res.json({ qr: qrBase64 });
+});
+
+app.post("/pairing-code", async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: "Numéro requis" });
+  if (waStatus === "connected") return res.status(400).json({ error: "Déjà connecté" });
+
+  const digits = phone.replace(/\D/g, "");
+  try {
+    // Attend que le socket soit prêt (état "connecting" ou "qr")
+    let attempts = 0;
+    while (!sock?.requestPairingCode && attempts < 10) {
+      await new Promise(r => setTimeout(r, 500));
+      attempts++;
+    }
+    const code = await sock.requestPairingCode(digits);
+    pairingCode = code;
+    waStatus = "pairing";
+    qrBase64 = null;
+    console.log("[WA] Code couplage :", code);
+    res.json({ code });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/pairing-code", (_, res) => {
+  if (!pairingCode) return res.status(404).json({ error: "Pas de code actif" });
+  res.json({ code: pairingCode, status: waStatus });
 });
 
 app.post("/logout", async (_, res) => {

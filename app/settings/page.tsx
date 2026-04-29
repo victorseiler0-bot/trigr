@@ -27,7 +27,7 @@ const PROVIDERS: { strategy: "oauth_google" | "oauth_microsoft"; label: string; 
   },
 ];
 
-type WaStatus = "idle" | "connecting" | "qr" | "connected" | "error";
+type WaStatus = "idle" | "connecting" | "qr" | "pairing" | "connected" | "error";
 type AppleStatus = "idle" | "form" | "connecting" | "connected" | "error";
 
 // ── Row générique compte connecté ──────────────────────────────────────────────
@@ -77,6 +77,10 @@ export default function SettingsPage() {
   const [waQr, setWaQr] = useState<string | null>(null);
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const [waName, setWaName] = useState<string | null>(null);
+  const [waPairingCode, setWaPairingCode] = useState<string | null>(null);
+  const [waPhoneInput, setWaPhoneInput] = useState("");
+  const [waMode, setWaMode] = useState<"choose" | "qr" | "phone">("choose");
+  const [waError, setWaError] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Apple
@@ -104,26 +108,26 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn]);
 
-  // Poll WA when in connecting/qr state
+  // Poll WA when in connecting/qr/pairing state
   useEffect(() => {
-    if (waStatus !== "qr" && waStatus !== "connecting") {
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-      return;
-    }
+    const active = waStatus === "qr" || waStatus === "connecting" || waStatus === "pairing";
+    if (!active) { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } return; }
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       try {
         const d = await fetch(`${WA}/status`, { signal: AbortSignal.timeout(2000) }).then(r => r.json());
         if (d.status === "connected") {
           clearInterval(pollRef.current!); pollRef.current = null;
-          setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name); setWaQr(null);
-        } else if (d.status === "qr") {
+          setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name); setWaQr(null); setWaPairingCode(null);
+        } else if (d.status === "qr" && waMode === "qr") {
           setWaStatus("qr"); fetchQr();
+        } else if (d.pairingCode) {
+          setWaPairingCode(d.pairingCode);
         }
       } catch {}
     }, 2500);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-  }, [waStatus]);
+  }, [waStatus, waMode]);
 
   async function fetchQr() {
     try {
@@ -132,20 +136,37 @@ export default function SettingsPage() {
     } catch {}
   }
 
-  async function waConnect() {
-    setWaStatus("connecting"); setWaQr(null);
+  function waStartConnect() {
+    setWaMode("choose"); setWaStatus("idle"); setWaQr(null); setWaPairingCode(null); setWaError("");
+  }
+
+  async function waChooseQr() {
+    setWaMode("qr"); setWaStatus("connecting"); setWaQr(null); setWaError("");
     try {
       const d = await fetch(`${WA}/status`, { signal: AbortSignal.timeout(3000) }).then(r => r.json());
       if (d.status === "connected") { setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name); return; }
       if (d.status === "qr") { setWaStatus("qr"); fetchQr(); return; }
-      // disconnected → bridge auto-restarted after logout, just wait for QR
-    } catch { setWaStatus("error"); }
+    } catch {}
+  }
+
+  async function waRequestPairing() {
+    const digits = waPhoneInput.replace(/\D/g, "");
+    if (!digits) return;
+    setWaError(""); setWaMode("phone"); setWaStatus("pairing"); setWaPairingCode(null);
+    try {
+      const r = await fetch(`${WA}/pairing-code`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: digits }), signal: AbortSignal.timeout(15000),
+      });
+      const d = await r.json();
+      if (!r.ok) { setWaError(d.error ?? "Erreur"); setWaStatus("idle"); setWaMode("choose"); return; }
+      setWaPairingCode(d.code);
+    } catch (e) { setWaError((e as Error).message); setWaStatus("idle"); setWaMode("choose"); }
   }
 
   async function waDisconnect() {
     await fetch(`${WA}/logout`, { method: "POST" }).catch(() => {});
-    setWaStatus("connecting"); setWaQr(null); setWaPhone(null); setWaName(null);
-    // bridge restarts automatically and generates new QR in ~2s
+    setWaStatus("idle"); setWaMode("choose"); setWaQr(null); setWaPhone(null); setWaName(null); setWaPairingCode(null);
   }
 
   async function appleConnect() {
@@ -241,54 +262,136 @@ export default function SettingsPage() {
           <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">WhatsApp</h2>
           <p className="text-xs text-zinc-600 mb-5">Lis et envoie des messages WhatsApp depuis l'assistant.</p>
 
-          {waStatus === "connected" && (
-            <AccountRow
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.098.543 4.067 1.492 5.782L.057 23.249a.75.75 0 0 0 .917.932l5.578-1.461A11.942 11.942 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.659-.523-5.166-1.432l-.371-.222-3.852 1.009 1.026-3.744-.242-.386A9.945 9.945 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>}
-              label={waName ?? "WhatsApp"} subtitle={waPhone ? `+${waPhone}` : undefined}
-              connected={true} onConnect={() => {}} onDisconnect={waDisconnect}
-            />
-          )}
+          {/* WA icon helper */}
+          {(() => {
+            const WaIcon = ({ color = "#25D366" }: { color?: string }) => (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={color}>
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.098.543 4.067 1.492 5.782L.057 23.249a.75.75 0 0 0 .917.932l5.578-1.461A11.942 11.942 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.659-.523-5.166-1.432l-.371-.222-3.852 1.009 1.026-3.744-.242-.386A9.945 9.945 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+              </svg>
+            );
 
-          {(waStatus === "qr" || waStatus === "connecting") && (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-              <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                <p className="text-sm font-medium text-white">Scanne avec WhatsApp</p>
-                <button onClick={() => { setWaStatus("idle"); setWaQr(null); }} className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors">Annuler</button>
-              </div>
-              <div className="px-6 py-6 flex flex-col items-center gap-4">
-                {waQr ? (
-                  <>
-                    <div className="bg-white rounded-2xl p-3"><img src={waQr} alt="QR" className="w-48 h-48" /></div>
-                    <p className="text-xs text-zinc-500 text-center">WhatsApp → <span className="text-zinc-300">⋮</span> → Appareils liés → Lier un appareil</p>
-                    <div className="flex items-center gap-2 text-xs text-zinc-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                      En attente du scan — expire dans ~60s
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3 py-6">
-                    <div className="w-8 h-8 rounded-full border-2 border-zinc-600 border-t-[#25D366] animate-spin" />
-                    <p className="text-sm text-zinc-500">Génération du QR…</p>
-                  </div>
+            if (waStatus === "connected") return (
+              <AccountRow icon={<WaIcon />} label={waName ?? "WhatsApp"} subtitle={waPhone ? `+${waPhone}` : undefined}
+                connected={true} onConnect={() => {}} onDisconnect={waDisconnect} />
+            );
+
+            if (waStatus === "idle" || waStatus === "error") return (
+              <>
+                {waStatus === "error" && (
+                  <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-4 py-3 mb-3">
+                    Bridge inaccessible. Vérifie que pm2 tourne.
+                  </p>
                 )}
+                <AccountRow icon={<WaIcon color="#52525b" />} label="WhatsApp" subtitle="Messages · Contacts"
+                  connected={false} onConnect={waStartConnect} onDisconnect={() => {}} />
+              </>
+            );
+
+            // Choix de méthode
+            if (waStatus === "connecting" && waMode === "choose") return (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Connecter WhatsApp</p></div>
+                  <button onClick={() => setWaStatus("idle")} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
+                </div>
+                <div className="p-5 grid grid-cols-2 gap-3">
+                  <button onClick={waChooseQr}
+                    className="flex flex-col items-center gap-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-xl p-4 transition-colors text-center">
+                    <span className="text-2xl">📱</span>
+                    <p className="text-sm font-medium text-white">QR Code</p>
+                    <p className="text-xs text-zinc-500">Scanner avec ton téléphone</p>
+                  </button>
+                  <button onClick={() => setWaMode("phone")}
+                    className="flex flex-col items-center gap-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-xl p-4 transition-colors text-center">
+                    <span className="text-2xl">🔢</span>
+                    <p className="text-sm font-medium text-white">Code à 8 chiffres</p>
+                    <p className="text-xs text-zinc-500">Entrer ton numéro</p>
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
 
-          {waStatus === "error" && (
-            <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-4 py-3 mb-3">
-              Bridge inaccessible — assure-toi que pm2 tourne (<code className="font-mono">pm2 list</code>).
-            </p>
-          )}
+            // Mode numéro de téléphone
+            if (waMode === "phone" && waStatus !== "pairing") return (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Connexion par numéro</p></div>
+                  <button onClick={() => { setWaStatus("connecting"); setWaMode("choose"); }} className="text-xs text-zinc-600 hover:text-zinc-300">← Retour</button>
+                </div>
+                <div className="p-5 space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Ton numéro WhatsApp</label>
+                    <input type="tel" value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)}
+                      placeholder="+33 6 12 34 56 78" onKeyDown={e => e.key === "Enter" && waRequestPairing()}
+                      className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#25D366]/50 transition-all" />
+                  </div>
+                  {waError && <p className="text-xs text-red-400">{waError}</p>}
+                  <button onClick={waRequestPairing} disabled={!waPhoneInput}
+                    className="w-full bg-[#25D366] hover:bg-[#1fb855] disabled:opacity-40 text-black text-sm font-semibold py-2.5 rounded-xl transition-all">
+                    Recevoir le code →
+                  </button>
+                </div>
+              </div>
+            );
 
-          {waStatus === "idle" && (
-            <AccountRow
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="#52525b"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.098.543 4.067 1.492 5.782L.057 23.249a.75.75 0 0 0 .917.932l5.578-1.461A11.942 11.942 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.893 0-3.659-.523-5.166-1.432l-.371-.222-3.852 1.009 1.026-3.744-.242-.386A9.945 9.945 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>}
-              label="WhatsApp" subtitle="Messages · Contacts · Conversations"
-              connected={false} onConnect={waConnect} onDisconnect={() => {}}
-              connectLabel="Connecter"
-            />
-          )}
+            // Code de couplage affiché
+            if (waStatus === "pairing") return (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Entre ce code sur ton téléphone</p></div>
+                  <button onClick={() => { setWaStatus("idle"); setWaMode("choose"); setWaPairingCode(null); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
+                </div>
+                <div className="px-6 py-6 flex flex-col items-center gap-4">
+                  {waPairingCode ? (
+                    <>
+                      <div className="bg-[#25D366]/10 border border-[#25D366]/30 rounded-2xl px-8 py-4">
+                        <p className="text-3xl font-bold tracking-[0.25em] text-[#25D366] font-mono">{waPairingCode}</p>
+                      </div>
+                      <div className="text-center space-y-1">
+                        <p className="text-sm font-medium text-white">WhatsApp → Appareils liés</p>
+                        <p className="text-xs text-zinc-500">→ Lier avec un numéro de téléphone → entre ce code</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                        En attente de connexion…
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <div className="w-8 h-8 rounded-full border-2 border-zinc-600 border-t-[#25D366] animate-spin" />
+                      <p className="text-sm text-zinc-500">Génération du code…</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+
+            // QR mode
+            if (waStatus === "qr" || (waStatus === "connecting" && waMode === "qr")) return (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2"><WaIcon color="#25D366" /><p className="text-sm font-medium text-white">Scanne avec WhatsApp</p></div>
+                  <button onClick={() => { setWaStatus("idle"); setWaMode("choose"); setWaQr(null); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
+                </div>
+                <div className="px-6 py-6 flex flex-col items-center gap-4">
+                  {waQr ? (
+                    <>
+                      <div className="bg-white rounded-2xl p-3"><img src={waQr} alt="QR" className="w-48 h-48" /></div>
+                      <p className="text-xs text-zinc-500 text-center">WhatsApp → <span className="text-zinc-300">⋮</span> → Appareils liés → Lier un appareil</p>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-6">
+                      <div className="w-8 h-8 rounded-full border-2 border-zinc-600 border-t-[#25D366] animate-spin" />
+                      <p className="text-sm text-zinc-500">Chargement du QR…</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+
+            return null;
+          })()}
         </section>
 
         {/* Apple iCloud */}
