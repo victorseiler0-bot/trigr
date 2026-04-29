@@ -4,32 +4,21 @@ import Groq from "groq-sdk";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur, intégré à sa boîte Gmail et son Google Calendar.
+const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur.
 Tu réponds toujours en français, de manière concise et utile.
-Tu as accès aux outils suivants pour interagir avec les données réelles de l'utilisateur :
-- lire_emails : lire les emails Gmail
-- envoyer_email : envoyer un email
-- voir_agenda : voir l'agenda Google Calendar
-- creer_evenement : créer un événement
-
 Date et heure actuelles : ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-Quand tu utilises un outil, interprète les résultats et réponds naturellement à l'utilisateur.`;
 
-// ── Gmail helpers ──────────────────────────────────────────────────────────────
+Outils disponibles selon les connexions de l'utilisateur :
+- Google connecté : lire_emails, envoyer_email, voir_agenda, creer_evenement (Gmail + Google Calendar)
+- Microsoft connecté : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams (Outlook + Teams)
 
-async function gmailFetch(path: string, token: string, init: RequestInit = {}) {
-  const r = await fetch(`https://gmail.googleapis.com/gmail/v1${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
-  });
-  return r.json();
-}
+Quand tu utilises un outil, interprète les résultats et réponds naturellement.
+Si un outil échoue par manque de token, explique à l'utilisateur qu'il doit connecter le service.`;
 
-async function calendarFetch(path: string, token: string, init: RequestInit = {}) {
-  const r = await fetch(`https://www.googleapis.com/calendar/v3${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
-  });
+// ── Helpers fetch ─────────────────────────────────────────────────────────────
+
+async function gFetch(url: string, token: string, init: RequestInit = {}) {
+  const r = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers ?? {}) } });
   return r.json();
 }
 
@@ -41,189 +30,190 @@ function encodeBase64url(s: string) {
   return Buffer.from(s).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-// ── Tool execution ─────────────────────────────────────────────────────────────
+// ── Exécution des outils ───────────────────────────────────────────────────────
 
-async function executeTool(name: string, args: Record<string, unknown>, googleToken: string | null): Promise<string> {
-  if (!googleToken) return JSON.stringify({ error: "Pas de token Google. L'utilisateur doit se connecter avec Google." });
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  googleToken: string | null,
+  msToken: string | null
+): Promise<string> {
 
-  try {
-    if (name === "lire_emails") {
-      const q = (args.query as string) || "is:unread";
-      const max = (args.maxResults as number) || 8;
-      const list = await gmailFetch(`/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${max}`, googleToken);
-      if (!list.messages?.length) return JSON.stringify({ emails: [], message: "Aucun email trouvé." });
-
-      const emails = await Promise.all(
-        list.messages.slice(0, Math.min(max, 5)).map(async (m: { id: string }) => {
-          const msg = await gmailFetch(`/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, googleToken);
-          const headers: Array<{ name: string; value: string }> = msg.payload?.headers ?? [];
-          const get = (n: string) => headers.find((h) => h.name === n)?.value ?? "";
-          return { id: m.id, from: get("From"), subject: get("Subject"), date: get("Date"), snippet: msg.snippet };
-        })
-      );
-      return JSON.stringify({ emails, total: list.resultSizeEstimate });
-    }
-
-    if (name === "lire_email_detail") {
-      const id = args.id as string;
-      const msg = await gmailFetch(`/users/me/messages/${id}?format=full`, googleToken);
-      const headers: Array<{ name: string; value: string }> = msg.payload?.headers ?? [];
-      const get = (n: string) => headers.find((h) => h.name === n)?.value ?? "";
-
-      let body = "";
-      const parts = msg.payload?.parts ?? [msg.payload];
-      for (const part of parts) {
-        if (part?.mimeType === "text/plain" && part?.body?.data) {
-          body = decodeBase64(part.body.data);
-          break;
-        }
-      }
-      return JSON.stringify({ from: get("From"), subject: get("Subject"), date: get("Date"), body: body.slice(0, 3000) });
-    }
-
-    if (name === "envoyer_email") {
-      const { to, subject, body } = args as { to: string; subject: string; body: string };
-      const raw = encodeBase64url(
-        `To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`
-      );
-      const result = await gmailFetch("/users/me/messages/send", googleToken, {
-        method: "POST",
-        body: JSON.stringify({ raw }),
-      });
-      return result.id ? JSON.stringify({ success: true, messageId: result.id }) : JSON.stringify({ error: result });
-    }
-
-    if (name === "voir_agenda") {
-      const now = new Date();
-      const timeMin = (args.timeMin as string) || now.toISOString();
-      const timeMax = (args.timeMax as string) || new Date(now.getTime() + 7 * 86400000).toISOString();
-      const max = (args.maxResults as number) || 10;
-      const data = await calendarFetch(
-        `/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&maxResults=${max}&orderBy=startTime&singleEvents=true`,
-        googleToken
-      );
-      const events = (data.items ?? []).map((e: Record<string, unknown>) => {
-        const s = (e.start as Record<string, string>) ?? {};
-        const en = (e.end as Record<string, string>) ?? {};
-        return { summary: e.summary, start: s.dateTime ?? s.date, end: en.dateTime ?? en.date, location: e.location, description: e.description };
-      });
-      return JSON.stringify({ events, timezone: data.timeZone });
-    }
-
-    if (name === "creer_evenement") {
-      const { summary, start, end, description } = args as { summary: string; start: string; end: string; description?: string };
-      const event = {
-        summary,
-        description,
-        start: { dateTime: start, timeZone: "Europe/Paris" },
-        end: { dateTime: end, timeZone: "Europe/Paris" },
-      };
-      const result = await calendarFetch("/calendars/primary/events", googleToken, {
-        method: "POST",
-        body: JSON.stringify(event),
-      });
-      return result.id ? JSON.stringify({ success: true, eventId: result.id, link: result.htmlLink }) : JSON.stringify({ error: result });
-    }
-
-    return JSON.stringify({ error: `Outil inconnu : ${name}` });
-  } catch (err) {
-    return JSON.stringify({ error: String(err) });
+  // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
+  if (name === "lire_emails") {
+    if (!googleToken) return JSON.stringify({ error: "Connectez-vous avec Google pour accéder à Gmail." });
+    const q = (args.query as string) || "is:unread";
+    const max = (args.maxResults as number) || 8;
+    const list = await gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${max}`, googleToken);
+    if (!list.messages?.length) return JSON.stringify({ emails: [], message: "Aucun email trouvé." });
+    const emails = await Promise.all(list.messages.slice(0, 5).map(async (m: { id: string }) => {
+      const msg = await gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, googleToken);
+      const hdr: Array<{ name: string; value: string }> = msg.payload?.headers ?? [];
+      const h = (n: string) => hdr.find((x) => x.name === n)?.value ?? "";
+      return { id: m.id, from: h("From"), subject: h("Subject"), date: h("Date"), snippet: msg.snippet };
+    }));
+    return JSON.stringify({ emails, total: list.resultSizeEstimate });
   }
+
+  if (name === "envoyer_email") {
+    if (!googleToken) return JSON.stringify({ error: "Connectez-vous avec Google pour envoyer via Gmail." });
+    const { to, subject, body } = args as { to: string; subject: string; body: string };
+    const raw = encodeBase64url(`To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`);
+    const r = await gFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", googleToken, { method: "POST", body: JSON.stringify({ raw }) });
+    return r.id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r });
+  }
+
+  if (name === "voir_agenda") {
+    if (!googleToken) return JSON.stringify({ error: "Connectez-vous avec Google pour accéder à Google Calendar." });
+    const now = new Date();
+    const tMin = (args.timeMin as string) || now.toISOString();
+    const tMax = (args.timeMax as string) || new Date(now.getTime() + 7 * 86400000).toISOString();
+    const data = await gFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&maxResults=${(args.maxResults as number) || 10}&orderBy=startTime&singleEvents=true`, googleToken);
+    const events = (data.items ?? []).map((e: Record<string, unknown>) => {
+      const s = (e.start as Record<string, string>) ?? {};
+      const en = (e.end as Record<string, string>) ?? {};
+      return { summary: e.summary, start: s.dateTime ?? s.date, end: en.dateTime ?? en.date, location: e.location };
+    });
+    return JSON.stringify({ events });
+  }
+
+  if (name === "creer_evenement") {
+    if (!googleToken) return JSON.stringify({ error: "Connectez-vous avec Google pour créer des événements." });
+    const { summary, start, end, description } = args as { summary: string; start: string; end: string; description?: string };
+    const r = await gFetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", googleToken, {
+      method: "POST",
+      body: JSON.stringify({ summary, description, start: { dateTime: start, timeZone: "Europe/Paris" }, end: { dateTime: end, timeZone: "Europe/Paris" } }),
+    });
+    return r.id ? JSON.stringify({ success: true, link: r.htmlLink }) : JSON.stringify({ error: r });
+  }
+
+  // ─── Microsoft Outlook + Teams ────────────────────────────────────────────────
+  if (name === "lire_emails_outlook") {
+    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Outlook." });
+    const max = (args.maxResults as number) || 8;
+    const filter = (args.filter as string) || "isRead eq false";
+    const data = await gFetch(`https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$top=${max}&$select=subject,from,receivedDateTime,bodyPreview,isRead`, msToken);
+    const emails = (data.value ?? []).map((m: Record<string, unknown>) => ({
+      id: m.id,
+      subject: m.subject,
+      from: (m.from as Record<string, Record<string, string>>)?.emailAddress?.address,
+      date: m.receivedDateTime,
+      preview: m.bodyPreview,
+      read: m.isRead,
+    }));
+    return JSON.stringify({ emails, total: data["@odata.count"] });
+  }
+
+  if (name === "envoyer_email_outlook") {
+    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour envoyer via Outlook." });
+    const { to, subject, body } = args as { to: string; subject: string; body: string };
+    const message = {
+      message: {
+        subject,
+        body: { contentType: "Text", content: body },
+        toRecipients: [{ emailAddress: { address: to } }],
+      },
+    };
+    const r = await gFetch("https://graph.microsoft.com/v1.0/me/sendMail", msToken, {
+      method: "POST",
+      body: JSON.stringify(message),
+    });
+    return r?.error ? JSON.stringify({ error: r.error }) : JSON.stringify({ success: true });
+  }
+
+  if (name === "voir_agenda_outlook") {
+    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Outlook Calendar." });
+    const now = new Date();
+    const start = (args.startDateTime as string) || now.toISOString();
+    const end = (args.endDateTime as string) || new Date(now.getTime() + 7 * 86400000).toISOString();
+    const data = await gFetch(`https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(start)}&endDateTime=${encodeURIComponent(end)}&$top=${(args.maxResults as number) || 10}&$select=subject,start,end,location,organizer`, msToken);
+    const events = (data.value ?? []).map((e: Record<string, unknown>) => ({
+      subject: e.subject,
+      start: (e.start as Record<string, string>)?.dateTime,
+      end: (e.end as Record<string, string>)?.dateTime,
+      location: (e.location as Record<string, string>)?.displayName,
+      organizer: (e.organizer as Record<string, Record<string, string>>)?.emailAddress?.name,
+    }));
+    return JSON.stringify({ events });
+  }
+
+  if (name === "lire_teams") {
+    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Teams." });
+    const chats = await gFetch("https://graph.microsoft.com/v1.0/me/chats?$top=5&$expand=members", msToken);
+    const chatList = (chats.value ?? []).map((c: Record<string, unknown>) => ({
+      id: c.id,
+      topic: c.topic,
+      type: c.chatType,
+    }));
+    // Récupère les derniers messages du premier chat
+    if (chatList[0]?.id) {
+      const msgs = await gFetch(`https://graph.microsoft.com/v1.0/me/chats/${chatList[0].id}/messages?$top=5`, msToken);
+      const messages = (msgs.value ?? []).map((m: Record<string, unknown>) => ({
+        from: (m.from as Record<string, Record<string, string>>)?.user?.displayName,
+        content: (m.body as Record<string, string>)?.content?.replace(/<[^>]+>/g, "").trim(),
+        date: m.createdDateTime,
+      }));
+      return JSON.stringify({ chats: chatList, recentMessages: messages });
+    }
+    return JSON.stringify({ chats: chatList });
+  }
+
+  return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
-// ── Tool definitions for Groq ──────────────────────────────────────────────────
+// ── Définitions des outils pour Groq ──────────────────────────────────────────
 
-const TOOLS: Groq.Chat.ChatCompletionTool[] = [
-  {
-    type: "function",
-    function: {
-      name: "lire_emails",
-      description: "Lire les emails récents ou non lus de la boîte Gmail.",
-      parameters: {
-        type: "object" as const,
-        properties: {
-          maxResults: { type: "number", description: "Nombre max d'emails à récupérer (défaut 8)" },
-          query: { type: "string", description: "Filtre Gmail, ex: 'is:unread', 'from:boss@co.com'" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "envoyer_email",
-      description: "Envoyer un email via Gmail au nom de l'utilisateur.",
-      parameters: {
-        type: "object" as const,
-        properties: {
-          to: { type: "string", description: "Adresse email du destinataire" },
-          subject: { type: "string", description: "Sujet de l'email" },
-          body: { type: "string", description: "Corps de l'email en texte brut" },
-        },
-        required: ["to", "subject", "body"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "voir_agenda",
-      description: "Voir les événements Google Calendar de l'utilisateur.",
-      parameters: {
-        type: "object" as const,
-        properties: {
-          timeMin: { type: "string", description: "Date de début ISO 8601 (défaut: maintenant)" },
-          timeMax: { type: "string", description: "Date de fin ISO 8601 (défaut: +7 jours)" },
-          maxResults: { type: "number", description: "Nombre max d'événements (défaut 10)" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "creer_evenement",
-      description: "Créer un événement dans Google Calendar.",
-      parameters: {
-        type: "object" as const,
-        properties: {
-          summary: { type: "string", description: "Titre de l'événement" },
-          start: { type: "string", description: "Date/heure de début ISO 8601" },
-          end: { type: "string", description: "Date/heure de fin ISO 8601" },
-          description: { type: "string", description: "Description optionnelle" },
-        },
-        required: ["summary", "start", "end"],
-      },
-    },
-  },
-];
+function buildTools(hasGoogle: boolean, hasMicrosoft: boolean): Groq.Chat.ChatCompletionTool[] {
+  const tools: Groq.Chat.ChatCompletionTool[] = [];
 
-// ── Main handler ───────────────────────────────────────────────────────────────
+  if (hasGoogle) {
+    tools.push(
+      { type: "function", function: { name: "lire_emails", description: "Lire emails Gmail (non lus ou filtrés).", parameters: { type: "object" as const, properties: { maxResults: { type: "number" }, query: { type: "string" } } } } },
+      { type: "function", function: { name: "envoyer_email", description: "Envoyer un email via Gmail.", parameters: { type: "object" as const, properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["to", "subject", "body"] } } },
+      { type: "function", function: { name: "voir_agenda", description: "Voir Google Calendar.", parameters: { type: "object" as const, properties: { timeMin: { type: "string" }, timeMax: { type: "string" }, maxResults: { type: "number" } } } } },
+      { type: "function", function: { name: "creer_evenement", description: "Créer un événement Google Calendar.", parameters: { type: "object" as const, properties: { summary: { type: "string" }, start: { type: "string" }, end: { type: "string" }, description: { type: "string" } }, required: ["summary", "start", "end"] } } }
+    );
+  }
+
+  if (hasMicrosoft) {
+    tools.push(
+      { type: "function", function: { name: "lire_emails_outlook", description: "Lire emails Outlook/Office 365.", parameters: { type: "object" as const, properties: { maxResults: { type: "number" }, filter: { type: "string", description: "Filtre OData ex: 'isRead eq false'" } } } } },
+      { type: "function", function: { name: "envoyer_email_outlook", description: "Envoyer un email via Outlook.", parameters: { type: "object" as const, properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["to", "subject", "body"] } } },
+      { type: "function", function: { name: "voir_agenda_outlook", description: "Voir le calendrier Outlook.", parameters: { type: "object" as const, properties: { startDateTime: { type: "string" }, endDateTime: { type: "string" }, maxResults: { type: "number" } } } } },
+      { type: "function", function: { name: "lire_teams", description: "Lire les conversations Microsoft Teams récentes.", parameters: { type: "object" as const, properties: {} } } }
+    );
+  }
+
+  return tools;
+}
+
+// ── Handler principal ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
+  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   try {
     const body = await req.json();
     const message = String(body?.message ?? "").slice(0, 4000).trim();
     const history: Array<{ role: string; content: string }> = Array.isArray(body?.history) ? body.history.slice(-16) : [];
-
     if (!message) return NextResponse.json({ error: "Message vide." }, { status: 400 });
 
-    // Récupère le token Google
+    // Récupère les tokens OAuth
     let googleToken: string | null = null;
+    let msToken: string | null = null;
     try {
       const client = await clerkClient();
-      const { data } = await client.users.getUserOauthAccessToken(userId, "google");
-      googleToken = data[0]?.token ?? null;
-    } catch {
-      // pas de token Google
-    }
+      const [gData, mData] = await Promise.allSettled([
+        client.users.getUserOauthAccessToken(userId, "google"),
+        client.users.getUserOauthAccessToken(userId, "microsoft"),
+      ]);
+      if (gData.status === "fulfilled") googleToken = gData.value.data[0]?.token ?? null;
+      if (mData.status === "fulfilled") msToken = mData.value.data[0]?.token ?? null;
+    } catch { /* no tokens */ }
 
-    // Construit les messages
+    const tools = buildTools(!!googleToken, !!msToken);
+
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
       ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
@@ -235,8 +225,8 @@ export async function POST(req: NextRequest) {
       const completion = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages,
-        tools: googleToken ? TOOLS : undefined,
-        tool_choice: googleToken ? "auto" : undefined,
+        tools: tools.length > 0 ? tools : undefined,
+        tool_choice: tools.length > 0 ? "auto" : undefined,
         max_tokens: 1024,
         temperature: 0.3,
       });
@@ -248,13 +238,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ response: msg.content ?? "" });
       }
 
-      // Exécute les tools en parallèle
       messages.push(msg as Groq.Chat.ChatCompletionMessageParam);
       const toolResults = await Promise.all(
         msg.tool_calls.map(async (tc) => {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken);
+          const result = await executeTool(tc.function.name, args, googleToken, msToken);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
