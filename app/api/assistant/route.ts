@@ -12,9 +12,10 @@ Outils disponibles selon les connexions de l'utilisateur :
 - Google connecté : lire_emails, envoyer_email, voir_agenda, creer_evenement (Gmail + Google Calendar)
 - Microsoft connecté : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams (Outlook + Teams)
 - WhatsApp connecté : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp
+- Apple connecté : voir_calendrier_apple, creer_evenement_apple, voir_contacts_apple
 
 Quand tu utilises un outil, interprète les résultats et réponds naturellement.
-Si un outil échoue par manque de token ou connexion, explique à l'utilisateur qu'il doit connecter le service dans les Paramètres.`;
+Si un outil échoue, explique à l'utilisateur qu'il doit connecter le service dans les Paramètres.`;
 
 // ── WhatsApp bridge ────────────────────────────────────────────────────────────
 
@@ -186,6 +187,31 @@ async function executeTool(
     return JSON.stringify({ chats: chatList });
   }
 
+  // ─── Apple iCloud ─────────────────────────────────────────────────────────────
+  if (name === "voir_calendrier_apple") {
+    const apple = await waFetch("apple/status");
+    if (!apple?.configured) return JSON.stringify({ error: "Apple non configuré. Va dans Paramètres > Apple iCloud." });
+    const data = await waFetch("apple/calendar");
+    if (!data) return JSON.stringify({ error: "Impossible de récupérer le calendrier Apple." });
+    return JSON.stringify({ events: data.events });
+  }
+
+  if (name === "creer_evenement_apple") {
+    const apple = await waFetch("apple/status");
+    if (!apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
+    const { summary, start, end, location, description } = args as { summary: string; start: string; end: string; location?: string; description?: string };
+    const r = await waPost("apple/calendar/create", { summary, start, end, location, description });
+    return r?.ok ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur création" });
+  }
+
+  if (name === "voir_contacts_apple") {
+    const apple = await waFetch("apple/status");
+    if (!apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
+    const data = await waFetch("apple/contacts");
+    if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts Apple." });
+    return JSON.stringify({ contacts: data.contacts });
+  }
+
   // ─── WhatsApp ─────────────────────────────────────────────────────────────────
   if (name === "voir_chats_whatsapp") {
     const status = await waFetch("status");
@@ -238,7 +264,7 @@ async function executeTool(
 
 // ── Définitions des outils pour Groq ──────────────────────────────────────────
 
-function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean): Groq.Chat.ChatCompletionTool[] {
+function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasApple: boolean): Groq.Chat.ChatCompletionTool[] {
   const tools: Groq.Chat.ChatCompletionTool[] = [];
 
   if (hasGoogle) {
@@ -261,10 +287,18 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
 
   if (hasWhatsApp) {
     tools.push(
-      { type: "function", function: { name: "voir_chats_whatsapp", description: "Lister les conversations WhatsApp récentes (non lues en premier).", parameters: { type: "object" as const, properties: {} } } },
-      { type: "function", function: { name: "lire_messages_whatsapp", description: "Lire les messages d'une conversation WhatsApp par jid.", parameters: { type: "object" as const, properties: { jid: { type: "string", description: "Identifiant WhatsApp (ex: 33612345678@s.whatsapp.net)" }, limit: { type: "number" } } } } },
-      { type: "function", function: { name: "envoyer_whatsapp", description: "Envoyer un message WhatsApp.", parameters: { type: "object" as const, properties: { to: { type: "string", description: "Numéro ou jid du destinataire" }, message: { type: "string" } }, required: ["to", "message"] } } },
+      { type: "function", function: { name: "voir_chats_whatsapp", description: "Lister les conversations WhatsApp récentes.", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "lire_messages_whatsapp", description: "Lire les messages d'une conversation WhatsApp par jid.", parameters: { type: "object" as const, properties: { jid: { type: "string", description: "ex: 33612345678@s.whatsapp.net" }, limit: { type: "number" } } } } },
+      { type: "function", function: { name: "envoyer_whatsapp", description: "Envoyer un message WhatsApp.", parameters: { type: "object" as const, properties: { to: { type: "string", description: "Numéro ou jid" }, message: { type: "string" } }, required: ["to", "message"] } } },
       { type: "function", function: { name: "voir_contacts_whatsapp", description: "Lister les contacts WhatsApp.", parameters: { type: "object" as const, properties: {} } } }
+    );
+  }
+
+  if (hasApple) {
+    tools.push(
+      { type: "function", function: { name: "voir_calendrier_apple", description: "Voir les événements Apple Calendar des 14 prochains jours.", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "creer_evenement_apple", description: "Créer un événement dans Apple Calendar.", parameters: { type: "object" as const, properties: { summary: { type: "string" }, start: { type: "string", description: "ISO 8601 ex: 2026-04-30T10:00:00" }, end: { type: "string" }, location: { type: "string" }, description: { type: "string" } }, required: ["summary", "start", "end"] } } },
+      { type: "function", function: { name: "voir_contacts_apple", description: "Lister les contacts Apple (iCloud Contacts).", parameters: { type: "object" as const, properties: {} } } }
     );
   }
 
@@ -287,19 +321,22 @@ export async function POST(req: NextRequest) {
     let googleToken: string | null = null;
     let msToken: string | null = null;
     let hasWhatsApp = false;
+    let hasApple = false;
     try {
       const client = await clerkClient();
-      const [gData, mData, waData] = await Promise.allSettled([
+      const [gData, mData, waData, appleData] = await Promise.allSettled([
         client.users.getUserOauthAccessToken(userId, "google"),
         client.users.getUserOauthAccessToken(userId, "microsoft"),
         waFetch("status"),
+        waFetch("apple/status"),
       ]);
       if (gData.status === "fulfilled") googleToken = gData.value.data[0]?.token ?? null;
       if (mData.status === "fulfilled") msToken = mData.value.data[0]?.token ?? null;
       if (waData.status === "fulfilled") hasWhatsApp = waData.value?.status === "connected";
+      if (appleData.status === "fulfilled") hasApple = appleData.value?.configured === true;
     } catch { /* no tokens */ }
 
-    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp);
+    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple);
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },

@@ -77,6 +77,27 @@ const ALL_ACTIONS: Record<string, { category: string; icon: string; color: strin
       ],
     },
   ],
+  apple: [
+    {
+      category: "Calendrier Apple",
+      icon: "🍎",
+      color: "rose",
+      actions: [
+        { label: "Agenda iCloud", prompt: "Montre-moi mes événements Apple Calendar des prochains jours" },
+        { label: "Agenda aujourd'hui", prompt: "Qu'est-ce que j'ai dans mon calendrier Apple aujourd'hui ?" },
+        { label: "Créer un événement", prompt: "Aide-moi à créer un événement dans mon calendrier Apple" },
+      ],
+    },
+    {
+      category: "Contacts Apple",
+      icon: "👤",
+      color: "pink",
+      actions: [
+        { label: "Mes contacts", prompt: "Montre-moi mes contacts Apple" },
+        { label: "Chercher un contact", prompt: "Cherche un contact dans mes contacts Apple" },
+      ],
+    },
+  ],
   compose: [
     {
       category: "Rédiger",
@@ -112,6 +133,8 @@ const colorMap: Record<string, string> = {
   indigo: "border-indigo-500/20 bg-indigo-500/[0.05] hover:bg-indigo-500/[0.10] text-indigo-300",
   green:  "border-green-500/20 bg-green-500/[0.05] hover:bg-green-500/[0.10] text-green-300",
   teal:   "border-teal-500/20 bg-teal-500/[0.05] hover:bg-teal-500/[0.10] text-teal-300",
+  rose:   "border-rose-500/20 bg-rose-500/[0.05] hover:bg-rose-500/[0.10] text-rose-300",
+  pink:   "border-pink-500/20 bg-pink-500/[0.05] hover:bg-pink-500/[0.10] text-pink-300",
 };
 
 const badgeMap: Record<string, string> = {
@@ -123,6 +146,8 @@ const badgeMap: Record<string, string> = {
   indigo: "bg-indigo-500/10 text-indigo-400",
   green:  "bg-green-500/10 text-green-400",
   teal:   "bg-teal-500/10 text-teal-400",
+  rose:   "bg-rose-500/10 text-rose-400",
+  pink:   "bg-pink-500/10 text-pink-400",
 };
 
 const serviceLabel: Record<string, string> = {
@@ -140,6 +165,7 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
+  const [hasApple, setHasApple] = useState(false);
   const [newServices, setNewServices] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
   const prevServicesRef = useRef<Set<string>>(new Set());
@@ -149,14 +175,15 @@ export default function AssistantPage() {
   const providers = new Set(user?.externalAccounts?.map((a) => a.provider) ?? []);
   const hasGoogle = providers.has("google");
   const hasMicrosoft = providers.has("microsoft");
-  const hasAny = hasGoogle || hasMicrosoft || hasWhatsApp;
+  const hasAny = hasGoogle || hasMicrosoft || hasWhatsApp || hasApple;
 
   // Active services list
   const activeServices = [
     ...(hasGoogle ? ["google"] : []),
     ...(hasMicrosoft ? ["microsoft"] : []),
     ...(hasWhatsApp ? ["whatsapp"] : []),
-    ...((hasGoogle || hasMicrosoft || hasWhatsApp) ? ["compose"] : []),
+    ...(hasApple ? ["apple"] : []),
+    ...((hasGoogle || hasMicrosoft || hasWhatsApp || hasApple) ? ["compose"] : []),
   ];
 
   // Detect newly connected services → toast + "Nouveau" badge
@@ -183,13 +210,14 @@ export default function AssistantPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasGoogle, hasMicrosoft, hasWhatsApp]);
 
-  // Poll WhatsApp directly on localhost:3001 every 8s
+  // Poll bridge (WA + Apple) every 8s directly on localhost:3001
   useEffect(() => {
-    const check = () =>
+    const check = () => {
       fetch("http://localhost:3001/status", { signal: AbortSignal.timeout(2000) })
-        .then(r => r.json())
-        .then(d => setHasWhatsApp(d?.status === "connected"))
-        .catch(() => {});
+        .then(r => r.json()).then(d => setHasWhatsApp(d?.status === "connected")).catch(() => {});
+      fetch("http://localhost:3001/apple/status", { signal: AbortSignal.timeout(2000) })
+        .then(r => r.json()).then(d => setHasApple(d?.configured === true)).catch(() => {});
+    };
     check();
     const id = setInterval(check, 8000);
     return () => clearInterval(id);
@@ -201,6 +229,7 @@ export default function AssistantPage() {
     hasGoogle && "Gmail · Calendar",
     hasMicrosoft && "Outlook · Teams",
     hasWhatsApp && "WhatsApp",
+    hasApple && "iCloud",
   ].filter(Boolean).join(" · ") || "Aucun compte connecté";
 
   useEffect(() => {
