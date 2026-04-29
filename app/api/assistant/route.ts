@@ -11,9 +11,37 @@ Date et heure actuelles : ${new Date().toLocaleString("fr-FR", { timeZone: "Euro
 Outils disponibles selon les connexions de l'utilisateur :
 - Google connecté : lire_emails, envoyer_email, voir_agenda, creer_evenement (Gmail + Google Calendar)
 - Microsoft connecté : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams (Outlook + Teams)
+- WhatsApp connecté : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp
 
 Quand tu utilises un outil, interprète les résultats et réponds naturellement.
-Si un outil échoue par manque de token, explique à l'utilisateur qu'il doit connecter le service.`;
+Si un outil échoue par manque de token ou connexion, explique à l'utilisateur qu'il doit connecter le service dans les Paramètres.`;
+
+// ── WhatsApp bridge ────────────────────────────────────────────────────────────
+
+const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
+
+async function waFetch(path: string) {
+  try {
+    const r = await fetch(`${WA_BRIDGE}/${path}`, { signal: AbortSignal.timeout(5000) });
+    return r.ok ? r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function waPost(path: string, body: unknown) {
+  try {
+    const r = await fetch(`${WA_BRIDGE}/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
+    });
+    return r.ok ? r.json() : null;
+  } catch {
+    return null;
+  }
+}
 
 // ── Helpers fetch ─────────────────────────────────────────────────────────────
 
@@ -158,12 +186,59 @@ async function executeTool(
     return JSON.stringify({ chats: chatList });
   }
 
+  // ─── WhatsApp ─────────────────────────────────────────────────────────────────
+  if (name === "voir_chats_whatsapp") {
+    const status = await waFetch("status");
+    if (!status || status.status !== "connected") {
+      return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp pour connecter ton compte." });
+    }
+    const data = await waFetch("chats");
+    if (!data) return JSON.stringify({ error: "Impossible de récupérer les conversations." });
+    return JSON.stringify({ chats: data.chats });
+  }
+
+  if (name === "lire_messages_whatsapp") {
+    const status = await waFetch("status");
+    if (!status || status.status !== "connected") {
+      return JSON.stringify({ error: "WhatsApp non connecté." });
+    }
+    const { jid, limit } = args as { jid?: string; limit?: number };
+    if (!jid) {
+      const chats = await waFetch("chats");
+      return JSON.stringify({ chats: chats?.chats?.slice(0, 5), hint: "Précise un jid pour lire une conversation." });
+    }
+    const data = await waFetch(`messages/${encodeURIComponent(jid)}?limit=${limit ?? 20}`);
+    if (!data) return JSON.stringify({ error: "Conversation introuvable." });
+    return JSON.stringify({ messages: data.messages });
+  }
+
+  if (name === "envoyer_whatsapp") {
+    const status = await waFetch("status");
+    if (!status || status.status !== "connected") {
+      return JSON.stringify({ error: "WhatsApp non connecté." });
+    }
+    const { to, message } = args as { to: string; message: string };
+    if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
+    const r = await waPost("send", { to, message });
+    return r?.ok ? JSON.stringify({ success: true }) : JSON.stringify({ error: "Envoi échoué." });
+  }
+
+  if (name === "voir_contacts_whatsapp") {
+    const status = await waFetch("status");
+    if (!status || status.status !== "connected") {
+      return JSON.stringify({ error: "WhatsApp non connecté." });
+    }
+    const data = await waFetch("contacts");
+    if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts." });
+    return JSON.stringify({ contacts: data.contacts?.slice(0, 30) });
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
 // ── Définitions des outils pour Groq ──────────────────────────────────────────
 
-function buildTools(hasGoogle: boolean, hasMicrosoft: boolean): Groq.Chat.ChatCompletionTool[] {
+function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean): Groq.Chat.ChatCompletionTool[] {
   const tools: Groq.Chat.ChatCompletionTool[] = [];
 
   if (hasGoogle) {
@@ -184,6 +259,15 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean): Groq.Chat.ChatCo
     );
   }
 
+  if (hasWhatsApp) {
+    tools.push(
+      { type: "function", function: { name: "voir_chats_whatsapp", description: "Lister les conversations WhatsApp récentes (non lues en premier).", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "lire_messages_whatsapp", description: "Lire les messages d'une conversation WhatsApp par jid.", parameters: { type: "object" as const, properties: { jid: { type: "string", description: "Identifiant WhatsApp (ex: 33612345678@s.whatsapp.net)" }, limit: { type: "number" } } } } },
+      { type: "function", function: { name: "envoyer_whatsapp", description: "Envoyer un message WhatsApp.", parameters: { type: "object" as const, properties: { to: { type: "string", description: "Numéro ou jid du destinataire" }, message: { type: "string" } }, required: ["to", "message"] } } },
+      { type: "function", function: { name: "voir_contacts_whatsapp", description: "Lister les contacts WhatsApp.", parameters: { type: "object" as const, properties: {} } } }
+    );
+  }
+
   return tools;
 }
 
@@ -199,20 +283,23 @@ export async function POST(req: NextRequest) {
     const history: Array<{ role: string; content: string }> = Array.isArray(body?.history) ? body.history.slice(-16) : [];
     if (!message) return NextResponse.json({ error: "Message vide." }, { status: 400 });
 
-    // Récupère les tokens OAuth
+    // Récupère les tokens OAuth + statut WhatsApp
     let googleToken: string | null = null;
     let msToken: string | null = null;
+    let hasWhatsApp = false;
     try {
       const client = await clerkClient();
-      const [gData, mData] = await Promise.allSettled([
+      const [gData, mData, waData] = await Promise.allSettled([
         client.users.getUserOauthAccessToken(userId, "google"),
         client.users.getUserOauthAccessToken(userId, "microsoft"),
+        waFetch("status"),
       ]);
       if (gData.status === "fulfilled") googleToken = gData.value.data[0]?.token ?? null;
       if (mData.status === "fulfilled") msToken = mData.value.data[0]?.token ?? null;
+      if (waData.status === "fulfilled") hasWhatsApp = waData.value?.status === "connected";
     } catch { /* no tokens */ }
 
-    const tools = buildTools(!!googleToken, !!msToken);
+    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp);
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
