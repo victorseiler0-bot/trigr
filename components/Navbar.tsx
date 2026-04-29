@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const NAV_LINKS = [
   ["/#fonctions", "Fonctionnalités"],
   ["/#comment", "Comment ça marche"],
+  ["/marketplace", "Marketplace"],
   ["/#tarifs", "Tarifs"],
 ];
 

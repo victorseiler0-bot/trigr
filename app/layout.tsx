@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
 import "./globals.css";
 import CookieBanner from "@/components/CookieBanner";
 
@@ -25,11 +27,13 @@ async function detectLang(): Promise<string> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const lang = await detectLang();
   return (
-    <html lang={lang} className={inter.variable} suppressHydrationWarning>
-      <body className="font-sans antialiased" suppressHydrationWarning>
-        {children}
-        <CookieBanner />
-      </body>
-    </html>
+    <ClerkProvider localization={frFR}>
+      <html lang={lang} className={inter.variable} suppressHydrationWarning>
+        <body className="font-sans antialiased" suppressHydrationWarning>
+          {children}
+          <CookieBanner />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
