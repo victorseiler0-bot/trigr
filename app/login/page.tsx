@@ -30,6 +30,21 @@ export default function LoginPage() {
     }
   }
 
+  async function signInWithMicrosoft() {
+    setBusy(true);
+    setError("");
+    try {
+      await clerk.client.signIn.authenticateWithRedirect({
+        strategy: "oauth_microsoft",
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: "/assistant",
+      });
+    } catch (e: unknown) {
+      setError((e as Error)?.message ?? "Erreur Microsoft");
+      setBusy(false);
+    }
+  }
+
   async function sendCode() {
     if (!signIn || !email) return;
     setBusy(true);
@@ -98,6 +113,20 @@ export default function LoginPage() {
               <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
             </svg>
             {isBusy && step === "idle" ? "Connexion…" : "Continuer avec Google"}
+          </button>
+
+          <button
+            onClick={signInWithMicrosoft}
+            disabled={isBusy}
+            className="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all mt-3 disabled:opacity-60"
+          >
+            <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
+              <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+              <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+            </svg>
+            Continuer avec Microsoft
           </button>
 
           <div className="flex items-center gap-3 my-5">
