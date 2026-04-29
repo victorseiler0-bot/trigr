@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const QUICK_ACTIONS = [
+const GOOGLE_ACTIONS = [
   {
-    category: "Email",
+    category: "Gmail",
     icon: "✉️",
     color: "violet",
     actions: [
@@ -27,33 +29,58 @@ const QUICK_ACTIONS = [
       { label: "Prochaine réunion", prompt: "Quelle est ma prochaine réunion ?" },
     ],
   },
+];
+
+const MICROSOFT_ACTIONS = [
   {
-    category: "Rédiger",
-    icon: "✍️",
-    color: "emerald",
+    category: "Outlook",
+    icon: "📨",
+    color: "blue",
     actions: [
-      { label: "Composer un email", prompt: "Aide-moi à composer un email professionnel" },
-      { label: "Follow-up client", prompt: "Aide-moi à rédiger un email de suivi client" },
-      { label: "Décliner poliment", prompt: "Aide-moi à décliner poliment une invitation" },
+      { label: "Emails Outlook", prompt: "Montre-moi mes emails Outlook non lus" },
+      { label: "Résumé Outlook", prompt: "Fais-moi un résumé de mes emails Outlook importants" },
+      { label: "Calendrier Outlook", prompt: "Quel est mon agenda Outlook aujourd'hui ?" },
     ],
   },
   {
-    category: "Briefing",
-    icon: "⚡",
-    color: "amber",
+    category: "Teams",
+    icon: "💬",
+    color: "indigo",
     actions: [
-      { label: "Briefing du matin", prompt: "Donne-moi mon briefing du matin : emails non lus et agenda du jour" },
-      { label: "Résumé de journée", prompt: "Fais-moi un résumé de ma journée : qu'est-ce que j'ai accompli et qu'est-ce qui reste ?" },
-      { label: "Préparer demain", prompt: "Aide-moi à préparer ma journée de demain" },
+      { label: "Messages Teams", prompt: "Montre-moi mes derniers messages Teams" },
     ],
   },
 ];
+
+const COMPOSE_ACTIONS = {
+  category: "Rédiger",
+  icon: "✍️",
+  color: "emerald",
+  actions: [
+    { label: "Composer un email", prompt: "Aide-moi à composer un email professionnel" },
+    { label: "Follow-up client", prompt: "Aide-moi à rédiger un email de suivi client" },
+    { label: "Décliner poliment", prompt: "Aide-moi à décliner poliment une invitation" },
+  ],
+};
+
+const BRIEFING_ACTIONS = {
+  category: "Briefing",
+  icon: "⚡",
+  color: "amber",
+  actions: [
+    { label: "Briefing du matin", prompt: "Donne-moi mon briefing du matin : emails non lus et agenda du jour" },
+    { label: "Résumé de journée", prompt: "Fais-moi un résumé de ma journée" },
+    { label: "Préparer demain", prompt: "Aide-moi à préparer ma journée de demain" },
+  ],
+};
 
 const colorMap: Record<string, string> = {
   violet: "border-violet-500/20 bg-violet-500/[0.05] hover:bg-violet-500/[0.10] text-violet-300",
   cyan: "border-cyan-500/20 bg-cyan-500/[0.05] hover:bg-cyan-500/[0.10] text-cyan-300",
   emerald: "border-emerald-500/20 bg-emerald-500/[0.05] hover:bg-emerald-500/[0.10] text-emerald-300",
   amber: "border-amber-500/20 bg-amber-500/[0.05] hover:bg-amber-500/[0.10] text-amber-300",
+  blue: "border-blue-500/20 bg-blue-500/[0.05] hover:bg-blue-500/[0.10] text-blue-300",
+  indigo: "border-indigo-500/20 bg-indigo-500/[0.05] hover:bg-indigo-500/[0.10] text-indigo-300",
 };
 
 const badgeMap: Record<string, string> = {
@@ -61,14 +88,33 @@ const badgeMap: Record<string, string> = {
   cyan: "bg-cyan-500/10 text-cyan-400",
   emerald: "bg-emerald-500/10 text-emerald-400",
   amber: "bg-amber-500/10 text-amber-400",
+  blue: "bg-blue-500/10 text-blue-400",
+  indigo: "bg-indigo-500/10 text-indigo-400",
 };
 
 export default function AssistantPage() {
+  const { user } = useUser();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const providers = new Set(user?.externalAccounts?.map((a) => a.provider) ?? []);
+  const hasGoogle = providers.has("google");
+  const hasMicrosoft = providers.has("microsoft");
+  const hasAny = hasGoogle || hasMicrosoft;
+
+  const quickActions = [
+    ...(hasGoogle ? GOOGLE_ACTIONS : []),
+    ...(hasMicrosoft ? MICROSOFT_ACTIONS : []),
+    ...(hasAny ? [COMPOSE_ACTIONS, BRIEFING_ACTIONS] : []),
+  ];
+
+  const subtitle = [
+    hasGoogle && "Gmail · Google Calendar",
+    hasMicrosoft && "Outlook · Teams",
+  ].filter(Boolean).join(" · ") || "Aucun compte connecté";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -92,8 +138,7 @@ export default function AssistantPage() {
       if (!r.ok) throw new Error(data?.error || "Erreur");
       setMessages([...next, { role: "assistant", content: data.response || "(réponse vide)" }]);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erreur réseau";
-      setError(msg);
+      setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setLoading(false);
     }
@@ -107,19 +152,68 @@ export default function AssistantPage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-24 pb-8 flex flex-col">
 
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Assistant <span className="text-violet-400">IA</span>
-          </h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Gmail · Google Calendar · Actions automatiques
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Assistant <span className="text-violet-400">IA</span>
+            </h1>
+            <p className="text-sm text-zinc-500 mt-1">{subtitle}</p>
+          </div>
+          {hasAny && (
+            <div className="flex items-center gap-2 shrink-0 mt-1">
+              {hasGoogle && (
+                <span className="flex items-center gap-1.5 text-xs text-zinc-400 bg-white/[0.04] border border-white/[0.06] px-2.5 py-1 rounded-full">
+                  <svg width="12" height="12" viewBox="0 0 18 18" fill="none">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616Z" fill="#4285F4"/>
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+                    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+                  </svg>
+                  Google
+                </span>
+              )}
+              {hasMicrosoft && (
+                <span className="flex items-center gap-1.5 text-xs text-zinc-400 bg-white/[0.04] border border-white/[0.06] px-2.5 py-1 rounded-full">
+                  <svg width="12" height="12" viewBox="0 0 21 21" fill="none">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                  Microsoft
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
+        {/* Banner: no accounts connected */}
+        {!hasAny && !hasMessages && (
+          <div className="mb-6 flex items-start gap-3 bg-amber-500/[0.07] border border-amber-500/20 rounded-2xl px-5 py-4">
+            <div className="text-amber-400 mt-0.5 shrink-0">
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-300">Aucun compte connecté</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Connecte Google ou Microsoft pour que Trigr accède à tes emails, agenda et outils.
+              </p>
+            </div>
+            <Link
+              href="/settings"
+              className="shrink-0 text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-lg transition-all"
+            >
+              Connecter →
+            </Link>
+          </div>
+        )}
+
         {/* Welcome state: quick action grid */}
-        {!hasMessages && !loading && (
-          <div className="mb-6 grid grid-cols-2 gap-3">
-            {QUICK_ACTIONS.map((cat) => (
+        {!hasMessages && !loading && hasAny && (
+          <div className={`mb-6 grid gap-3 ${quickActions.length <= 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2"}`}>
+            {quickActions.map((cat) => (
               <div
                 key={cat.category}
                 className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2"
@@ -171,9 +265,9 @@ export default function AssistantPage() {
         )}
 
         {/* Quick actions bar when chat is active */}
-        {hasMessages && (
+        {hasMessages && quickActions.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-none">
-            {QUICK_ACTIONS.flatMap((cat) =>
+            {quickActions.flatMap((cat) =>
               cat.actions.slice(0, 1).map((a) => (
                 <button
                   key={a.label}
@@ -202,7 +296,7 @@ export default function AssistantPage() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Demande-moi n'importe quoi…"
+            placeholder={hasAny ? "Demande-moi n'importe quoi…" : "Connecte un compte pour commencer…"}
             disabled={loading}
             className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-violet-500/60 focus:outline-none rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 transition-colors"
           />
@@ -215,7 +309,6 @@ export default function AssistantPage() {
           </button>
         </form>
 
-        {/* Reset */}
         {hasMessages && (
           <button
             onClick={() => setMessages([])}

@@ -55,9 +55,19 @@ export default function SettingsPage() {
     setBusy(strategy);
     setError("");
     try {
+      const additionalScopes = strategy === "oauth_microsoft"
+        ? [
+            "https://graph.microsoft.com/Mail.ReadWrite",
+            "https://graph.microsoft.com/Mail.Send",
+            "https://graph.microsoft.com/Calendars.ReadWrite",
+            "https://graph.microsoft.com/Chat.Read",
+            "offline_access",
+          ]
+        : undefined;
       await user!.createExternalAccount({
         strategy,
         redirectUrl: `${window.location.origin}/settings/sso-callback`,
+        ...(additionalScopes ? { additionalScopes } : {}),
       });
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Erreur connexion");
