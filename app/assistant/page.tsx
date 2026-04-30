@@ -244,14 +244,76 @@ export default function AssistantPage() {
     setMessages(next);
     setInput("");
     setLoading(true);
+
+    // Pré-récupère les données du bridge local (le serveur Vercel ne peut pas atteindre localhost:3001)
+    const bridgeData: Record<string, unknown> = {};
+    try {
+      if (hasWhatsApp) {
+        const [chats, contacts] = await Promise.allSettled([
+          fetch("http://localhost:3001/chats", { signal: AbortSignal.timeout(3000) }).then(r => r.json()),
+          fetch("http://localhost:3001/contacts", { signal: AbortSignal.timeout(3000) }).then(r => r.json()),
+        ]);
+        const chatList = chats.status === "fulfilled" ? (chats.value?.chats ?? []) : [];
+        // Récupère les messages des 5 dernières conversations
+        const messagesMap: Record<string, unknown[]> = {};
+        await Promise.allSettled(chatList.slice(0, 5).map(async (chat: { id?: string }) => {
+          if (chat.id) {
+            try {
+              const m = await fetch(`http://localhost:3001/messages/${encodeURIComponent(chat.id)}?limit=15`, { signal: AbortSignal.timeout(3000) }).then(r => r.json());
+              if (m?.messages) messagesMap[chat.id] = m.messages;
+            } catch {}
+          }
+        }));
+        bridgeData.wa = {
+          connected: true,
+          chats: chatList,
+          contacts: contacts.status === "fulfilled" ? (contacts.value?.contacts ?? []) : [],
+          messages: messagesMap,
+        };
+      }
+      if (hasApple) {
+        const [calendar, contacts] = await Promise.allSettled([
+          fetch("http://localhost:3001/apple/calendar", { signal: AbortSignal.timeout(5000) }).then(r => r.json()),
+          fetch("http://localhost:3001/apple/contacts", { signal: AbortSignal.timeout(5000) }).then(r => r.json()),
+        ]);
+        bridgeData.apple = {
+          configured: true,
+          calendar: calendar.status === "fulfilled" ? (calendar.value?.events ?? []) : [],
+          contacts: contacts.status === "fulfilled" ? (contacts.value?.contacts ?? []) : [],
+        };
+      }
+    } catch {}
+
     try {
       const r = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),
+        body: JSON.stringify({ message: trimmed, history: next.slice(0, -1), bridgeData }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.error || "Erreur");
+
+      // Exécute les actions qui nécessitent le bridge local (envois WA, création événements Apple)
+      if (Array.isArray(data.clientActions) && data.clientActions.length > 0) {
+        await Promise.allSettled(data.clientActions.map(async (action: { type: string; to?: string; message?: string; event?: Record<string, unknown> }) => {
+          if (action.type === "send_whatsapp" && action.to && action.message) {
+            await fetch("http://localhost:3001/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ to: action.to, message: action.message }),
+              signal: AbortSignal.timeout(5000),
+            });
+          } else if (action.type === "create_apple_event" && action.event) {
+            await fetch("http://localhost:3001/apple/calendar/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(action.event),
+              signal: AbortSignal.timeout(5000),
+            });
+          }
+        }));
+      }
+
       setMessages([...next, { role: "assistant", content: data.response || "(réponse vide)" }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");

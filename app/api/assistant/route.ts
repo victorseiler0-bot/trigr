@@ -59,13 +59,26 @@ function encodeBase64url(s: string) {
   return Buffer.from(s).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+// ── Types bridgeData ──────────────────────────────────────────────────────────
+
+type BridgeData = {
+  wa?: { connected: boolean; chats?: unknown[]; contacts?: unknown[]; messages?: Record<string, unknown[]> };
+  apple?: { configured: boolean; calendar?: unknown[]; contacts?: unknown[] };
+};
+
+type ClientAction =
+  | { type: "send_whatsapp"; to: string; message: string }
+  | { type: "create_apple_event"; event: Record<string, unknown> };
+
 // ── Exécution des outils ───────────────────────────────────────────────────────
 
 async function executeTool(
   name: string,
   args: Record<string, unknown>,
   googleToken: string | null,
-  msToken: string | null
+  msToken: string | null,
+  bridgeData: BridgeData,
+  clientActions: ClientAction[]
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -187,73 +200,69 @@ async function executeTool(
     return JSON.stringify({ chats: chatList });
   }
 
-  // ─── Apple iCloud ─────────────────────────────────────────────────────────────
+  // ─── Apple iCloud (données pré-récupérées par le client) ────────────────────
   if (name === "voir_calendrier_apple") {
-    const apple = await waFetch("apple/status");
-    if (!apple?.configured) return JSON.stringify({ error: "Apple non configuré. Va dans Paramètres > Apple iCloud." });
+    if (!bridgeData.apple?.configured) return JSON.stringify({ error: "Apple non configuré. Va dans Paramètres > Apple iCloud." });
+    if (bridgeData.apple.calendar?.length !== undefined) return JSON.stringify({ events: bridgeData.apple.calendar });
     const data = await waFetch("apple/calendar");
     if (!data) return JSON.stringify({ error: "Impossible de récupérer le calendrier Apple." });
     return JSON.stringify({ events: data.events });
   }
 
   if (name === "creer_evenement_apple") {
-    const apple = await waFetch("apple/status");
-    if (!apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
+    if (!bridgeData.apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
     const { summary, start, end, location, description } = args as { summary: string; start: string; end: string; location?: string; description?: string };
-    const r = await waPost("apple/calendar/create", { summary, start, end, location, description });
-    return r?.ok ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur création" });
+    // Action exécutée côté client (le bridge est local)
+    clientActions.push({ type: "create_apple_event", event: { summary, start, end, location, description } });
+    return JSON.stringify({ success: true, message: "Événement créé dans Apple Calendar." });
   }
 
   if (name === "voir_contacts_apple") {
-    const apple = await waFetch("apple/status");
-    if (!apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
+    if (!bridgeData.apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
+    if (bridgeData.apple.contacts?.length !== undefined) return JSON.stringify({ contacts: bridgeData.apple.contacts });
     const data = await waFetch("apple/contacts");
     if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts Apple." });
     return JSON.stringify({ contacts: data.contacts });
   }
 
-  // ─── WhatsApp ─────────────────────────────────────────────────────────────────
+  // ─── WhatsApp (données pré-récupérées par le client) ──────────────────────
   if (name === "voir_chats_whatsapp") {
-    const status = await waFetch("status");
-    if (!status || status.status !== "connected") {
-      return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp pour connecter ton compte." });
-    }
+    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp pour connecter ton compte." });
+    if (bridgeData.wa.chats) return JSON.stringify({ chats: bridgeData.wa.chats });
     const data = await waFetch("chats");
     if (!data) return JSON.stringify({ error: "Impossible de récupérer les conversations." });
     return JSON.stringify({ chats: data.chats });
   }
 
   if (name === "lire_messages_whatsapp") {
-    const status = await waFetch("status");
-    if (!status || status.status !== "connected") {
-      return JSON.stringify({ error: "WhatsApp non connecté." });
-    }
+    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { jid, limit } = args as { jid?: string; limit?: number };
     if (!jid) {
-      const chats = await waFetch("chats");
-      return JSON.stringify({ chats: chats?.chats?.slice(0, 5), hint: "Précise un jid pour lire une conversation." });
+      return JSON.stringify({ chats: (bridgeData.wa.chats ?? []).slice(0, 5), hint: "Précise un jid pour lire une conversation." });
     }
+    // Cherche dans les messages pré-récupérés
+    if (bridgeData.wa.messages?.[jid]) {
+      const msgs = bridgeData.wa.messages[jid].slice(0, limit ?? 20);
+      return JSON.stringify({ messages: msgs });
+    }
+    // Fallback vers bridge (fonctionne en développement local)
     const data = await waFetch(`messages/${encodeURIComponent(jid)}?limit=${limit ?? 20}`);
-    if (!data) return JSON.stringify({ error: "Conversation introuvable." });
+    if (!data) return JSON.stringify({ error: "Conversation introuvable ou bridge inaccessible." });
     return JSON.stringify({ messages: data.messages });
   }
 
   if (name === "envoyer_whatsapp") {
-    const status = await waFetch("status");
-    if (!status || status.status !== "connected") {
-      return JSON.stringify({ error: "WhatsApp non connecté." });
-    }
+    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { to, message } = args as { to: string; message: string };
     if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
-    const r = await waPost("send", { to, message });
-    return r?.ok ? JSON.stringify({ success: true }) : JSON.stringify({ error: "Envoi échoué." });
+    // Action exécutée côté client (le bridge est local)
+    clientActions.push({ type: "send_whatsapp", to, message });
+    return JSON.stringify({ success: true, message: "Message WhatsApp envoyé." });
   }
 
   if (name === "voir_contacts_whatsapp") {
-    const status = await waFetch("status");
-    if (!status || status.status !== "connected") {
-      return JSON.stringify({ error: "WhatsApp non connecté." });
-    }
+    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (bridgeData.wa.contacts) return JSON.stringify({ contacts: (bridgeData.wa.contacts as unknown[]).slice(0, 30) });
     const data = await waFetch("contacts");
     if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts." });
     return JSON.stringify({ contacts: data.contacts?.slice(0, 30) });
@@ -315,25 +324,24 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const message = String(body?.message ?? "").slice(0, 4000).trim();
     const history: Array<{ role: string; content: string }> = Array.isArray(body?.history) ? body.history.slice(-16) : [];
+    const bridgeData: BridgeData = body?.bridgeData ?? {};
     if (!message) return NextResponse.json({ error: "Message vide." }, { status: 400 });
 
-    // Récupère les tokens OAuth + statut WhatsApp
+    // Utilise les flags WA/Apple pré-vérifiés par le client (le bridge est local, inatteignable depuis Vercel)
+    const hasWhatsApp = bridgeData.wa?.connected === true;
+    const hasApple = bridgeData.apple?.configured === true;
+
+    // Récupère les tokens OAuth Google + Microsoft
     let googleToken: string | null = null;
     let msToken: string | null = null;
-    let hasWhatsApp = false;
-    let hasApple = false;
     try {
       const client = await clerkClient();
-      const [gData, mData, waData, appleData] = await Promise.allSettled([
+      const [gData, mData] = await Promise.allSettled([
         client.users.getUserOauthAccessToken(userId, "google"),
         client.users.getUserOauthAccessToken(userId, "microsoft"),
-        waFetch("status"),
-        waFetch("apple/status"),
       ]);
       if (gData.status === "fulfilled") googleToken = gData.value.data[0]?.token ?? null;
       if (mData.status === "fulfilled") msToken = mData.value.data[0]?.token ?? null;
-      if (waData.status === "fulfilled") hasWhatsApp = waData.value?.status === "connected";
-      if (appleData.status === "fulfilled") hasApple = appleData.value?.configured === true;
     } catch { /* no tokens */ }
 
     const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple);
@@ -343,6 +351,8 @@ export async function POST(req: NextRequest) {
       ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: message },
     ];
+
+    const clientActions: ClientAction[] = [];
 
     // Boucle tool-calling (max 5 tours)
     for (let i = 0; i < 5; i++) {
@@ -359,7 +369,7 @@ export async function POST(req: NextRequest) {
       const msg = choice.message;
 
       if (!msg.tool_calls?.length || choice.finish_reason === "stop") {
-        return NextResponse.json({ response: msg.content ?? "" });
+        return NextResponse.json({ response: msg.content ?? "", clientActions });
       }
 
       messages.push(msg as Groq.Chat.ChatCompletionMessageParam);
@@ -367,14 +377,14 @@ export async function POST(req: NextRequest) {
         msg.tool_calls.map(async (tc) => {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken, msToken);
+          const result = await executeTool(tc.function.name, args, googleToken, msToken, bridgeData, clientActions);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
       messages.push(...toolResults);
     }
 
-    return NextResponse.json({ response: "Désolé, je n'ai pas pu terminer cette action." });
+    return NextResponse.json({ response: "Désolé, je n'ai pas pu terminer cette action.", clientActions });
   } catch (err) {
     console.error("[assistant]", err);
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });

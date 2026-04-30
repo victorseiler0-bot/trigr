@@ -83,8 +83,8 @@ export default function SettingsPage() {
   const [waError, setWaError] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Apple
-  const [appleStatus, setAppleStatus] = useState<AppleStatus>("idle");
+  // Apple — formulaire visible par défaut, remplacé par "connected" si déjà configuré
+  const [appleStatus, setAppleStatus] = useState<AppleStatus>("form");
   const [appleUser, setAppleUser] = useState<string | null>(null);
   const [appleId, setAppleId] = useState("");
   const [applePwd, setApplePwd] = useState("");
@@ -99,12 +99,20 @@ export default function SettingsPage() {
       .then(r => r.json()).then(d => {
         if (d.status === "connected") { setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name); }
         else if (d.status === "qr") { setWaStatus("qr"); fetchQr(); }
-        else if (d.status === "connecting") setWaStatus("connecting");
-      }).catch(() => {});
+        else {
+          // Bridge accessible mais non connecté → démarrer QR directement
+          setWaMode("qr"); setWaStatus("connecting");
+        }
+      }).catch(() => {
+        // Bridge inaccessible → garder "idle" pour montrer bouton Connecter
+      });
     fetch(`${WA}/apple/status`, { signal: AbortSignal.timeout(2000) })
       .then(r => r.json()).then(d => {
         if (d.configured) { setAppleStatus("connected"); setAppleUser(d.username); }
-      }).catch(() => {});
+        // Sinon reste "form" (état initial)
+      }).catch(() => {
+        // Bridge inaccessible → garde "form" pour montrer le formulaire
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn]);
 
@@ -379,8 +387,8 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <button onClick={() => { setWaMode("phone"); setWaStatus("connecting"); }}
-                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mt-1">
-                    Tu ne peux pas scanner ? → Utiliser un code à 8 chiffres
+                    className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors underline underline-offset-2 mt-1">
+                    Par numéro de téléphone
                   </button>
                 </div>
               </div>
@@ -400,6 +408,7 @@ export default function SettingsPage() {
           </div>
           <p className="text-xs text-zinc-600 mb-5">Connecte iCloud pour accéder à ton Calendrier et tes Contacts Apple.</p>
 
+          {/* Apple — connecté */}
           {appleStatus === "connected" && (
             <AccountRow
               icon={<svg width="20" height="20" viewBox="0 0 814 1000" fill="white"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>}
@@ -408,39 +417,7 @@ export default function SettingsPage() {
             />
           )}
 
-          {appleStatus === "form" && (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-              <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                <p className="text-sm font-medium text-white">Connexion iCloud</p>
-                <button onClick={() => { setAppleStatus("idle"); setAppleError(""); }} className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors">Annuler</button>
-              </div>
-              <div className="p-5 space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Apple ID</label>
-                  <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
-                    placeholder="prenom@icloud.com"
-                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Mot de passe d'app spécifique</label>
-                  <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
-                    placeholder="xxxx-xxxx-xxxx-xxxx"
-                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all" />
-                  <p className="text-xs text-zinc-600 mt-1.5">
-                    Génère-le sur{" "}
-                    <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">appleid.apple.com</a>
-                    {" "}→ Sécurité → Mots de passe spécifiques aux apps
-                  </p>
-                </div>
-                {appleError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{appleError}</p>}
-                <button onClick={appleConnect} disabled={!appleId || !applePwd}
-                  className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition-all">
-                  Connecter iCloud →
-                </button>
-              </div>
-            </div>
-          )}
-
+          {/* Apple — vérification */}
           {appleStatus === "connecting" && (
             <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-4">
               <div className="w-5 h-5 rounded-full border-2 border-zinc-600 border-t-white animate-spin shrink-0" />
@@ -448,61 +425,38 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {(appleStatus === "idle" || appleStatus === "form") && (
+          {/* Apple — formulaire identifiants (visible par défaut) */}
+          {appleStatus === "form" && (
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-              {appleStatus === "idle" ? (
-                <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <svg width="20" height="20" viewBox="0 0 814 1000" fill="#52525b"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>
-                    <div>
-                      <p className="text-sm font-medium text-white">Apple iCloud</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">Calendrier · Contacts · Rappels</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setAppleStatus("form")}
-                    className="flex items-center gap-1.5 text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-all">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
-                    Connecter
-                  </button>
+              <div className="px-4 py-3.5 flex items-center gap-2 border-b border-white/[0.06]">
+                <svg width="16" height="16" viewBox="0 0 814 1000" fill="white"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>
+                <p className="text-sm font-medium text-white">Connexion Apple iCloud</p>
+              </div>
+              <div className="p-5 space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Apple ID</label>
+                  <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
+                    placeholder="prenom@icloud.com" autoFocus
+                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all" />
                 </div>
-              ) : (
-                <>
-                  <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                    <div className="flex items-center gap-2">
-                      <svg width="18" height="18" viewBox="0 0 814 1000" fill="white"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.8 103.8-317.5 200.7-317.5 58.4 0 106.9 41.7 142.9 41.7 34.4 0 88.9-44.2 159.3-44.2 25.4 0 127.3 2.3 197.4 112.4zm-166.3-142.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>
-                      <p className="text-sm font-medium text-white">Connexion iCloud</p>
-                    </div>
-                    <button onClick={() => { setAppleStatus("idle"); setAppleError(""); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
-                  </div>
-                  <div className="p-5 space-y-3">
-                    <div>
-                      <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Apple ID</label>
-                      <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
-                        placeholder="prenom@icloud.com" autoFocus
-                        className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
-                        Mot de passe d'app spécifique
-                        <a href="https://appleid.apple.com" target="_blank" rel="noreferrer"
-                          className="ml-2 text-violet-400 hover:underline font-normal">
-                          Générer sur appleid.apple.com →
-                        </a>
-                      </label>
-                      <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
-                        placeholder="xxxx-xxxx-xxxx-xxxx"
-                        onKeyDown={e => e.key === "Enter" && appleConnect()}
-                        className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all font-mono" />
-                      <p className="text-xs text-zinc-600 mt-1.5">Sécurité → Mots de passe spécifiques → + → nomme-le "Trigr"</p>
-                    </div>
-                    {appleError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{appleError}</p>}
-                    <button onClick={appleConnect} disabled={!appleId || !applePwd}
-                      className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2">
-                      {"Connecter iCloud →"}
-                    </button>
-                  </div>
-                </>
-              )}
+                <div>
+                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
+                    Mot de passe d'app spécifique
+                    <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="ml-2 text-violet-400 hover:underline font-normal normal-case">
+                      Générer →
+                    </a>
+                  </label>
+                  <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
+                    placeholder="xxxx-xxxx-xxxx-xxxx" onKeyDown={e => e.key === "Enter" && appleConnect()}
+                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all font-mono" />
+                  <p className="text-xs text-zinc-600 mt-1.5">appleid.apple.com → Sécurité → Mots de passe spécifiques → <span className="text-zinc-400">+</span> → "Trigr"</p>
+                </div>
+                {appleError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{appleError}</p>}
+                <button onClick={appleConnect} disabled={!appleId || !applePwd}
+                  className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition-all">
+                  Connecter iCloud →
+                </button>
+              </div>
             </div>
           )}
         </section>
