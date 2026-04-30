@@ -210,12 +210,12 @@ export default function AssistantPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasGoogle, hasMicrosoft, hasWhatsApp]);
 
-  // Poll bridge (WA + Apple) every 8s directly on localhost:3001
+  // Poll bridge (WA + Apple) every 8s via proxy /api/bridge
   useEffect(() => {
     const check = () => {
-      fetch("http://localhost:3001/status", { signal: AbortSignal.timeout(2000) })
+      fetch("/api/bridge/status", { signal: AbortSignal.timeout(3000) })
         .then(r => r.json()).then(d => setHasWhatsApp(d?.status === "connected")).catch(() => {});
-      fetch("http://localhost:3001/apple/status", { signal: AbortSignal.timeout(2000) })
+      fetch("/api/bridge/apple/status", { signal: AbortSignal.timeout(3000) })
         .then(r => r.json()).then(d => setHasApple(d?.configured === true)).catch(() => {});
     };
     check();
@@ -245,21 +245,20 @@ export default function AssistantPage() {
     setInput("");
     setLoading(true);
 
-    // Pré-récupère les données du bridge local (le serveur Vercel ne peut pas atteindre localhost:3001)
+    // Pré-récupère les données via le proxy /api/bridge (évite les problèmes HTTPS→HTTP)
     const bridgeData: Record<string, unknown> = {};
     try {
       if (hasWhatsApp) {
         const [chats, contacts] = await Promise.allSettled([
-          fetch("http://localhost:3001/chats", { signal: AbortSignal.timeout(3000) }).then(r => r.json()),
-          fetch("http://localhost:3001/contacts", { signal: AbortSignal.timeout(3000) }).then(r => r.json()),
+          fetch("/api/bridge/chats", { signal: AbortSignal.timeout(4000) }).then(r => r.json()),
+          fetch("/api/bridge/contacts", { signal: AbortSignal.timeout(4000) }).then(r => r.json()),
         ]);
         const chatList = chats.status === "fulfilled" ? (chats.value?.chats ?? []) : [];
-        // Récupère les messages des 5 dernières conversations
         const messagesMap: Record<string, unknown[]> = {};
         await Promise.allSettled(chatList.slice(0, 5).map(async (chat: { id?: string }) => {
           if (chat.id) {
             try {
-              const m = await fetch(`http://localhost:3001/messages/${encodeURIComponent(chat.id)}?limit=15`, { signal: AbortSignal.timeout(3000) }).then(r => r.json());
+              const m = await fetch(`/api/bridge/messages/${encodeURIComponent(chat.id)}?limit=15`, { signal: AbortSignal.timeout(4000) }).then(r => r.json());
               if (m?.messages) messagesMap[chat.id] = m.messages;
             } catch {}
           }
@@ -273,8 +272,8 @@ export default function AssistantPage() {
       }
       if (hasApple) {
         const [calendar, contacts] = await Promise.allSettled([
-          fetch("http://localhost:3001/apple/calendar", { signal: AbortSignal.timeout(5000) }).then(r => r.json()),
-          fetch("http://localhost:3001/apple/contacts", { signal: AbortSignal.timeout(5000) }).then(r => r.json()),
+          fetch("/api/bridge/apple/calendar", { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+          fetch("/api/bridge/apple/contacts", { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
         ]);
         bridgeData.apple = {
           configured: true,
@@ -297,14 +296,14 @@ export default function AssistantPage() {
       if (Array.isArray(data.clientActions) && data.clientActions.length > 0) {
         await Promise.allSettled(data.clientActions.map(async (action: { type: string; to?: string; message?: string; event?: Record<string, unknown> }) => {
           if (action.type === "send_whatsapp" && action.to && action.message) {
-            await fetch("http://localhost:3001/send", {
+            await fetch("/api/bridge/send", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ to: action.to, message: action.message }),
               signal: AbortSignal.timeout(5000),
             });
           } else if (action.type === "create_apple_event" && action.event) {
-            await fetch("http://localhost:3001/apple/calendar/create", {
+            await fetch("/api/bridge/apple/calendar/create", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(action.event),

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-const WA = "http://localhost:3001";
+const WA = "/api/bridge";
 
 const PROVIDERS: { strategy: "oauth_google" | "oauth_microsoft"; label: string; icon: React.ReactNode }[] = [
   {
