@@ -48,7 +48,10 @@ function scheduleSave() {
 let sock = null;
 let qrBase64 = null;
 let waStatus = "disconnected";
-const { contacts, chats, messages } = loadWaData();
+const loaded = loadWaData();
+const contacts = loaded.contacts;
+const chats = loaded.chats;
+const messages = loaded.messages;
 
 function upsertContact(c) {
   if (!c?.id) return;
@@ -72,6 +75,10 @@ function upsertChat(c) {
   scheduleSave();
 }
 
+function getContactName(jid) {
+  return contacts[jid]?.name ?? jid?.split("@")[0] ?? "?";
+}
+
 function storeMessage(jid, m) {
   if (!jid) return;
   const text =
@@ -83,13 +90,11 @@ function storeMessage(jid, m) {
   messages[jid].push({
     id: m.key.id,
     fromMe: m.key.fromMe ?? false,
-    from: m.key.fromMe ? "Moi" : (contacts[m.key.remoteJid]?.name ?? m.key.remoteJid?.split("@")[0] ?? "?"),
+    from: m.key.fromMe ? "Moi" : getContactName(m.key.remoteJid),
     text,
     timestamp: Number(m.messageTimestamp ?? 0),
   });
   if (messages[jid].length > 50) messages[jid] = messages[jid].slice(-50);
-  if (chats[jid]) chats[jid].timestamp = Number(m.messageTimestamp ?? chats[jid].timestamp);
-  scheduleSave();
 }
 
 let pairingCode = null;
@@ -138,11 +143,16 @@ async function startWhatsApp() {
   });
 
   sock.ev.on("creds.update", saveCreds);
-  sock.ev.on("contacts.upsert", (l) => l.forEach(upsertContact));
+
+  sock.ev.on("creds.update", saveCreds);
+  sock.ev.on("contacts.upsert", (l) => { console.log("[WA] contacts.upsert:", l.length); l.forEach(upsertContact); });
   sock.ev.on("contacts.update", (l) => l.forEach(upsertContact));
-  sock.ev.on("chats.upsert", (l) => l.forEach(upsertChat));
+  sock.ev.on("chats.upsert", (l) => { console.log("[WA] chats.upsert:", l.length); l.forEach(upsertChat); });
   sock.ev.on("chats.update", (l) => l.forEach(upsertChat));
-  sock.ev.on("chats.set", ({ chats: l }) => l?.forEach(upsertChat));
+  sock.ev.on("chats.set", ({ chats: l, isLatest }) => {
+    console.log("[WA] chats.set:", l?.length, "isLatest:", isLatest);
+    l?.forEach(upsertChat);
+  });
   sock.ev.on("messages.upsert", ({ messages: l, type }) => {
     if (type !== "notify" && type !== "append") return;
     l.forEach((m) => {
@@ -150,7 +160,8 @@ async function startWhatsApp() {
       if (!isJidBroadcast(jid)) storeMessage(jid, m);
     });
   });
-  sock.ev.on("messaging-history.set", ({ chats: hC, contacts: hCo, messages: hM }) => {
+  sock.ev.on("messaging-history.set", ({ chats: hC, contacts: hCo, messages: hM, isLatest }) => {
+    console.log("[WA] messaging-history.set — chats:", hC?.length, "contacts:", hCo?.length, "msgs:", hM?.length, "latest:", isLatest);
     hCo?.forEach(upsertContact);
     hC?.forEach(upsertChat);
     hM?.forEach((m) => {
@@ -339,7 +350,7 @@ app.post("/logout", async (_, res) => {
 app.get("/chats", (_, res) => {
   if (waStatus !== "connected") return res.status(503).json({ error: "Non connecté" });
   const list = Object.values(chats)
-    .filter(c => !isJidBroadcast(c.id))
+    .filter(c => !isJidBroadcast(c.id) && !c.id.includes("newsletter"))
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 25);
   res.json({ chats: list });
@@ -366,7 +377,8 @@ app.get("/messages/:jid", (req, res) => {
 app.get("/sent", (_, res) => {
   const sent = [];
   for (const [jid, msgs] of Object.entries(messages)) {
-    const chatName = chats[jid]?.name ?? contacts[jid]?.name ?? jid.split("@")[0];
+    const chat = store.chats.get(jid);
+    const chatName = chat?.name ?? getContactName(jid);
     for (const m of msgs) {
       if (m.fromMe) sent.push({ ...m, chatName, jid });
     }
