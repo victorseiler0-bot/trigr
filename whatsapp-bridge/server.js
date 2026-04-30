@@ -20,14 +20,35 @@ app.use(cors());
 app.use(express.json());
 const logger = pino({ level: "silent" });
 
+// ── Persistance des données WA ────────────────────────────────────────────────
+
+const DATA_FILE = "./wa-data.json";
+
+function loadWaData() {
+  try {
+    if (existsSync(DATA_FILE)) {
+      const raw = JSON.parse(readFileSync(DATA_FILE, "utf8"));
+      return { contacts: raw.contacts ?? {}, chats: raw.chats ?? {}, messages: raw.messages ?? {} };
+    }
+  } catch {}
+  return { contacts: {}, chats: {}, messages: {} };
+}
+
+let _saveTimer = null;
+function scheduleSave() {
+  if (_saveTimer) return;
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    try { writeFileSync(DATA_FILE, JSON.stringify({ contacts, chats, messages })); } catch {}
+  }, 3000);
+}
+
 // ── WhatsApp state ─────────────────────────────────────────────────────────────
 
 let sock = null;
 let qrBase64 = null;
 let waStatus = "disconnected";
-const contacts = {};
-const chats = {};
-const messages = {};
+const { contacts, chats, messages } = loadWaData();
 
 function upsertContact(c) {
   if (!c?.id) return;
@@ -36,6 +57,7 @@ function upsertContact(c) {
     name: c.name ?? c.notify ?? c.verifiedName ?? contacts[c.id]?.name ?? c.id.split("@")[0],
     phone: c.id.split("@")[0],
   };
+  scheduleSave();
 }
 
 function upsertChat(c) {
@@ -47,6 +69,7 @@ function upsertChat(c) {
     unread: c.unreadCount ?? chats[c.id]?.unread ?? 0,
     timestamp: Number(c.conversationTimestamp ?? chats[c.id]?.timestamp ?? 0),
   };
+  scheduleSave();
 }
 
 function storeMessage(jid, m) {
@@ -66,21 +89,31 @@ function storeMessage(jid, m) {
   });
   if (messages[jid].length > 50) messages[jid] = messages[jid].slice(-50);
   if (chats[jid]) chats[jid].timestamp = Number(m.messageTimestamp ?? chats[jid].timestamp);
+  scheduleSave();
 }
 
-let pairingCode = null; // code à 8 chiffres affiché à l'utilisateur
+let pairingCode = null;
+let reconnectDelay = 3000;
 
 async function startWhatsApp() {
+  // Ferme proprement le socket précédent avant d'en créer un nouveau
+  if (sock) {
+    try { sock.ws?.close(); } catch {}
+    sock = null;
+  }
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
   const { version } = await fetchLatestBaileysVersion();
 
   sock = makeWASocket({
     version, logger, auth: state,
     browser: ["Trigr", "Chrome", "120.0"],
-    syncFullHistory: true,
+    syncFullHistory: false,
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
     printQRInTerminal: false,
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 25000,
+    retryRequestDelayMs: 2000,
   });
 
   sock.ev.on("connection.update", async (update) => {
@@ -89,14 +122,18 @@ async function startWhatsApp() {
     if (connection === "connecting") { if (waStatus !== "qr") waStatus = "connecting"; }
     if (connection === "open") {
       waStatus = "connected"; qrBase64 = null; pairingCode = null;
+      reconnectDelay = 3000; // reset backoff
       console.log("[WA] Connecté :", sock.user?.id);
     }
     if (connection === "close") {
       const code = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode : 0;
       const loggedOut = code === DisconnectReason.loggedOut;
       waStatus = "disconnected"; qrBase64 = null; pairingCode = null;
-      console.log("[WA] Déconnecté code:", code);
-      setTimeout(startWhatsApp, loggedOut ? 2000 : 3000);
+      console.log("[WA] Déconnecté code:", code, "- retry dans", reconnectDelay, "ms");
+      // Backoff exponentiel pour éviter les boucles rapides qui causent des 408
+      const delay = loggedOut ? 2000 : reconnectDelay;
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+      setTimeout(startWhatsApp, delay);
     }
   });
 
@@ -323,6 +360,19 @@ app.get("/messages/:jid", (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const list = (messages[jid] ?? []).slice(-limit);
   res.json({ messages: list, total: messages[jid]?.length ?? 0 });
+});
+
+// Derniers messages envoyés (fromMe) toutes conversations confondues
+app.get("/sent", (_, res) => {
+  const sent = [];
+  for (const [jid, msgs] of Object.entries(messages)) {
+    const chatName = chats[jid]?.name ?? contacts[jid]?.name ?? jid.split("@")[0];
+    for (const m of msgs) {
+      if (m.fromMe) sent.push({ ...m, chatName, jid });
+    }
+  }
+  sent.sort((a, b) => b.timestamp - a.timestamp);
+  res.json({ messages: sent.slice(0, 20) });
 });
 
 app.post("/send", async (req, res) => {

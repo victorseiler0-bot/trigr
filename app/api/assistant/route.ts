@@ -268,6 +268,13 @@ async function executeTool(
     return JSON.stringify({ contacts: data.contacts?.slice(0, 30) });
   }
 
+  if (name === "messages_envoyes") {
+    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    const data = await waFetch("sent");
+    if (!data) return JSON.stringify({ error: "Impossible de récupérer les messages envoyés." });
+    return JSON.stringify({ messages: data.messages });
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -299,7 +306,8 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
       { type: "function", function: { name: "voir_chats_whatsapp", description: "Lister les conversations WhatsApp récentes.", parameters: { type: "object" as const, properties: {} } } },
       { type: "function", function: { name: "lire_messages_whatsapp", description: "Lire les messages d'une conversation WhatsApp par jid.", parameters: { type: "object" as const, properties: { jid: { type: "string", description: "ex: 33612345678@s.whatsapp.net" }, limit: { type: "number" } } } } },
       { type: "function", function: { name: "envoyer_whatsapp", description: "Envoyer un message WhatsApp.", parameters: { type: "object" as const, properties: { to: { type: "string", description: "Numéro ou jid" }, message: { type: "string" } }, required: ["to", "message"] } } },
-      { type: "function", function: { name: "voir_contacts_whatsapp", description: "Lister les contacts WhatsApp.", parameters: { type: "object" as const, properties: {} } } }
+      { type: "function", function: { name: "voir_contacts_whatsapp", description: "Lister les contacts WhatsApp.", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "messages_envoyes", description: "Voir les derniers messages envoyés par l'utilisateur sur WhatsApp (toutes conversations).", parameters: { type: "object" as const, properties: {} } } }
     );
   }
 
