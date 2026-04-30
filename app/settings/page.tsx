@@ -124,7 +124,9 @@ export default function SettingsPage() {
   const [waPhoneInput, setWaPhoneInput] = useState("");
   const [waMode, setWaMode] = useState<"qr" | "phone">("qr");
   const [waForcing, setWaForcing] = useState(false);
+  const [qrTimedOut, setQrTimedOut] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Apple
   const [appleStatus, setAppleStatus] = useState<AppleStatus>("form");
@@ -132,36 +134,32 @@ export default function SettingsPage() {
   const [appleId, setAppleId] = useState("");
   const [applePwd, setApplePwd] = useState("");
   const [appleError, setAppleError] = useState("");
+  const [appleStep, setAppleStep] = useState<"guide" | "form">("guide");
 
   useEffect(() => { if (isLoaded && !isSignedIn) router.replace("/login"); }, [isLoaded, isSignedIn, router]);
 
   // ── Vérification initiale du bridge ──────────────────────────────────────────
   const checkBridge = useCallback(async () => {
     try {
-      const [statusRes, appleRes] = await Promise.allSettled([
-        fetch(`${WA}/status`, { signal: AbortSignal.timeout(2500) }).then(r => r.json()),
-        fetch(`${WA}/apple/status`, { signal: AbortSignal.timeout(2500) }).then(r => r.json()),
-      ]);
-
-      // Bridge accessible
+      // Vérifie d'abord que le bridge répond vraiment
+      const statusResp = await fetch(`${WA}/status`, { signal: AbortSignal.timeout(3000) });
+      if (!statusResp.ok) throw new Error("bridge error");
+      const d = await statusResp.json();
       setBridgeOnline(true);
 
-      if (statusRes.status === "fulfilled") {
-        const d = statusRes.value;
-        if (d.status === "connected") {
-          setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name);
-        } else if (d.status === "qr") {
-          setWaStatus("qr"); fetchQr();
-        } else {
-          // connecting / disconnected → démarrer le QR flow
-          setWaMode("qr"); setWaStatus("connecting");
-        }
+      if (d.status === "connected") {
+        setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name);
+      } else if (d.status === "qr") {
+        setWaStatus("qr"); fetchQr();
+      } else {
+        setWaMode("qr"); setWaStatus("connecting");
       }
 
-      if (appleRes.status === "fulfilled") {
-        const d = appleRes.value;
-        if (d.configured) { setAppleStatus("connected"); setAppleUser(d.username); }
-      }
+      // Apple status en parallèle (non bloquant)
+      fetch(`${WA}/apple/status`, { signal: AbortSignal.timeout(2500) })
+        .then(r => r.json())
+        .then(da => { if (da.configured) { setAppleStatus("connected"); setAppleUser(da.username); } })
+        .catch(() => {});
     } catch {
       setBridgeOnline(false);
     }
@@ -197,9 +195,18 @@ export default function SettingsPage() {
   async function fetchQr() {
     try {
       const q = await fetch(`${WA}/qr`, { signal: AbortSignal.timeout(3000) }).then(r => r.json());
-      if (q.qr) setWaQr(q.qr);
+      if (q.qr) { setWaQr(q.qr); setQrTimedOut(false); }
     } catch {}
   }
+
+  // Démarre un timeout de 20s quand on attend le QR
+  useEffect(() => {
+    const waiting = (waStatus === "connecting" || waStatus === "qr") && waMode === "qr";
+    if (!waiting) { setQrTimedOut(false); if (qrTimeoutRef.current) { clearTimeout(qrTimeoutRef.current); qrTimeoutRef.current = null; } return; }
+    if (qrTimeoutRef.current) return;
+    qrTimeoutRef.current = setTimeout(() => { setQrTimedOut(true); qrTimeoutRef.current = null; }, 20000);
+    return () => { if (qrTimeoutRef.current) { clearTimeout(qrTimeoutRef.current); qrTimeoutRef.current = null; } };
+  }, [waStatus, waMode]);
 
   // Force génération d'un nouveau QR : déconnecte la session actuelle → le bridge génère un QR frais
   async function waForceNewQr() {
@@ -249,7 +256,7 @@ export default function SettingsPage() {
 
   async function appleDisconnect() {
     await fetch(`${WA}/apple/configure`, { method: "DELETE" }).catch(() => {});
-    setAppleStatus("form"); setAppleUser(null);
+    setAppleStatus("form"); setAppleUser(null); setAppleStep("guide");
   }
 
   async function connect(strategy: "oauth_google" | "oauth_microsoft") {
@@ -440,6 +447,15 @@ export default function SettingsPage() {
                       En attente du scan — expire dans ~60s
                     </div>
                   </>
+                ) : qrTimedOut ? (
+                  <div className="flex flex-col items-center gap-3 py-6">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">!</div>
+                    <p className="text-sm font-medium text-amber-300">QR code non généré</p>
+                    <p className="text-xs text-zinc-500 text-center max-w-xs">Le bridge ne répond pas. Vérifie que pm2 tourne :<br/><code className="text-emerald-300">pm2 restart whatsapp-bridge</code></p>
+                    <button onClick={() => { setQrTimedOut(false); waForceNewQr(); }} className="mt-1 text-xs font-semibold text-white bg-[#25D366]/20 hover:bg-[#25D366]/30 border border-[#25D366]/30 px-4 py-2 rounded-xl transition-all">
+                      Réessayer
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3 py-8">
                     <div className="w-12 h-12 rounded-full border-2 border-zinc-700 border-t-[#25D366] animate-spin" />
@@ -484,39 +500,67 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Apple guide */}
+          {bridgeOnline !== false && appleStatus === "form" && appleStep === "guide" && (
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+              <div className="px-5 py-5 space-y-5">
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Apple ne propose pas de connexion OAuth comme Google. Pour accéder à ton Calendrier et tes Contacts, tu dois générer un <strong className="text-white">mot de passe d&apos;app</strong> (2 min).
+                </p>
+
+                <div className="space-y-3">
+                  {[
+                    { n: "1", text: "Va sur appleid.apple.com et connecte-toi" },
+                    { n: "2", text: "Connexion et sécurité → Mots de passe spécifiques → +" },
+                    { n: "3", text: "Donne un nom (ex : \"Trigr\") → copie le mot de passe généré" },
+                  ].map(s => (
+                    <div key={s.n} className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-zinc-700 text-zinc-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
+                      <p className="text-xs text-zinc-400 leading-relaxed">{s.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-all border border-white/[0.08]">
+                    <AppleIcon color="white" />
+                    Aller sur appleid.apple.com →
+                  </a>
+                </div>
+                <button onClick={() => setAppleStep("form")}
+                  className="w-full text-xs text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2">
+                  J&apos;ai déjà mon mot de passe d&apos;app
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Apple formulaire */}
-          {bridgeOnline !== false && appleStatus === "form" && (
+          {bridgeOnline !== false && appleStatus === "form" && appleStep === "form" && (
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
               <div className="px-5 py-4 space-y-4">
-                <div className="flex items-start gap-3 bg-blue-500/[0.07] border border-blue-500/20 rounded-xl px-4 py-3">
-                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="text-blue-400 mt-0.5 shrink-0">
-                    <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 14v-4m0-4h.01" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <div>
-                    <p className="text-xs font-medium text-blue-300">Mot de passe d&apos;app requis</p>
-                    <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-                      Apple ne permet pas d&apos;utiliser ton mot de passe principal depuis des apps tierces.
-                      Génère un mot de passe spécifique sur{" "}
-                      <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">
-                        appleid.apple.com
-                      </a>
-                      {" "}→ Connexion et sécurité → Mots de passe spécifiques → <strong>+</strong>
-                    </p>
-                  </div>
-                </div>
+                <button onClick={() => setAppleStep("guide")} className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Retour au guide
+                </button>
 
                 <div>
                   <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Apple ID (ton email iCloud)</label>
                   <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
-                    placeholder="prenom@icloud.com"
+                    placeholder="prenom@icloud.com" autoFocus
                     className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500/60 transition-all" />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Mot de passe spécifique</label>
+                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
+                    Mot de passe d&apos;app
+                    <span className="ml-1 text-zinc-600 font-normal">(format xxxx-xxxx-xxxx-xxxx)</span>
+                  </label>
                   <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
                     placeholder="xxxx-xxxx-xxxx-xxxx" onKeyDown={e => e.key === "Enter" && appleConnect()}
                     className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500/60 transition-all font-mono" />
+                  <p className="text-xs text-zinc-600 mt-1">Pas ton mot de passe iCloud habituel — celui généré sur appleid.apple.com</p>
                 </div>
 
                 {appleError && (

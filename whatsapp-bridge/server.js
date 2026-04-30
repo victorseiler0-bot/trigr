@@ -153,26 +153,49 @@ async function caldavRequest(url, method, body, cfg, extra = {}) {
   return { status: r.status, text: await r.text() };
 }
 
+// Extrait un href path depuis une réponse XML (gère prefixes DAV: majuscules/minuscules)
+function extractHref(xml) {
+  // Cherche le premier <href> qui ressemble à un path iCloud (commence par /)
+  const matches = [...xml.matchAll(/<[A-Za-z]:href>(\/?[^<]+)<\/[A-Za-z]:href>/g)];
+  const paths = matches.map(m => m[1].trim()).filter(p => p.startsWith("/") && p.length > 1);
+  return paths[0] ?? null;
+}
+
+function extractHrefInsideTag(xml, tag) {
+  // Cherche un <href> à l'intérieur d'un tag spécifique (ex: calendar-home-set)
+  const tagMatch = xml.match(new RegExp(`<[A-Za-z]:${tag}[^>]*>([\\s\\S]*?)<\\/[A-Za-z]:${tag}>`, "i"));
+  if (!tagMatch) return null;
+  const inner = tagMatch[1];
+  const hrefMatch = inner.match(/<[A-Za-z]:href>([^<]+)<\/[A-Za-z]:href>/);
+  return hrefMatch ? hrefMatch[1].trim() : null;
+}
+
 async function discoverCalDavHome(cfg) {
-  // Discover principal URL
+  // Étape 1 : Discover principal URL
   const propfind = `<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:">
   <d:prop><d:current-user-principal/></d:prop>
 </d:propfind>`;
   const r = await caldavRequest("https://caldav.icloud.com", "PROPFIND", propfind, cfg, { Depth: "0" });
-  const principalMatch = r.text.match(/<d:href>([^<]+)<\/d:href>/);
-  if (!principalMatch) throw new Error("Cannot find principal URL");
-  const principalUrl = "https://caldav.icloud.com" + principalMatch[1].replace(/^https?:\/\/[^/]+/, "");
+  if (r.status === 401) throw new Error("Identifiants invalides (401). Vérifie ton Apple ID et ton mot de passe d'app.");
+  if (r.status >= 400) throw new Error(`Apple CalDAV erreur ${r.status}`);
 
-  // Get calendar home
+  // Cherche le principal dans current-user-principal, sinon prend le premier path valide
+  let principalPath = extractHrefInsideTag(r.text, "current-user-principal") ?? extractHref(r.text);
+  if (!principalPath) throw new Error("Réponse Apple inattendue — principal URL introuvable");
+  const principalUrl = "https://caldav.icloud.com" + principalPath.replace(/^https?:\/\/[^/]+/, "");
+
+  // Étape 2 : Get calendar home set
   const home = `<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop><c:calendar-home-set/></d:prop>
 </d:propfind>`;
   const r2 = await caldavRequest(principalUrl, "PROPFIND", home, cfg, { Depth: "0" });
-  const homeMatch = r2.text.match(/<c:calendar-home-set[^>]*>\s*<d:href>([^<]+)<\/d:href>/);
-  if (!homeMatch) throw new Error("Cannot find calendar home");
-  return "https://caldav.icloud.com" + homeMatch[1].replace(/^https?:\/\/[^/]+/, "");
+  if (r2.status >= 400) throw new Error(`Apple CalDAV home erreur ${r2.status}`);
+
+  const homePath = extractHrefInsideTag(r2.text, "calendar-home-set") ?? extractHref(r2.text);
+  if (!homePath) throw new Error("Réponse Apple inattendue — calendar home introuvable");
+  return "https://caldav.icloud.com" + homePath.replace(/^https?:\/\/[^/]+/, "");
 }
 
 function parseVEvents(icalText) {
