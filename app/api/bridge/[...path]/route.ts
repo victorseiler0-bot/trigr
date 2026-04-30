@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { get as edgeGet } from "@vercel/edge-config";
 
-const BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
+// URL du bridge : Edge Config en priorité (mise à jour sans redéploiement), puis env var statique
+async function getBridgeUrl(): Promise<string> {
+  try {
+    const url = await edgeGet<string>("bridge_url");
+    if (url) return url;
+  } catch {}
+  return process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
+}
 
 async function proxy(req: NextRequest, params: { path: string[] }) {
   const { isAuthenticated } = await auth();
   if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
+  const bridge = await getBridgeUrl();
   const path = params.path.join("/");
   const url = new URL(req.url);
   const query = url.search;
-  const target = `${BRIDGE}/${path}${query}`;
+  const target = `${bridge}/${path}${query}`;
 
   const init: RequestInit = { method: req.method };
   if (req.method !== "GET" && req.method !== "HEAD") {
