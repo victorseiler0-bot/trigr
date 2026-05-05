@@ -10,7 +10,11 @@ import { getHubSpotMeta, searchHubSpotContacts, getHubSpotDeals, createHubSpotCo
 
 export const maxDuration = 60; // secondes — nécessaire pour les chaînes d'outils Groq + Whapi
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let _groq: Groq | null = null;
+function getGroq() {
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return _groq;
+}
 
 const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
 Date et heure actuelles : ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
@@ -549,7 +553,7 @@ export async function POST(req: NextRequest) {
 
     // Boucle tool-calling (max 5 tours)
     for (let i = 0; i < 5; i++) {
-      const completion = await groq.chat.completions.create({
+      const completion = await getGroq().chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages,
         tools: tools.length > 0 ? tools : undefined,
