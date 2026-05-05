@@ -125,6 +125,7 @@ export async function createAppleEvent(
     const startFmt = toIcalDate(event.start);
     const endFmt = toIcalDate(event.end);
 
+    const esc = (s: string) => s.replace(/[\r\n]/g, " ").replace(/,/g, "\\,").replace(/;/g, "\\;");
     const ical = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
@@ -134,9 +135,9 @@ export async function createAppleEvent(
       `DTSTAMP:${now}`,
       `DTSTART:${startFmt}`,
       `DTEND:${endFmt}`,
-      `SUMMARY:${event.summary}`,
-      event.location ? `LOCATION:${event.location}` : "",
-      event.description ? `DESCRIPTION:${event.description}` : "",
+      `SUMMARY:${esc(event.summary)}`,
+      event.location ? `LOCATION:${esc(event.location)}` : "",
+      event.description ? `DESCRIPTION:${esc(event.description)}` : "",
       "END:VEVENT",
       "END:VCALENDAR",
     ].filter(Boolean).join("\r\n");

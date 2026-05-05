@@ -14,15 +14,24 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   if (url.searchParams.get("action") === "authorize") {
-    // Générer l'URL OAuth Notion
+    const nonce = crypto.randomUUID();
+    const stateValue = `${userId}:${nonce}`;
     const params = new URLSearchParams({
       client_id: NOTION_CLIENT_ID,
       redirect_uri: NOTION_REDIRECT_URI,
       response_type: "code",
       owner: "user",
-      state: userId,
+      state: stateValue,
     });
-    return NextResponse.redirect(`https://api.notion.com/v1/oauth/authorize?${params}`);
+    const res = NextResponse.redirect(`https://api.notion.com/v1/oauth/authorize?${params}`);
+    res.cookies.set("oauth_state_notion", stateValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+    return res;
   }
 
   const meta = await getNotionMeta(userId);

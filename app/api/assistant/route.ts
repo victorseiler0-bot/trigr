@@ -489,7 +489,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const message = String(body?.message ?? "").slice(0, 4000).trim();
-    const history: Array<{ role: string; content: string }> = Array.isArray(body?.history) ? body.history.slice(-16) : [];
+    const history: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(body?.history)
+      ? body.history.slice(-16).filter((m: unknown) => {
+          const msg = m as Record<string, unknown>;
+          return (msg.role === "user" || msg.role === "assistant") && typeof msg.content === "string";
+        })
+      : [];
     const bridgeData: BridgeData = body?.bridgeData ?? {};
     if (!message) return NextResponse.json({ error: "Message vide." }, { status: 400 });
 

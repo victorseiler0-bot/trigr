@@ -15,13 +15,23 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   if (url.searchParams.get("action") === "authorize") {
+    const nonce = crypto.randomUUID();
+    const stateValue = `${userId}:${nonce}`;
     const params = new URLSearchParams({
       client_id: SLACK_CLIENT_ID,
       redirect_uri: SLACK_REDIRECT_URI,
       scope: SLACK_SCOPES,
-      state: userId,
+      state: stateValue,
     });
-    return NextResponse.redirect(`https://slack.com/oauth/v2/authorize?${params}`);
+    const res = NextResponse.redirect(`https://slack.com/oauth/v2/authorize?${params}`);
+    res.cookies.set("oauth_state_slack", stateValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+    return res;
   }
 
   const meta = await getSlackMeta(userId);

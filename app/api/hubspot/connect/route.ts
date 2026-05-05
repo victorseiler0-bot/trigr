@@ -15,13 +15,23 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   if (url.searchParams.get("action") === "authorize") {
+    const nonce = crypto.randomUUID();
+    const stateValue = `${userId}:${nonce}`;
     const params = new URLSearchParams({
       client_id: HUBSPOT_CLIENT_ID,
       redirect_uri: HUBSPOT_REDIRECT_URI,
       scope: SCOPES,
-      state: userId,
+      state: stateValue,
     });
-    return NextResponse.redirect(`https://app.hubspot.com/oauth/authorize?${params}`);
+    const res = NextResponse.redirect(`https://app.hubspot.com/oauth/authorize?${params}`);
+    res.cookies.set("oauth_state_hubspot", stateValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+    return res;
   }
 
   const meta = await getHubSpotMeta(userId);

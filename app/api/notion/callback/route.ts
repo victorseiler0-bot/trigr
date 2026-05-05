@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { saveNotionMeta } from "@/lib/notion";
 
 const NOTION_CLIENT_ID = process.env.NOTION_CLIENT_ID!;
@@ -7,14 +8,22 @@ const NOTION_REDIRECT_URI = process.env.NEXT_PUBLIC_SITE_URL
   ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/notion/callback`
   : "http://localhost:3000/api/notion/callback";
 
+const FAIL_URL = `${process.env.NEXT_PUBLIC_SITE_URL || ""}/settings?error=notion_failed`;
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const userId = url.searchParams.get("state");
+  const stateParam = url.searchParams.get("state");
 
-  if (!code || !userId) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/settings?error=notion_failed`);
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get("oauth_state_notion")?.value;
+
+  if (!code || !stateParam || !expectedState || stateParam !== expectedState) {
+    return NextResponse.redirect(FAIL_URL);
   }
+
+  const [userId] = expectedState.split(":");
+  if (!userId) return NextResponse.redirect(FAIL_URL);
 
   try {
     const credentials = Buffer.from(`${NOTION_CLIENT_ID}:${NOTION_CLIENT_SECRET}`).toString("base64");
@@ -41,8 +50,10 @@ export async function GET(req: NextRequest) {
     if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
 
     await saveNotionMeta(userId, data.access_token, data.workspace_name ?? "", data.workspace_id ?? "");
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/settings?notion=connected`);
+    const res = NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/settings?notion=connected`);
+    res.cookies.delete("oauth_state_notion");
+    return res;
   } catch {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/settings?error=notion_failed`);
+    return NextResponse.redirect(FAIL_URL);
   }
 }

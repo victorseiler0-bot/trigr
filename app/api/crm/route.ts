@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ contacts, sheetId });
   } catch (err) {
     console.error("[crm GET]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erreur interne." }, { status: 500 });
   }
 }
 
@@ -161,6 +161,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
   } catch (err) {
     console.error("[crm POST]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erreur interne." }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN!;
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN!;
@@ -20,8 +21,20 @@ export async function GET(req: NextRequest) {
 
 // Incoming messages (Meta POST)
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const rawBody = await req.text();
 
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (appSecret) {
+    const sig = req.headers.get("x-hub-signature-256") ?? "";
+    const expected = "sha256=" + createHmac("sha256", appSecret).update(rawBody).digest("hex");
+    const sigBuf = Buffer.from(sig.padEnd(expected.length));
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  const body = JSON.parse(rawBody);
   const entry = body?.entry?.[0];
   const changes = entry?.changes?.[0];
   const value = changes?.value;
