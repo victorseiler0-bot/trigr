@@ -8,7 +8,7 @@ const PUBLIC_NAV = [
   ["/#fonctions", "Fonctionnalités"],
   ["/#comment", "Comment ça marche"],
   ["/marketplace", "Marketplace"],
-  ["/#tarifs", "Tarifs"],
+  ["/pricing", "Tarifs"],
 ];
 
 const APP_NAV = [

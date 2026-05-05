@@ -6,7 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-const WA = "/api/bridge";
+const APPLE = "/api/apple/connect";
+const NOTION = "/api/notion/connect";
+const SLACK = "/api/slack/connect";
+const HUBSPOT = "/api/hubspot/connect";
+const WHAPI = "/api/whapi";
 
 const PROVIDERS: { strategy: "oauth_google" | "oauth_microsoft"; label: string; icon: React.ReactNode }[] = [
   {
@@ -40,10 +44,9 @@ const AppleIcon = ({ color = "white" }: { color?: string }) => (
   </svg>
 );
 
-type WaStatus = "idle" | "connecting" | "qr" | "pairing" | "connected";
+type WaStatus = "idle" | "checking" | "qr" | "connected";
 type AppleStatus = "form" | "connecting" | "connected";
 
-// ── Row générique compte connecté ──────────────────────────────────────────────
 function AccountRow({ icon, label, subtitle, connected, onConnect, onDisconnect, busy, connectLabel = "Connecter" }: {
   icon: React.ReactNode; label: string; subtitle?: string;
   connected: boolean; onConnect: () => void; onDisconnect: () => void;
@@ -79,54 +82,18 @@ function AccountRow({ icon, label, subtitle, connected, onConnect, onDisconnect,
   );
 }
 
-// ── Bannière bridge offline ────────────────────────────────────────────────────
-function BridgeOfflineBanner({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div className="flex flex-col gap-3 bg-red-500/[0.07] border border-red-500/20 rounded-xl px-4 py-4">
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-        <p className="text-sm font-semibold text-red-400">Bridge local non détecté</p>
-      </div>
-      <p className="text-xs text-zinc-500">
-        WhatsApp et Apple iCloud nécessitent le bridge local (port 3001).
-        Ouvre PowerShell et lance&nbsp;:
-      </p>
-      <code className="text-xs text-emerald-300 bg-black/30 rounded-lg px-3 py-2 font-mono select-all">
-        pm2 restart whatsapp-bridge
-      </code>
-      <button onClick={onRetry}
-        className="self-start flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] px-3 py-1.5 rounded-lg transition-all">
-        <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M1 4v6h6M23 20v-6h-6" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Réessayer
-      </button>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState("");
 
-  // Bridge status global
-  const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null); // null = checking
-
-  // WhatsApp
+  // WhatsApp — uniquement Whapi.cloud
   const [waStatus, setWaStatus] = useState<WaStatus>("idle");
   const [waQr, setWaQr] = useState<string | null>(null);
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const [waName, setWaName] = useState<string | null>(null);
-  const [waPairingCode, setWaPairingCode] = useState<string | null>(null);
-  const [waPhoneInput, setWaPhoneInput] = useState("");
-  const [waMode, setWaMode] = useState<"qr" | "phone">("qr");
-  const [waForcing, setWaForcing] = useState(false);
-  const [qrTimedOut, setQrTimedOut] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const qrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Apple
   const [appleStatus, setAppleStatus] = useState<AppleStatus>("form");
@@ -134,129 +101,125 @@ export default function SettingsPage() {
   const [appleId, setAppleId] = useState("");
   const [applePwd, setApplePwd] = useState("");
   const [appleError, setAppleError] = useState("");
-  const [appleStep, setAppleStep] = useState<"guide" | "form">("guide");
+
+  // Notion
+  const [notionConnected, setNotionConnected] = useState(false);
+  const [notionWorkspace, setNotionWorkspace] = useState<string | null>(null);
+
+  // Slack
+  const [slackConnected, setSlackConnected] = useState(false);
+  const [slackTeam, setSlackTeam] = useState<string | null>(null);
+
+  // HubSpot
+  const [hubspotConnected, setHubspotConnected] = useState(false);
+
+  // Abonnement
+  const [plan, setPlan] = useState<"free" | "solo" | "pro" | "equipe">("free");
+  const [subBusy, setSubBusy] = useState<string | null>(null);
 
   useEffect(() => { if (isLoaded && !isSignedIn) router.replace("/login"); }, [isLoaded, isSignedIn, router]);
 
-  // ── Vérification initiale du bridge ──────────────────────────────────────────
-  const checkBridge = useCallback(async () => {
-    try {
-      // Vérifie d'abord que le bridge répond vraiment
-      const statusResp = await fetch(`${WA}/status`, { signal: AbortSignal.timeout(3000) });
-      if (!statusResp.ok) throw new Error("bridge error");
-      const d = await statusResp.json();
-      setBridgeOnline(true);
-
-      if (d.status === "connected") {
-        setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name);
-      } else if (d.status === "qr") {
-        setWaStatus("qr"); fetchQr();
-      } else {
-        setWaMode("qr"); setWaStatus("connecting");
-      }
-
-      // Apple status en parallèle (non bloquant)
-      fetch(`${WA}/apple/status`, { signal: AbortSignal.timeout(2500) })
-        .then(r => r.json())
-        .then(da => { if (da.configured) { setAppleStatus("connected"); setAppleUser(da.username); } })
-        .catch(() => {});
-    } catch {
-      setBridgeOnline(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     if (!isSignedIn) return;
-    checkBridge();
-  }, [isSignedIn, checkBridge]);
+    fetch("/api/subscription").then(r => r.json()).then(d => { if (d.plan) setPlan(d.plan); }).catch(() => {});
+    fetch(NOTION).then(r => r.json()).then(d => { if (d.configured) { setNotionConnected(true); setNotionWorkspace(d.workspace); } }).catch(() => {});
+    fetch(SLACK).then(r => r.json()).then(d => { if (d.configured) { setSlackConnected(true); setSlackTeam(d.team); } }).catch(() => {});
+    fetch(HUBSPOT).then(r => r.json()).then(d => { if (d.configured) setHubspotConnected(true); }).catch(() => {});
+  }, [isSignedIn]);
 
-  // ── Polling WA ────────────────────────────────────────────────────────────────
+  // ── Vérification initiale Whapi ──────────────────────────────────────────────
+  const checkWhapi = useCallback(async () => {
+    setWaStatus("checking");
+    try {
+      const r = await fetch(`${WHAPI}/connect`, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) { setWaStatus("idle"); return; }
+      const d = await r.json();
+      if (d.connected) {
+        setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name);
+      } else if (d.qr) {
+        setWaQr(d.qr); setWaStatus("qr");
+      } else {
+        setWaStatus("idle");
+      }
+    } catch { setWaStatus("idle"); }
+
+    // Apple en parallèle
+    fetch(APPLE, { signal: AbortSignal.timeout(5000) })
+      .then(r => r.json())
+      .then(d => { if (d.configured) { setAppleStatus("connected"); setAppleUser(d.email); } })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { if (isSignedIn) checkWhapi(); }, [isSignedIn, checkWhapi]);
+
+  // ── Polling QR jusqu'à connexion ─────────────────────────────────────────────
   useEffect(() => {
-    const active = waStatus === "qr" || waStatus === "connecting" || waStatus === "pairing";
-    if (!active) { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } return; }
+    if (waStatus !== "qr") {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      return;
+    }
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       try {
-        const d = await fetch(`${WA}/status`, { signal: AbortSignal.timeout(2000) }).then(r => r.json());
-        if (d.status === "connected") {
+        const d = await fetch(`${WHAPI}/connect`, { signal: AbortSignal.timeout(5000) }).then(r => r.json());
+        if (d.connected) {
           clearInterval(pollRef.current!); pollRef.current = null;
-          setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name); setWaQr(null); setWaPairingCode(null);
-        } else if (d.status === "qr" && waMode === "qr") {
-          setWaStatus("qr"); fetchQr();
-        } else if (d.pairingCode) {
-          setWaPairingCode(d.pairingCode);
+          setWaStatus("connected"); setWaPhone(d.phone); setWaName(d.name); setWaQr(null);
+        } else if (d.qr && d.qr !== waQr) {
+          setWaQr(d.qr);
         }
       } catch {}
-    }, 2500);
+    }, 3000);
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-  }, [waStatus, waMode]);
+  }, [waStatus, waQr]);
 
-  async function fetchQr() {
-    try {
-      const q = await fetch(`${WA}/qr`, { signal: AbortSignal.timeout(3000) }).then(r => r.json());
-      if (q.qr) { setWaQr(q.qr); setQrTimedOut(false); }
-    } catch {}
-  }
-
-  // Démarre un timeout de 20s quand on attend le QR
-  useEffect(() => {
-    const waiting = (waStatus === "connecting" || waStatus === "qr") && waMode === "qr";
-    if (!waiting) { setQrTimedOut(false); if (qrTimeoutRef.current) { clearTimeout(qrTimeoutRef.current); qrTimeoutRef.current = null; } return; }
-    if (qrTimeoutRef.current) return;
-    qrTimeoutRef.current = setTimeout(() => { setQrTimedOut(true); qrTimeoutRef.current = null; }, 20000);
-    return () => { if (qrTimeoutRef.current) { clearTimeout(qrTimeoutRef.current); qrTimeoutRef.current = null; } };
-  }, [waStatus, waMode]);
-
-  // Force génération d'un nouveau QR : déconnecte la session actuelle → le bridge génère un QR frais
-  async function waForceNewQr() {
-    setWaForcing(true); setWaQr(null); setWaPairingCode(null);
-    try { await fetch(`${WA}/logout`, { method: "POST", signal: AbortSignal.timeout(4000) }); } catch {}
-    setWaMode("qr"); setWaStatus("connecting");
-    setTimeout(() => setWaForcing(false), 2000);
-  }
-
-  async function waRequestPairing() {
-    const digits = waPhoneInput.replace(/\D/g, "");
-    if (!digits) return;
-    setWaMode("phone"); setWaStatus("pairing"); setWaPairingCode(null);
-    try {
-      const r = await fetch(`${WA}/pairing-code`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: digits }), signal: AbortSignal.timeout(15000),
-      });
-      const d = await r.json();
-      if (!r.ok) { setWaStatus("connecting"); setWaMode("qr"); return; }
-      setWaPairingCode(d.code);
-    } catch { setWaStatus("connecting"); setWaMode("qr"); }
+  // ── Actions WhatsApp ──────────────────────────────────────────────────────────
+  async function waConnect() {
+    setWaStatus("checking");
+    await checkWhapi();
   }
 
   async function waDisconnect() {
-    await fetch(`${WA}/logout`, { method: "POST" }).catch(() => {});
-    setWaStatus("idle"); setWaMode("qr"); setWaQr(null); setWaPhone(null); setWaName(null); setWaPairingCode(null);
+    await fetch(`${WHAPI}/connect`, { method: "DELETE" }).catch(() => {});
+    setWaStatus("idle"); setWaQr(null); setWaPhone(null); setWaName(null);
   }
 
+  // ── Actions Apple ─────────────────────────────────────────────────────────────
   async function appleConnect() {
     if (!appleId || !applePwd) return;
     setAppleStatus("connecting"); setAppleError("");
     try {
-      const r = await fetch(`${WA}/apple/configure`, {
+      const r = await fetch(APPLE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: appleId, password: applePwd }),
-        signal: AbortSignal.timeout(12000),
+        body: JSON.stringify({ email: appleId, appPassword: applePwd }),
+        signal: AbortSignal.timeout(20000),
       });
       const d = await r.json();
       if (!r.ok) { setAppleError(d.error ?? "Identifiants invalides"); setAppleStatus("form"); return; }
       setAppleStatus("connected"); setAppleUser(appleId); setAppleId(""); setApplePwd("");
     } catch {
-      setAppleError("Bridge inaccessible. Lance pm2 restart whatsapp-bridge."); setAppleStatus("form");
+      setAppleError("Erreur de connexion."); setAppleStatus("form");
     }
   }
 
   async function appleDisconnect() {
-    await fetch(`${WA}/apple/configure`, { method: "DELETE" }).catch(() => {});
-    setAppleStatus("form"); setAppleUser(null); setAppleStep("guide");
+    await fetch(APPLE, { method: "DELETE" }).catch(() => {});
+    setAppleStatus("form"); setAppleUser(null);
+  }
+
+  // ── Actions OAuth ─────────────────────────────────────────────────────────────
+  async function upgradePlan(targetPlan: string) {
+    setSubBusy(targetPlan);
+    try {
+      const r = await fetch("/api/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: targetPlan }),
+      });
+      const d = await r.json();
+      if (d.url) window.location.href = d.url;
+    } catch { /* ignore */ } finally { setSubBusy(null); }
   }
 
   async function connect(strategy: "oauth_google" | "oauth_microsoft") {
@@ -329,106 +292,47 @@ export default function SettingsPage() {
           <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">WhatsApp</h2>
           <p className="text-xs text-zinc-600 mb-5">Lis et envoie des messages WhatsApp depuis l&apos;assistant.</p>
 
-          {/* Bridge offline */}
-          {bridgeOnline === false && <BridgeOfflineBanner onRetry={checkBridge} />}
-
-          {/* Bridge checking */}
-          {bridgeOnline === null && (
-            <div className="flex items-center gap-2 text-xs text-zinc-500 py-2">
-              <span className="w-3 h-3 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin" />
-              Vérification du bridge…
+          {/* Chargement initial */}
+          {waStatus === "checking" && (
+            <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-3.5">
+              <div className="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-[#25D366] animate-spin shrink-0" />
+              <p className="text-sm text-zinc-500">Vérification…</p>
             </div>
           )}
 
-          {/* WA connecté */}
-          {bridgeOnline && waStatus === "connected" && (
-            <AccountRow icon={<WaIcon />} label={waName ?? "WhatsApp"} subtitle={waPhone ? `+${waPhone}` : undefined}
-              connected={true} onConnect={() => {}} onDisconnect={waDisconnect} />
+          {/* Non connecté */}
+          {waStatus === "idle" && (
+            <AccountRow
+              icon={<WaIcon color="#52525b" />}
+              label="WhatsApp" subtitle="Messages · Contacts"
+              connected={false}
+              onConnect={waConnect}
+              onDisconnect={() => {}}
+            />
           )}
 
-          {/* WA idle (bridge up, pas encore lancé) */}
-          {bridgeOnline && waStatus === "idle" && (
-            <AccountRow icon={<WaIcon color="#52525b" />} label="WhatsApp" subtitle="Messages · Contacts"
-              connected={false} onConnect={() => { setWaMode("qr"); setWaStatus("connecting"); }} onDisconnect={() => {}} />
+          {/* Connecté */}
+          {waStatus === "connected" && (
+            <AccountRow
+              icon={<WaIcon />}
+              label={waName ?? "WhatsApp"}
+              subtitle={waPhone ?? undefined}
+              connected={true}
+              onConnect={() => {}}
+              onDisconnect={waDisconnect}
+            />
           )}
 
-          {/* Mode numéro de téléphone */}
-          {bridgeOnline && waMode === "phone" && waStatus !== "pairing" && waStatus !== "connected" && (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-              <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                <div className="flex items-center gap-2"><WaIcon /><p className="text-sm font-medium text-white">Connexion par numéro</p></div>
-                <button onClick={() => { setWaMode("qr"); setWaStatus("connecting"); setWaQr(null); }} className="text-xs text-zinc-500 hover:text-zinc-300">← QR code</button>
-              </div>
-              <div className="p-5 space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Ton numéro WhatsApp (avec indicatif)</label>
-                  <input type="tel" value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)}
-                    placeholder="+33 6 12 34 56 78" onKeyDown={e => e.key === "Enter" && waRequestPairing()} autoFocus
-                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#25D366]/50 transition-all" />
-                </div>
-                <button onClick={waRequestPairing} disabled={!waPhoneInput}
-                  className="w-full bg-[#25D366] hover:bg-[#1fb855] disabled:opacity-40 text-black text-sm font-semibold py-2.5 rounded-xl transition-all">
-                  Recevoir le code de liaison →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Code de couplage */}
-          {bridgeOnline && waStatus === "pairing" && (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-              <div className="px-4 py-3.5 flex items-center justify-between border-b border-white/[0.06]">
-                <div className="flex items-center gap-2"><WaIcon /><p className="text-sm font-medium text-white">Entre ce code sur ton téléphone</p></div>
-                <button onClick={() => { setWaStatus("connecting"); setWaMode("qr"); setWaPairingCode(null); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
-              </div>
-              <div className="px-6 py-6 flex flex-col items-center gap-4">
-                {waPairingCode ? (
-                  <>
-                    <div className="bg-[#25D366]/10 border border-[#25D366]/30 rounded-2xl px-8 py-4">
-                      <p className="text-3xl font-bold tracking-[0.25em] text-[#25D366] font-mono">{waPairingCode}</p>
-                    </div>
-                    <div className="text-center space-y-1">
-                      <p className="text-sm font-medium text-white">WhatsApp → ⋮ → Appareils liés</p>
-                      <p className="text-xs text-zinc-500">→ Lier avec un numéro de téléphone → entre ce code</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-zinc-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                      En attente de connexion…
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3 py-4">
-                    <div className="w-8 h-8 rounded-full border-2 border-zinc-600 border-t-[#25D366] animate-spin" />
-                    <p className="text-sm text-zinc-500">Génération du code…</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* QR code — mode principal */}
-          {bridgeOnline && (waStatus === "qr" || (waStatus === "connecting" && waMode === "qr")) && (
+          {/* QR — session expirée, re-scan nécessaire */}
+          {waStatus === "qr" && (
             <div className="rounded-xl border border-[#25D366]/20 bg-[#25D366]/[0.03] overflow-hidden">
               <div className="px-4 py-3.5 flex items-center justify-between border-b border-[#25D366]/10">
                 <div className="flex items-center gap-2">
                   <WaIcon />
-                  <p className="text-sm font-medium text-white">Connecter WhatsApp</p>
+                  <p className="text-sm font-medium text-white">Scanner le QR WhatsApp</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={waForceNewQr} disabled={waForcing}
-                    className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white disabled:opacity-40 transition-colors">
-                    {waForcing
-                      ? <span className="w-3 h-3 rounded-full border border-zinc-400 border-t-transparent animate-spin" />
-                      : <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M1 4v6h6M23 20v-6h-6" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>}
-                    Nouveau QR
-                  </button>
-                  <button onClick={() => { setWaStatus("idle"); setWaQr(null); }} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
-                </div>
+                <button onClick={() => setWaStatus("idle")} className="text-xs text-zinc-600 hover:text-zinc-300">Annuler</button>
               </div>
-
               <div className="px-6 py-6 flex flex-col items-center gap-5">
                 {waQr ? (
                   <>
@@ -444,29 +348,15 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-zinc-600">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                      En attente du scan — expire dans ~60s
+                      En attente du scan…
                     </div>
                   </>
-                ) : qrTimedOut ? (
-                  <div className="flex flex-col items-center gap-3 py-6">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">!</div>
-                    <p className="text-sm font-medium text-amber-300">QR code non généré</p>
-                    <p className="text-xs text-zinc-500 text-center max-w-xs">Le bridge ne répond pas. Vérifie que pm2 tourne :<br/><code className="text-emerald-300">pm2 restart whatsapp-bridge</code></p>
-                    <button onClick={() => { setQrTimedOut(false); waForceNewQr(); }} className="mt-1 text-xs font-semibold text-white bg-[#25D366]/20 hover:bg-[#25D366]/30 border border-[#25D366]/30 px-4 py-2 rounded-xl transition-all">
-                      Réessayer
-                    </button>
-                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3 py-8">
                     <div className="w-12 h-12 rounded-full border-2 border-zinc-700 border-t-[#25D366] animate-spin" />
-                    <p className="text-sm text-zinc-500">Génération du QR code…</p>
-                    <p className="text-xs text-zinc-600">Si ça bloque → clique sur <span className="text-zinc-400">Nouveau QR</span> ci-dessus</p>
+                    <p className="text-sm text-zinc-500">Génération du QR…</p>
                   </div>
                 )}
-                <button onClick={() => setWaMode("phone")}
-                  className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors underline underline-offset-2">
-                  S&apos;identifier par numéro de téléphone
-                </button>
               </div>
             </div>
           )}
@@ -474,112 +364,179 @@ export default function SettingsPage() {
 
         {/* Apple iCloud */}
         <section className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-1">
-            <AppleIcon color="#71717a" />
-            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Apple iCloud</h2>
-          </div>
-          <p className="text-xs text-zinc-600 mb-5">Accède à ton Calendrier et tes Contacts Apple depuis l&apos;assistant.</p>
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Apple iCloud</h2>
+          <p className="text-xs text-zinc-600 mb-5">Calendrier et Contacts Apple dans l&apos;assistant.</p>
 
-          {/* Bridge offline */}
-          {bridgeOnline === false && <BridgeOfflineBanner onRetry={checkBridge} />}
-
-          {/* Apple connecté */}
-          {bridgeOnline && appleStatus === "connected" && (
-            <AccountRow
-              icon={<AppleIcon />}
-              label="Apple iCloud" subtitle={appleUser ?? undefined}
-              connected={true} onConnect={() => {}} onDisconnect={appleDisconnect}
-            />
+          {appleStatus === "connected" && (
+            <AccountRow icon={<AppleIcon />} label="Apple iCloud" subtitle={appleUser ?? undefined}
+              connected={true} onConnect={() => {}} onDisconnect={appleDisconnect} />
           )}
 
-          {/* Apple vérification */}
-          {bridgeOnline && appleStatus === "connecting" && (
+          {appleStatus === "connecting" && (
             <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-4">
               <div className="w-5 h-5 rounded-full border-2 border-zinc-600 border-t-white animate-spin shrink-0" />
-              <p className="text-sm text-zinc-400">Vérification des identifiants iCloud…</p>
+              <p className="text-sm text-zinc-400">Vérification…</p>
             </div>
           )}
 
-          {/* Apple guide */}
-          {bridgeOnline !== false && appleStatus === "form" && appleStep === "guide" && (
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-              <div className="px-5 py-5 space-y-5">
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Apple ne propose pas de connexion OAuth comme Google. Pour accéder à ton Calendrier et tes Contacts, tu dois générer un <strong className="text-white">mot de passe d&apos;app</strong> (2 min).
-                </p>
-
-                <div className="space-y-3">
-                  {[
-                    { n: "1", text: "Va sur appleid.apple.com et connecte-toi" },
-                    { n: "2", text: "Connexion et sécurité → Mots de passe spécifiques → +" },
-                    { n: "3", text: "Donne un nom (ex : \"Trigr\") → copie le mot de passe généré" },
-                  ].map(s => (
-                    <div key={s.n} className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-zinc-700 text-zinc-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
-                      <p className="text-xs text-zinc-400 leading-relaxed">{s.text}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-all border border-white/[0.08]">
-                    <AppleIcon color="white" />
-                    Aller sur appleid.apple.com →
-                  </a>
-                </div>
-                <button onClick={() => setAppleStep("form")}
-                  className="w-full text-xs text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2">
-                  J&apos;ai déjà mon mot de passe d&apos;app
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Apple formulaire */}
-          {bridgeOnline !== false && appleStatus === "form" && appleStep === "form" && (
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-              <div className="px-5 py-4 space-y-4">
-                <button onClick={() => setAppleStep("guide")} className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Retour au guide
-                </button>
-
-                <div>
-                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Apple ID (ton email iCloud)</label>
-                  <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
-                    placeholder="prenom@icloud.com" autoFocus
-                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500/60 transition-all" />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
-                    Mot de passe d&apos;app
-                    <span className="ml-1 text-zinc-600 font-normal">(format xxxx-xxxx-xxxx-xxxx)</span>
-                  </label>
-                  <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
-                    placeholder="xxxx-xxxx-xxxx-xxxx" onKeyDown={e => e.key === "Enter" && appleConnect()}
-                    className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500/60 transition-all font-mono" />
-                  <p className="text-xs text-zinc-600 mt-1">Pas ton mot de passe iCloud habituel — celui généré sur appleid.apple.com</p>
-                </div>
-
-                {appleError && (
-                  <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0 mt-0.5">
-                      <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/>
-                    </svg>
-                    {appleError}
-                  </div>
-                )}
-
-                <button onClick={appleConnect} disabled={!appleId || !applePwd}
-                  className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition-all border border-white/[0.08] flex items-center justify-center gap-2">
+          {appleStatus === "form" && (
+            <div className="space-y-3">
+              <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noreferrer"
+                className="flex items-center justify-between gap-3 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.09] rounded-xl px-4 py-3.5 transition-all group">
+                <div className="flex items-center gap-3">
                   <AppleIcon color="white" />
+                  <div>
+                    <p className="text-sm font-medium text-white">Générer un mot de passe Apple</p>
+                    <p className="text-xs text-zinc-500">appleid.apple.com → Connexion et sécurité → Mots de passe spécifiques → +</p>
+                  </div>
+                </div>
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-zinc-600 group-hover:text-zinc-300 shrink-0 transition-colors">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </a>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4 space-y-3">
+                <input type="email" value={appleId} onChange={e => setAppleId(e.target.value)}
+                  placeholder="Apple ID (ex : prenom@icloud.com)"
+                  className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500/60 transition-all" />
+                <input type="password" value={applePwd} onChange={e => setApplePwd(e.target.value)}
+                  placeholder="Mot de passe d'app (xxxx-xxxx-xxxx-xxxx)"
+                  onKeyDown={e => e.key === "Enter" && appleConnect()}
+                  className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500/60 transition-all font-mono" />
+                {appleError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{appleError}</p>}
+                <button onClick={appleConnect} disabled={!appleId || !applePwd}
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition-all border border-white/[0.08]">
                   Connecter Apple iCloud
                 </button>
               </div>
             </div>
           )}
+        </section>
+        {/* Notion */}
+        <section className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Notion</h2>
+          <p className="text-xs text-zinc-600 mb-5">Lis et crée des pages Notion depuis l&apos;assistant.</p>
+          {notionConnected ? (
+            <AccountRow
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466l1.824 1.447zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.934zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933l3.222-.187z"/></svg>}
+              label="Notion"
+              subtitle={notionWorkspace ?? undefined}
+              connected={true}
+              onConnect={() => {}}
+              onDisconnect={async () => {
+                await fetch(NOTION, { method: "DELETE" });
+                setNotionConnected(false); setNotionWorkspace(null);
+              }}
+            />
+          ) : (
+            <AccountRow
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="#52525b"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466l1.824 1.447zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.934zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933l3.222-.187z"/></svg>}
+              label="Notion"
+              subtitle="Pages · Databases"
+              connected={false}
+              onConnect={() => window.location.href = `${NOTION}?action=authorize`}
+              onDisconnect={() => {}}
+            />
+          )}
+        </section>
+
+        {/* Slack */}
+        <section className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Slack</h2>
+          <p className="text-xs text-zinc-600 mb-5">Lis et envoie des messages Slack depuis l&apos;assistant.</p>
+          {slackConnected ? (
+            <AccountRow
+              icon={<svg width="18" height="18" viewBox="0 0 122.8 122.8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/>
+                <path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/>
+                <path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0S90.5 5.8 90.5 12.9v32.3z" fill="#2EB67D"/>
+                <path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/>
+              </svg>}
+              label={slackTeam ?? "Slack"}
+              subtitle="Canaux · Messages"
+              connected={true}
+              onConnect={() => {}}
+              onDisconnect={async () => { await fetch(SLACK, { method: "DELETE" }); setSlackConnected(false); setSlackTeam(null); }}
+            />
+          ) : (
+            <AccountRow
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="#52525b"><path d="M6.194 14.644c0 1.16-.943 2.107-2.097 2.107-1.154 0-2.097-.946-2.097-2.107 0-1.16.943-2.107 2.097-2.107H6.194v2.107zm1.061 0c0-1.16.943-2.107 2.097-2.107 1.154 0 2.097.946 2.097 2.107v5.27c0 1.16-.943 2.107-2.097 2.107-1.154 0-2.097-.946-2.097-2.107v-5.27zm2.097-8.45c-1.154 0-2.097-.946-2.097-2.107C7.255.927 8.198-.02 9.352-.02c1.154 0 2.097.946 2.097 2.107v2.107H9.352zm0 1.061c1.154 0 2.097.946 2.097 2.107 0 1.16-.943 2.107-2.097 2.107H4.097C2.943 11.469 2 10.522 2 9.362c0-1.16.943-2.107 2.097-2.107h5.255zm8.45 2.107c0-1.16.943-2.107 2.097-2.107S22 8.101 22 9.262c0 1.16-.943 2.107-2.097 2.107H17.9V9.362zm-1.061 0c0 1.16-.943 2.107-2.097 2.107-1.154 0-2.097-.946-2.097-2.107V4.093C12.645 2.932 13.588 1.986 14.742 1.986c1.154 0 2.097.946 2.097 2.107v5.27zm-2.097 8.45c1.154 0 2.097.946 2.097 2.107 0 1.16-.943 2.107-2.097 2.107-1.154 0-2.097-.946-2.097-2.107v-2.107h2.097zm0-1.061c-1.154 0-2.097-.946-2.097-2.107 0-1.16.943-2.107 2.097-2.107h5.255C20.057 12.537 21 13.483 21 14.644c0 1.16-.943 2.107-2.097 2.107h-5.255z"/></svg>}
+              label="Slack"
+              subtitle="Canaux · Messages"
+              connected={false}
+              onConnect={() => window.location.href = `${SLACK}?action=authorize`}
+              onDisconnect={() => {}}
+            />
+          )}
+        </section>
+
+        {/* HubSpot */}
+        <section className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">HubSpot CRM</h2>
+          <p className="text-xs text-zinc-600 mb-5">Gérez vos contacts et deals HubSpot depuis l&apos;assistant.</p>
+          <AccountRow
+            icon={<svg width="20" height="20" viewBox="0 0 512 512" fill={hubspotConnected ? "#FF7A59" : "#52525b"}><path d="M267.4 211.6c-25.1 17.2-42.5 47.8-42.5 83.1 0 26.7 10.1 51.2 26.8 69.9l-56.2 56.2c-6.5-3-13.9-4.7-21.6-4.7-27.4 0-49.6 22.2-49.6 49.6S146.5 515.3 173.9 515.3s49.6-22.2 49.6-49.6c0-7.9-1.9-15.3-5.1-21.9l55.5-55.5c19.3 17.4 44.7 28 72.7 28 60.5 0 109.7-49.1 109.7-109.7s-49.1-109.7-109.7-109.7c-28.5 0-54.6 10.8-74.3 28.7zM346.5 368.5c-40.8 0-74-33.2-74-74s33.2-74 74-74 74 33.2 74 74-33.2 74-74 74z"/><path d="M285.1 219.2v-60.3c9.3-4.3 15.8-13.7 15.8-24.6v-.8c0-14.9-12.1-27.1-27.1-27.1h-.8c-14.9 0-27.1 12.1-27.1 27.1v.8c0 10.9 6.4 20.3 15.8 24.6v60.3c-14.2 2.1-27.3 7.7-38.5 16.2L122.5 119.7c.9-3.1 1.4-6.4 1.4-9.8 0-20.3-16.5-36.8-36.8-36.8s-36.8 16.5-36.8 36.8 16.5 36.8 36.8 36.8c8.5 0 16.3-2.9 22.5-7.7l99.8 113.5c-16.4 19.3-26.2 44.3-26.2 71.6 0 60.5 49.1 109.7 109.7 109.7s109.7-49.1 109.7-109.7c0-55.8-41.8-101.9-95.5-108.7z"/></svg>}
+            label="HubSpot CRM"
+            subtitle="Contacts · Deals · Pipeline"
+            connected={hubspotConnected}
+            onConnect={() => window.location.href = `${HUBSPOT}?action=authorize`}
+            onDisconnect={async () => { await fetch(HUBSPOT, { method: "DELETE" }); setHubspotConnected(false); }}
+          />
+        </section>
+
+        {/* Abonnement */}
+        <section className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Abonnement</h2>
+          <p className="text-xs text-zinc-600 mb-5">Votre plan actuel et les options disponibles.</p>
+
+          {/* Plan actuel */}
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-sm text-zinc-300">Plan actuel :</span>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              plan === "free" ? "bg-zinc-800 text-zinc-400" :
+              plan === "solo" ? "bg-violet-900/40 text-violet-300 border border-violet-500/30" :
+              plan === "pro" ? "bg-cyan-900/40 text-cyan-300 border border-cyan-500/30" :
+              "bg-amber-900/40 text-amber-300 border border-amber-500/30"
+            }`}>
+              {plan === "free" ? "Gratuit" : plan === "solo" ? "Solo" : plan === "pro" ? "Pro" : "Équipe"}
+            </span>
+          </div>
+
+          {/* Cards plans */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { id: "solo", name: "Solo", price: "9€/mois", features: ["3 intégrations", "50 actions/jour", "1 utilisateur"] },
+              { id: "pro", name: "Pro", price: "19€/mois", features: ["Toutes intégrations", "Illimité", "1 utilisateur"], highlight: true },
+              { id: "equipe", name: "Équipe", price: "49€/mois", features: ["Toutes intégrations", "Illimité", "5 utilisateurs"] },
+            ].map(p => (
+              <div key={p.id} className={`rounded-xl border p-4 flex flex-col gap-3 ${
+                p.highlight ? "border-violet-500/40 bg-violet-500/[0.05]" : "border-white/[0.07] bg-white/[0.02]"
+              } ${plan === p.id ? "ring-1 ring-violet-400/40" : ""}`}>
+                <div className="flex items-baseline justify-between">
+                  <span className="font-semibold text-white text-sm">{p.name}</span>
+                  <span className="text-xs text-zinc-400">{p.price}</span>
+                </div>
+                <ul className="space-y-1">
+                  {p.features.map(f => (
+                    <li key={f} className="text-xs text-zinc-500 flex items-center gap-1.5">
+                      <span className="text-emerald-400">✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+                {plan === p.id ? (
+                  <span className="text-xs text-center text-violet-400 font-medium">Plan actuel</span>
+                ) : (
+                  <button onClick={() => upgradePlan(p.id)} disabled={!!subBusy}
+                    className={`text-xs font-semibold py-1.5 px-3 rounded-lg transition-all disabled:opacity-40 ${
+                      p.highlight ? "bg-violet-600 hover:bg-violet-500 text-white" : "bg-zinc-800 hover:bg-zinc-700 text-white border border-white/[0.08]"
+                    }`}>
+                    {subBusy === p.id
+                      ? <span className="flex items-center justify-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />Redirection…</span>
+                      : "Choisir ce plan"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </section>
       </main>
       <Footer />

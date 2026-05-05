@@ -3,8 +3,8 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 
 const INTEGRATIONS = [
-  "Gmail", "Google Calendar", "WhatsApp Business", "Slack",
-  "Google Drive", "Notion", "HubSpot", "Stripe",
+  "Gmail", "Google Calendar", "WhatsApp Business", "Apple iCloud",
+  "Notion", "Microsoft Outlook", "Microsoft Teams", "Slack (bientôt)",
 ];
 
 const CAPABILITIES = [
@@ -157,9 +157,10 @@ const COMPARE_ROWS = [
   ["Langue", "Français FR-first", "100 % anglais"],
   ["Prix d'entrée", "9 €/mois", "50 $/mois"],
   ["WhatsApp", "✅ Natif", "❌ Non dispo"],
+  ["Apple iCloud", "✅ CalDAV direct", "✅ Mac Mini bridge"],
+  ["Notion", "✅ OAuth natif", "✅ OAuth natif"],
   ["RGPD", "✅ Données chez vous", "Données stockées US"],
-  ["Modèle tarifaire", "Forfait clair", "Crédits à l'action"],
-  ["Self-hosted", "✅ Docker inclus", "❌ SaaS uniquement"],
+  ["Self-hosted", "✅ Docker 1 commande", "❌ SaaS uniquement"],
   ["Templates FR", "✅ Artisans, kinés…", "Templates US"],
 ];
 
@@ -403,7 +404,7 @@ export default function Home() {
                     ))}
                   </ul>
                   <Link
-                    href="/assistant"
+                    href={plan.price === "0€" ? "/assistant" : "/pricing"}
                     className={`text-center text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
                       plan.highlight
                         ? "bg-violet-600 hover:bg-violet-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.35)]"

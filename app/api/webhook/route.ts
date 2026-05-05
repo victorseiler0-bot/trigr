@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { clerkClient } from "@clerk/nextjs/server";
+import { n8n } from "@/lib/n8n";
 
 function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2026-04-22.dahlia",
-  });
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" });
 }
 
-async function notifyWhatsApp(productName: string, withInstall: string) {
-  const phone = process.env.WHATSAPP_PHONE;
-  const apikey = process.env.CALLMEBOT_APIKEY;
-  if (!phone || !apikey) return;
+const PRODUCT_WORKFLOW: Record<string, string> = {
+  rapport: "Pq2hwYZ8u4eZzi2m",
+  relance: "",
+  devis:   "",
+  rdv:     "",
+  leads:   "",
+  panier:  "",
+};
 
-  const msg = encodeURIComponent(
-    `🎉 Nouvelle vente Trigr !\n📦 ${productName}${withInstall === "true" ? " + Installation" : ""}\n💬 Contacte l'acheteur pour livraison.`
-  );
-
-  await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${msg}&apikey=${apikey}`)
-    .catch(() => null);
+async function saveSubscription(userId: string, plan: string, status: string, subId: string) {
+  const client = await clerkClient();
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { stripePlan: plan, stripeStatus: status, stripeSubscriptionId: subId },
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -32,11 +35,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Webhook signature invalide" }, { status: 400 });
   }
 
+  // ── Marketplace one-time purchases ───────────────────────────────────────────
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const productName = session.metadata?.productName ?? "Automatisation";
-    const withInstall = session.metadata?.withInstall ?? "false";
-    await notifyWhatsApp(productName, withInstall);
+
+    // Abonnement — sauvegarder dans Clerk
+    if (session.mode === "subscription" && session.subscription) {
+      const userId = session.metadata?.userId;
+      const plan = session.metadata?.plan ?? "pro";
+      if (userId) {
+        await saveSubscription(userId, plan, "active", session.subscription as string);
+      }
+    }
+
+    // Marketplace workflow one-time
+    const productId = session.metadata?.productId ?? "";
+    const workflowId = PRODUCT_WORKFLOW[productId];
+    if (workflowId) await n8n(`/workflows/${workflowId}/activate`, "POST");
+  }
+
+  // ── Subscription lifecycle ────────────────────────────────────────────────────
+  if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+    const sub = event.data.object as Stripe.Subscription;
+    const userId = sub.metadata?.userId;
+    const plan = sub.metadata?.plan ?? "pro";
+    if (userId) {
+      const status = event.type === "customer.subscription.deleted" ? "cancelled" : sub.status;
+      await saveSubscription(userId, plan, status, sub.id);
+    }
   }
 
   return NextResponse.json({ received: true });

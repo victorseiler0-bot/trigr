@@ -98,6 +98,18 @@ const ALL_ACTIONS: Record<string, { category: string; icon: string; color: strin
       ],
     },
   ],
+  notion: [
+    {
+      category: "Notion",
+      icon: "📄",
+      color: "pink",
+      actions: [
+        { label: "Chercher une page", prompt: "Cherche la page Notion sur " },
+        { label: "Lire une page", prompt: "Lis-moi le contenu de la page Notion " },
+        { label: "Créer une note", prompt: "Crée une nouvelle page Notion avec le titre " },
+      ],
+    },
+  ],
   compose: [
     {
       category: "Rédiger",
@@ -166,6 +178,7 @@ export default function AssistantPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
   const [hasApple, setHasApple] = useState(false);
+  const [hasNotion, setHasNotion] = useState(false);
   const [newServices, setNewServices] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
   const prevServicesRef = useRef<Set<string>>(new Set());
@@ -175,7 +188,7 @@ export default function AssistantPage() {
   const providers = new Set(user?.externalAccounts?.map((a) => a.provider) ?? []);
   const hasGoogle = providers.has("google");
   const hasMicrosoft = providers.has("microsoft");
-  const hasAny = hasGoogle || hasMicrosoft || hasWhatsApp || hasApple;
+  const hasAny = hasGoogle || hasMicrosoft || hasWhatsApp || hasApple || hasNotion;
 
   // Active services list
   const activeServices = [
@@ -183,6 +196,7 @@ export default function AssistantPage() {
     ...(hasMicrosoft ? ["microsoft"] : []),
     ...(hasWhatsApp ? ["whatsapp"] : []),
     ...(hasApple ? ["apple"] : []),
+    ...(hasNotion ? ["notion"] : []),
     ...((hasGoogle || hasMicrosoft || hasWhatsApp || hasApple) ? ["compose"] : []),
   ];
 
@@ -210,16 +224,18 @@ export default function AssistantPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasGoogle, hasMicrosoft, hasWhatsApp]);
 
-  // Poll bridge (WA + Apple) every 8s via proxy /api/bridge
+  // Poll statut WA (Whapi) + Apple toutes les 10s
   useEffect(() => {
     const check = () => {
-      fetch("/api/bridge/status", { signal: AbortSignal.timeout(3000) })
-        .then(r => r.json()).then(d => setHasWhatsApp(d?.status === "connected")).catch(() => {});
-      fetch("/api/bridge/apple/status", { signal: AbortSignal.timeout(3000) })
+      fetch("/api/whapi/connect", { signal: AbortSignal.timeout(5000) })
+        .then(r => r.json()).then(d => setHasWhatsApp(d?.connected === true)).catch(() => {});
+      fetch("/api/apple/connect", { signal: AbortSignal.timeout(5000) })
         .then(r => r.json()).then(d => setHasApple(d?.configured === true)).catch(() => {});
+      fetch("/api/notion/connect", { signal: AbortSignal.timeout(5000) })
+        .then(r => r.json()).then(d => setHasNotion(d?.configured === true)).catch(() => {});
     };
     check();
-    const id = setInterval(check, 8000);
+    const id = setInterval(check, 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -245,43 +261,8 @@ export default function AssistantPage() {
     setInput("");
     setLoading(true);
 
-    // Pré-récupère les données via le proxy /api/bridge (évite les problèmes HTTPS→HTTP)
     const bridgeData: Record<string, unknown> = {};
-    try {
-      if (hasWhatsApp) {
-        const [chats, contacts] = await Promise.allSettled([
-          fetch("/api/bridge/chats", { signal: AbortSignal.timeout(4000) }).then(r => r.json()),
-          fetch("/api/bridge/contacts", { signal: AbortSignal.timeout(4000) }).then(r => r.json()),
-        ]);
-        const chatList = chats.status === "fulfilled" ? (chats.value?.chats ?? []) : [];
-        const messagesMap: Record<string, unknown[]> = {};
-        await Promise.allSettled(chatList.slice(0, 5).map(async (chat: { id?: string }) => {
-          if (chat.id) {
-            try {
-              const m = await fetch(`/api/bridge/messages/${encodeURIComponent(chat.id)}?limit=15`, { signal: AbortSignal.timeout(4000) }).then(r => r.json());
-              if (m?.messages) messagesMap[chat.id] = m.messages;
-            } catch {}
-          }
-        }));
-        bridgeData.wa = {
-          connected: true,
-          chats: chatList,
-          contacts: contacts.status === "fulfilled" ? (contacts.value?.contacts ?? []) : [],
-          messages: messagesMap,
-        };
-      }
-      if (hasApple) {
-        const [calendar, contacts] = await Promise.allSettled([
-          fetch("/api/bridge/apple/calendar", { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
-          fetch("/api/bridge/apple/contacts", { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
-        ]);
-        bridgeData.apple = {
-          configured: true,
-          calendar: calendar.status === "fulfilled" ? (calendar.value?.events ?? []) : [],
-          contacts: contacts.status === "fulfilled" ? (contacts.value?.contacts ?? []) : [],
-        };
-      }
-    } catch {}
+    if (hasWhatsApp) bridgeData.wa = { connected: true };
 
     try {
       const r = await fetch("/api/assistant", {
@@ -290,29 +271,12 @@ export default function AssistantPage() {
         body: JSON.stringify({ message: trimmed, history: next.slice(0, -1), bridgeData }),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data?.error || "Erreur");
-
-      // Exécute les actions qui nécessitent le bridge local (envois WA, création événements Apple)
-      if (Array.isArray(data.clientActions) && data.clientActions.length > 0) {
-        await Promise.allSettled(data.clientActions.map(async (action: { type: string; to?: string; message?: string; event?: Record<string, unknown> }) => {
-          if (action.type === "send_whatsapp" && action.to && action.message) {
-            await fetch("/api/bridge/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ to: action.to, message: action.message }),
-              signal: AbortSignal.timeout(5000),
-            });
-          } else if (action.type === "create_apple_event" && action.event) {
-            await fetch("/api/bridge/apple/calendar/create", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(action.event),
-              signal: AbortSignal.timeout(5000),
-            });
-          }
-        }));
+      if (r.status === 429) {
+        setError(`${data.error} → <upgrade>`);
+        setLoading(false);
+        return;
       }
-
+      if (!r.ok) throw new Error(data?.error || "Erreur");
       setMessages([...next, { role: "assistant", content: data.response || "(réponse vide)" }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
@@ -480,7 +444,16 @@ export default function AssistantPage() {
         )}
 
         {error && (
-          <div className="mb-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
+          error.includes("<upgrade>") ? (
+            <div className="mb-3 bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-violet-300">{error.replace(" → <upgrade>", "")}</p>
+              <Link href="/pricing" className="shrink-0 text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-all">
+                Passer Pro →
+              </Link>
+            </div>
+          ) : (
+            <div className="mb-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
+          )
         )}
 
         {/* Input */}

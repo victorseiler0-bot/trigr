@@ -1,33 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Groq from "groq-sdk";
+import { whapiChannel, getUserWhapiMeta } from "@/lib/whapi";
+import { getAppleMeta, getAppleCalendar, getAppleContacts, createAppleEvent } from "@/lib/apple";
+import { checkAndIncrementAction } from "@/lib/ratelimit";
+import { getNotionMeta, searchNotionPages, getNotionPage, createNotionPage } from "@/lib/notion";
+import { getSlackMeta, getSlackChannels, getSlackMessages, sendSlackMessage } from "@/lib/slack";
+import { getHubSpotMeta, searchHubSpotContacts, getHubSpotDeals, createHubSpotContact, createHubSpotDeal } from "@/lib/hubspot";
+
+export const maxDuration = 60; // secondes — nécessaire pour les chaînes d'outils Groq + Whapi
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur.
-Tu réponds toujours en français, de manière concise et utile.
+const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
 Date et heure actuelles : ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
 
 Outils disponibles selon les connexions de l'utilisateur :
 - Google connecté : lire_emails, envoyer_email, voir_agenda, creer_evenement (Gmail + Google Calendar)
 - Microsoft connecté : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams (Outlook + Teams)
-- WhatsApp connecté : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp
+- WhatsApp connecté : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp, messages_envoyes
 - Apple connecté : voir_calendrier_apple, creer_evenement_apple, voir_contacts_apple
+- Notion connecté : chercher_notion, lire_page_notion, creer_page_notion
+- Slack connecté : voir_canaux_slack, lire_messages_slack, envoyer_slack
+- HubSpot connecté : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
 
-Quand tu utilises un outil, interprète les résultats et réponds naturellement.
-Si un outil échoue, explique à l'utilisateur qu'il doit connecter le service dans les Paramètres.`;
-
-// ── WhatsApp bridge ────────────────────────────────────────────────────────────
+RÈGLES IMPORTANTES :
+1. WhatsApp : utilise TOUJOURS voir_chats_whatsapp en premier pour obtenir les IDs de conversation avant de lire les messages. Les IDs ressemblent à "336XXXXXXXX@s.whatsapp.net" pour les contacts ou "XXXXXXXXX@g.us" pour les groupes.
+2. Pour envoyer un WA : utilise le numéro sans + ni espaces (ex: "336XXXXXXXX").
+3. Propose proactivement des actions utiles — si l'utilisateur parle d'une personne, propose de lui envoyer un message WA. Si il parle d'un sujet urgent, propose de vérifier ses emails.
+4. Après avoir utilisé un outil, résume les résultats clairement et propose une action suivante pertinente.
+5. Si un outil échoue, explique brièvement et propose une alternative.`;
 
 const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
 
+const whapiGet  = (path: string, token: string | null) => whapiChannel(token!, path);
+const whapiPost = (path: string, body: unknown, token: string | null) => whapiChannel(token!, path, "POST", body);
+
+// Helpers bridge local Baileys (fallback)
 async function waFetch(path: string) {
   try {
     const r = await fetch(`${WA_BRIDGE}/${path}`, { signal: AbortSignal.timeout(5000) });
     return r.ok ? r.json() : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function waPost(path: string, body: unknown) {
@@ -39,9 +53,7 @@ async function waPost(path: string, body: unknown) {
       signal: AbortSignal.timeout(5000),
     });
     return r.ok ? r.json() : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 // ── Helpers fetch ─────────────────────────────────────────────────────────────
@@ -77,8 +89,13 @@ async function executeTool(
   args: Record<string, unknown>,
   googleToken: string | null,
   msToken: string | null,
+  whapiToken: string | null,
   bridgeData: BridgeData,
-  clientActions: ClientAction[]
+  clientActions: ClientAction[],
+  appleCredentials: { email: string; appPassword: string } | null,
+  notionToken: string | null,
+  slackToken: string | null,
+  hubspotToken: string | null
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -187,7 +204,6 @@ async function executeTool(
       topic: c.topic,
       type: c.chatType,
     }));
-    // Récupère les derniers messages du premier chat
     if (chatList[0]?.id) {
       const msgs = await gFetch(`https://graph.microsoft.com/v1.0/me/chats/${chatList[0].id}/messages?$top=5`, msToken);
       const messages = (msgs.value ?? []).map((m: Record<string, unknown>) => ({
@@ -200,79 +216,196 @@ async function executeTool(
     return JSON.stringify({ chats: chatList });
   }
 
-  // ─── Apple iCloud (données pré-récupérées par le client) ────────────────────
+  // ─── Apple iCloud (CalDAV direct — tsdav) ───────────────────────────────────
   if (name === "voir_calendrier_apple") {
-    if (!bridgeData.apple?.configured) return JSON.stringify({ error: "Apple non configuré. Va dans Paramètres > Apple iCloud." });
-    if (bridgeData.apple.calendar?.length !== undefined) return JSON.stringify({ events: bridgeData.apple.calendar });
-    const data = await waFetch("apple/calendar");
-    if (!data) return JSON.stringify({ error: "Impossible de récupérer le calendrier Apple." });
-    return JSON.stringify({ events: data.events });
+    if (!appleCredentials) return JSON.stringify({ error: "Apple non configuré. Va dans Paramètres > Apple iCloud." });
+    const events = await getAppleCalendar(appleCredentials.email, appleCredentials.appPassword);
+    return JSON.stringify({ events });
   }
 
   if (name === "creer_evenement_apple") {
-    if (!bridgeData.apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
+    if (!appleCredentials) return JSON.stringify({ error: "Apple non configuré." });
     const { summary, start, end, location, description } = args as { summary: string; start: string; end: string; location?: string; description?: string };
-    // Action exécutée côté client (le bridge est local)
-    clientActions.push({ type: "create_apple_event", event: { summary, start, end, location, description } });
-    return JSON.stringify({ success: true, message: "Événement créé dans Apple Calendar." });
+    const ok = await createAppleEvent(appleCredentials.email, appleCredentials.appPassword, { summary, start, end, location, description });
+    return ok ? JSON.stringify({ success: true }) : JSON.stringify({ error: "Impossible de créer l'événement." });
   }
 
   if (name === "voir_contacts_apple") {
-    if (!bridgeData.apple?.configured) return JSON.stringify({ error: "Apple non configuré." });
-    if (bridgeData.apple.contacts?.length !== undefined) return JSON.stringify({ contacts: bridgeData.apple.contacts });
-    const data = await waFetch("apple/contacts");
-    if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts Apple." });
-    return JSON.stringify({ contacts: data.contacts });
+    if (!appleCredentials) return JSON.stringify({ error: "Apple non configuré." });
+    const contacts = await getAppleContacts(appleCredentials.email, appleCredentials.appPassword);
+    return JSON.stringify({ contacts });
   }
 
-  // ─── WhatsApp (données pré-récupérées par le client) ──────────────────────
+  // ─── WhatsApp — Whapi.cloud (cloud) ou Baileys local (fallback) ────────────
   if (name === "voir_chats_whatsapp") {
-    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp pour connecter ton compte." });
+    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp." });
+    if (whapiToken) {
+      const data = await whapiGet("chats?count=25", whapiToken);
+      if (!data) return JSON.stringify({ error: "Impossible de récupérer les conversations Whapi." });
+      const chats = (data.chats ?? []).map((c: Record<string, unknown>) => {
+        const lm = c.last_message as Record<string, unknown> | undefined;
+        const phone = String(c.id ?? "").split("@")[0];
+        return {
+          id: c.id,
+          name: (c.name as string) || (lm?.from_name as string) || phone,
+          phone,
+          unread: c.unread_count ?? 0,
+          lastMessage: (lm?.text as Record<string, string>)?.body || (lm?.type as string) || "",
+        };
+      });
+      return JSON.stringify({ chats });
+    }
     if (bridgeData.wa.chats) return JSON.stringify({ chats: bridgeData.wa.chats });
     const data = await waFetch("chats");
-    if (!data) return JSON.stringify({ error: "Impossible de récupérer les conversations." });
-    return JSON.stringify({ chats: data.chats });
+    return data ? JSON.stringify({ chats: data.chats }) : JSON.stringify({ error: "Impossible de récupérer les conversations." });
   }
 
   if (name === "lire_messages_whatsapp") {
     if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { jid, limit } = args as { jid?: string; limit?: number };
-    if (!jid) {
-      return JSON.stringify({ chats: (bridgeData.wa.chats ?? []).slice(0, 5), hint: "Précise un jid pour lire une conversation." });
-    }
-    // Cherche dans les messages pré-récupérés
-    if (bridgeData.wa.messages?.[jid]) {
-      const msgs = bridgeData.wa.messages[jid].slice(0, limit ?? 20);
+    if (whapiToken) {
+      if (!jid) return JSON.stringify({ hint: "Précise un chat_id pour lire une conversation." });
+      const data = await whapiGet(`messages/list/${encodeURIComponent(jid)}?count=${limit ?? 20}`, whapiToken);
+      if (!data) return JSON.stringify({ error: "Conversation introuvable." });
+      const msgs = (data.messages ?? []).map((m: Record<string, unknown>) => ({
+        id: m.id,
+        from: (m.from_name as string) || String((m.from as string)?.split("@")[0] ?? ""),
+        text: (m.text as Record<string, string>)?.body ?? "",
+        timestamp: m.timestamp,
+        fromMe: m.from_me,
+      }));
       return JSON.stringify({ messages: msgs });
     }
-    // Fallback vers bridge (fonctionne en développement local)
+    if (!jid) return JSON.stringify({ chats: (bridgeData.wa.chats ?? []).slice(0, 5), hint: "Précise un jid." });
+    if (bridgeData.wa.messages?.[jid]) return JSON.stringify({ messages: (bridgeData.wa.messages[jid] as unknown[]).slice(0, limit ?? 20) });
     const data = await waFetch(`messages/${encodeURIComponent(jid)}?limit=${limit ?? 20}`);
-    if (!data) return JSON.stringify({ error: "Conversation introuvable ou bridge inaccessible." });
-    return JSON.stringify({ messages: data.messages });
+    return data ? JSON.stringify({ messages: data.messages }) : JSON.stringify({ error: "Conversation introuvable." });
   }
 
   if (name === "envoyer_whatsapp") {
     if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { to, message } = args as { to: string; message: string };
     if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
-    // Action exécutée côté client (le bridge est local)
+    if (whapiToken) {
+      const phone = to.replace(/\D/g, "");
+      const r = await whapiPost("messages/text", { to: phone, body: message }, whapiToken);
+      return r?.sent ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
+    }
     clientActions.push({ type: "send_whatsapp", to, message });
     return JSON.stringify({ success: true, message: "Message WhatsApp envoyé." });
   }
 
   if (name === "voir_contacts_whatsapp") {
     if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (whapiToken) {
+      const data = await whapiGet("contacts?count=100", whapiToken);
+      if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts." });
+      const contacts = (data.contacts ?? []).map((c: Record<string, unknown>) => ({
+        id: c.id,
+        name: (c.name as string) || (c.pushname as string) || String(c.id ?? ""),
+        phone: String(c.id ?? ""),
+      }));
+      return JSON.stringify({ contacts: contacts.slice(0, 50) });
+    }
     if (bridgeData.wa.contacts) return JSON.stringify({ contacts: (bridgeData.wa.contacts as unknown[]).slice(0, 30) });
     const data = await waFetch("contacts");
-    if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts." });
-    return JSON.stringify({ contacts: data.contacts?.slice(0, 30) });
+    return data ? JSON.stringify({ contacts: data.contacts?.slice(0, 30) }) : JSON.stringify({ error: "Impossible de récupérer les contacts." });
   }
 
   if (name === "messages_envoyes") {
     if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (whapiToken) {
+      const chatsData = await whapiGet("chats?count=10", whapiToken);
+      const chats = (chatsData?.chats ?? []).slice(0, 5) as Record<string, unknown>[];
+      const results = await Promise.all(
+        chats.map(c => whapiGet(`messages/list/${encodeURIComponent(c.id as string)}?count=10`, whapiToken))
+      );
+      const sent = results.flatMap((r, i) => {
+        const chat = chats[i];
+        const chatName = (chat?.name as string) || String((chat?.id as string)?.split("@")[0] ?? "");
+        return (r?.messages ?? [])
+          .filter((m: Record<string, unknown>) => m.from_me)
+          .map((m: Record<string, unknown>) => ({
+            to: chatName,
+            text: (m.text as Record<string, string>)?.body ?? "",
+            timestamp: m.timestamp,
+          }));
+      });
+      return JSON.stringify({ messages: sent.slice(0, 20) });
+    }
     const data = await waFetch("sent");
-    if (!data) return JSON.stringify({ error: "Impossible de récupérer les messages envoyés." });
-    return JSON.stringify({ messages: data.messages });
+    return data ? JSON.stringify({ messages: data.messages }) : JSON.stringify({ error: "Impossible de récupérer les messages envoyés." });
+  }
+
+  // ─── Slack ───────────────────────────────────────────────────────────────────
+  if (name === "voir_canaux_slack") {
+    if (!slackToken) return JSON.stringify({ error: "Slack non connecté. Va dans Paramètres > Slack." });
+    const channels = await getSlackChannels(slackToken);
+    return JSON.stringify({ channels });
+  }
+
+  if (name === "lire_messages_slack") {
+    if (!slackToken) return JSON.stringify({ error: "Slack non connecté." });
+    const { channelId, limit } = args as { channelId: string; limit?: number };
+    if (!channelId) return JSON.stringify({ error: "channelId requis." });
+    const messages = await getSlackMessages(slackToken, channelId, limit ?? 10);
+    return JSON.stringify({ messages });
+  }
+
+  if (name === "envoyer_slack") {
+    if (!slackToken) return JSON.stringify({ error: "Slack non connecté." });
+    const { channel, text } = args as { channel: string; text: string };
+    const ok = await sendSlackMessage(slackToken, channel, text);
+    return ok ? JSON.stringify({ success: true }) : JSON.stringify({ error: "Impossible d'envoyer le message." });
+  }
+
+  // ─── HubSpot CRM ─────────────────────────────────────────────────────────────
+  if (name === "chercher_contacts_hubspot") {
+    if (!hubspotToken) return JSON.stringify({ error: "HubSpot non connecté. Va dans Paramètres > HubSpot." });
+    const contacts = await searchHubSpotContacts(hubspotToken, (args.query as string) ?? "", (args.limit as number) ?? 10);
+    return JSON.stringify({ contacts });
+  }
+
+  if (name === "voir_deals_hubspot") {
+    if (!hubspotToken) return JSON.stringify({ error: "HubSpot non connecté." });
+    const deals = await getHubSpotDeals(hubspotToken, (args.limit as number) ?? 10);
+    return JSON.stringify({ deals });
+  }
+
+  if (name === "creer_contact_hubspot") {
+    if (!hubspotToken) return JSON.stringify({ error: "HubSpot non connecté." });
+    const { email, firstName, lastName, phone, company } = args as { email: string; firstName?: string; lastName?: string; phone?: string; company?: string };
+    const result = await createHubSpotContact(hubspotToken, { email, firstName, lastName, phone, company });
+    return JSON.stringify(result);
+  }
+
+  if (name === "creer_deal_hubspot") {
+    if (!hubspotToken) return JSON.stringify({ error: "HubSpot non connecté." });
+    const { name: dealName, amount, stage } = args as { name: string; amount?: string; stage?: string };
+    const result = await createHubSpotDeal(hubspotToken, { name: dealName, amount, stage });
+    return JSON.stringify(result);
+  }
+
+  // ─── Notion ──────────────────────────────────────────────────────────────────
+  if (name === "chercher_notion") {
+    if (!notionToken) return JSON.stringify({ error: "Notion non connecté. Va dans Paramètres > Notion." });
+    const pages = await searchNotionPages(notionToken, (args.query as string) ?? "", (args.limit as number) ?? 10);
+    return JSON.stringify({ pages });
+  }
+
+  if (name === "lire_page_notion") {
+    if (!notionToken) return JSON.stringify({ error: "Notion non connecté." });
+    const pageId = args.pageId as string;
+    if (!pageId) return JSON.stringify({ error: "pageId requis." });
+    const page = await getNotionPage(notionToken, pageId);
+    return JSON.stringify(page);
+  }
+
+  if (name === "creer_page_notion") {
+    if (!notionToken) return JSON.stringify({ error: "Notion non connecté." });
+    const { parentId, title, content } = args as { parentId: string; title: string; content: string };
+    const result = await createNotionPage(notionToken, parentId, title, content ?? "");
+    return JSON.stringify(result);
   }
 
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
@@ -280,7 +413,7 @@ async function executeTool(
 
 // ── Définitions des outils pour Groq ──────────────────────────────────────────
 
-function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasApple: boolean): Groq.Chat.ChatCompletionTool[] {
+function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasApple: boolean, hasNotion: boolean, hasSlack: boolean, hasHubSpot: boolean): Groq.Chat.ChatCompletionTool[] {
   const tools: Groq.Chat.ChatCompletionTool[] = [];
 
   if (hasGoogle) {
@@ -319,6 +452,31 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     );
   }
 
+  if (hasHubSpot) {
+    tools.push(
+      { type: "function", function: { name: "chercher_contacts_hubspot", description: "Chercher des contacts dans HubSpot CRM.", parameters: { type: "object" as const, properties: { query: { type: "string" }, limit: { type: "number" } }, required: ["query"] } } },
+      { type: "function", function: { name: "voir_deals_hubspot", description: "Voir les deals/opportunités HubSpot.", parameters: { type: "object" as const, properties: { limit: { type: "number" } } } } },
+      { type: "function", function: { name: "creer_contact_hubspot", description: "Créer un contact dans HubSpot.", parameters: { type: "object" as const, properties: { email: { type: "string" }, firstName: { type: "string" }, lastName: { type: "string" }, phone: { type: "string" }, company: { type: "string" } }, required: ["email"] } } },
+      { type: "function", function: { name: "creer_deal_hubspot", description: "Créer un deal dans HubSpot.", parameters: { type: "object" as const, properties: { name: { type: "string" }, amount: { type: "string" }, stage: { type: "string" } }, required: ["name"] } } }
+    );
+  }
+
+  if (hasSlack) {
+    tools.push(
+      { type: "function", function: { name: "voir_canaux_slack", description: "Lister les canaux Slack disponibles.", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "lire_messages_slack", description: "Lire les messages d'un canal Slack.", parameters: { type: "object" as const, properties: { channelId: { type: "string" }, limit: { type: "number" } }, required: ["channelId"] } } },
+      { type: "function", function: { name: "envoyer_slack", description: "Envoyer un message dans un canal Slack.", parameters: { type: "object" as const, properties: { channel: { type: "string", description: "ID ou nom du canal" }, text: { type: "string" } }, required: ["channel", "text"] } } }
+    );
+  }
+
+  if (hasNotion) {
+    tools.push(
+      { type: "function", function: { name: "chercher_notion", description: "Chercher des pages dans Notion.", parameters: { type: "object" as const, properties: { query: { type: "string" }, limit: { type: "number" } }, required: ["query"] } } },
+      { type: "function", function: { name: "lire_page_notion", description: "Lire le contenu d'une page Notion par son ID.", parameters: { type: "object" as const, properties: { pageId: { type: "string" } }, required: ["pageId"] } } },
+      { type: "function", function: { name: "creer_page_notion", description: "Créer une nouvelle page Notion.", parameters: { type: "object" as const, properties: { parentId: { type: "string", description: "ID de la page parent" }, title: { type: "string" }, content: { type: "string" } }, required: ["parentId", "title"] } } }
+    );
+  }
+
   return tools;
 }
 
@@ -335,13 +493,20 @@ export async function POST(req: NextRequest) {
     const bridgeData: BridgeData = body?.bridgeData ?? {};
     if (!message) return NextResponse.json({ error: "Message vide." }, { status: 400 });
 
-    // Utilise les flags WA/Apple pré-vérifiés par le client (le bridge est local, inatteignable depuis Vercel)
-    const hasWhatsApp = bridgeData.wa?.connected === true;
-    const hasApple = bridgeData.apple?.configured === true;
+    const { allowed, remaining } = await checkAndIncrementAction(userId);
+    if (!allowed) return NextResponse.json({
+      error: "Limite journalière atteinte. Passez au plan Pro pour continuer.",
+      upgrade: true,
+    }, { status: 429 });
 
-    // Récupère les tokens OAuth Google + Microsoft
+    // Récupère tous les tokens en parallèle
     let googleToken: string | null = null;
     let msToken: string | null = null;
+    let whapiToken: string | null = process.env.WHAPI_TOKEN || null;
+    let appleCredentials: { email: string; appPassword: string } | null = null;
+    let notionToken: string | null = null;
+    let slackToken: string | null = null;
+    let hubspotToken: string | null = null;
     try {
       const client = await clerkClient();
       const [gData, mData] = await Promise.allSettled([
@@ -350,9 +515,24 @@ export async function POST(req: NextRequest) {
       ]);
       if (gData.status === "fulfilled") googleToken = gData.value.data[0]?.token ?? null;
       if (mData.status === "fulfilled") msToken = mData.value.data[0]?.token ?? null;
+      if (!whapiToken) whapiToken = (await getUserWhapiMeta(userId)).token;
+      // Apple + Notion : credentials dans Clerk privateMetadata
+      const u = await client.users.getUser(userId);
+      const pm = u.privateMetadata as Record<string, unknown>;
+      if (pm.appleEmail && pm.appleAppPassword) {
+        appleCredentials = { email: pm.appleEmail as string, appPassword: pm.appleAppPassword as string };
+      }
+      if (pm.notionToken) notionToken = pm.notionToken as string;
+      if (pm.slackToken) slackToken = pm.slackToken as string;
+      if (pm.hubspotToken) hubspotToken = pm.hubspotToken as string;
     } catch { /* no tokens */ }
 
-    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple);
+    const hasApple = !!appleCredentials;
+    const hasNotion = !!notionToken;
+    const hasSlack = !!slackToken;
+    const hasHubSpot = !!hubspotToken;
+    const hasWhatsApp = !!whapiToken || bridgeData.wa?.connected === true;
+    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot);
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -377,7 +557,7 @@ export async function POST(req: NextRequest) {
       const msg = choice.message;
 
       if (!msg.tool_calls?.length || choice.finish_reason === "stop") {
-        return NextResponse.json({ response: msg.content ?? "", clientActions });
+        return NextResponse.json({ response: msg.content ?? "", clientActions, remaining });
       }
 
       messages.push(msg as Groq.Chat.ChatCompletionMessageParam);
@@ -385,7 +565,7 @@ export async function POST(req: NextRequest) {
         msg.tool_calls.map(async (tc) => {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken, msToken, bridgeData, clientActions);
+          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
