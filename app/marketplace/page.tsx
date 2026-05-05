@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -182,12 +183,44 @@ const accentBorder: Record<string, string> = {
 };
 
 export default function MarketplacePage() {
+  const { isLoaded, isSignedIn } = useUser();
   const [category, setCategory] = useState<Category>("Tous");
   const [loading, setLoading] = useState<string | null>(null);
+  const [activated, setActivated] = useState<string | null>(null);
+  const [activeWorkflows, setActiveWorkflows] = useState<Record<string, boolean>>({});
 
   const filtered = category === "Tous" ? TEMPLATES : TEMPLATES.filter((t) => t.category === category);
 
+  // Charge les statuts des workflows n8n — uniquement si connecté
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const ids = TEMPLATES.map(t => t.n8nId).filter(Boolean).join(",");
+    if (!ids) return;
+    fetch(`/api/workflows/activate?ids=${ids}`)
+      .then(r => r.json())
+      .then(d => setActiveWorkflows(d.statuses ?? {}))
+      .catch(() => {});
+  }, [isLoaded, isSignedIn]);
+
   async function handleActivate(t: Template) {
+    // Template gratuit avec n8nId → activation directe
+    if (t.plan === "gratuit" && t.n8nId) {
+      setLoading(t.id);
+      try {
+        const r = await fetch("/api/workflows/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflowId: t.n8nId }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          setActiveWorkflows(prev => ({ ...prev, [t.n8nId!]: true }));
+          setActivated(t.id);
+        }
+      } catch {}
+      setLoading(null);
+      return;
+    }
     if (t.plan === "gratuit") {
       window.location.href = "/assistant";
       return;
@@ -268,6 +301,15 @@ export default function MarketplacePage() {
         </div>
       </div>
 
+      {/* Toast activation */}
+      {activated && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium px-5 py-3 rounded-2xl shadow-xl backdrop-blur-xl">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          Workflow activé !
+          <button onClick={() => setActivated(null)} className="ml-2 text-emerald-500 hover:text-emerald-300">✕</button>
+        </div>
+      )}
+
       {/* Grid */}
       <section className="max-w-5xl mx-auto px-6 py-12">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -296,21 +338,28 @@ export default function MarketplacePage() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
                 <span className="text-xs text-zinc-600">{t.activations} activations</span>
-                <button
-                  onClick={() => handleActivate(t)}
-                  disabled={loading === t.id}
-                  className={`text-sm font-semibold px-4 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
-                    t.plan === "gratuit"
-                      ? "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/20"
-                      : "bg-violet-600 hover:bg-violet-500 text-white shadow-[0_0_16px_rgba(139,92,246,0.3)]"
-                  }`}
-                >
-                  {loading === t.id
-                    ? "…"
-                    : t.plan === "gratuit"
-                    ? "Activer →"
-                    : `${t.price}€ — Activer`}
-                </button>
+                {t.n8nId && activeWorkflows[t.n8nId] ? (
+                  <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                    Actif
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleActivate(t)}
+                    disabled={loading === t.id}
+                    className={`text-sm font-semibold px-4 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
+                      t.plan === "gratuit"
+                        ? "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/20"
+                        : "bg-violet-600 hover:bg-violet-500 text-white shadow-[0_0_16px_rgba(139,92,246,0.3)]"
+                    }`}
+                  >
+                    {loading === t.id
+                      ? "…"
+                      : t.plan === "gratuit"
+                      ? "Activer →"
+                      : `${t.price}€ — Activer`}
+                  </button>
+                )}
               </div>
             </div>
           ))}

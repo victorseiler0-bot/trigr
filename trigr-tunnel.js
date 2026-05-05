@@ -1,43 +1,29 @@
-// Script PM2 : démarre le tunnel SSH serveo + met à jour Edge Config automatiquement
+// Script PM2 : démarre le tunnel SSH serveo + met à jour WHATSAPP_BRIDGE_URL via Vercel CLI
 // Lance avec : pm2 start trigr-tunnel.js --name trigr-tunnel
 // Arrête avec : pm2 stop trigr-tunnel
 
-const { spawn } = require("child_process");
-const https = require("https");
+const { spawn, execSync } = require("child_process");
 
-const VERCEL_TOKEN = "vca_1bv7UWwUmToT5rBVm3vq4SGLHX8f7tQdpplpBcOR29lUzM0Yyn1RGPmM";
-const EDGE_CONFIG_ID = "ecfg_lus1jqr3rmzfi71icffxvnevhqpq";
-const TEAM_ID = "victorseiler0-bots-projects";
+let lastTunnelUrl = null;
 
-async function updateEdgeConfig(bridgeUrl) {
-  const body = JSON.stringify({ items: [{ operation: "upsert", key: "bridge_url", value: bridgeUrl }] });
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: "api.vercel.com",
-      path: `/v1/edge-config/${EDGE_CONFIG_ID}/items?teamId=${TEAM_ID}`,
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => {
-        if (res.statusCode < 300) {
-          console.log("[Trigr] Edge Config mis à jour :", bridgeUrl);
-          resolve();
-        } else {
-          console.error("[Trigr] Erreur Edge Config:", res.statusCode, data);
-          reject(new Error(data));
-        }
-      });
-    });
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
+function updateVercelBridgeUrl(bridgeUrl) {
+  if (lastTunnelUrl === bridgeUrl) return; // pas de changement
+  lastTunnelUrl = bridgeUrl;
+  try {
+    // Met à jour l'env var Vercel (CLI OAuth, pas besoin de token)
+    execSync(
+      `echo "${bridgeUrl}" | vercel env add WHATSAPP_BRIDGE_URL production --force`,
+      { cwd: __dirname, stdio: "pipe", timeout: 30000 }
+    );
+    console.log("[Trigr] WHATSAPP_BRIDGE_URL mis à jour sur Vercel :", bridgeUrl);
+
+    // Redéploiement automatique pour que le changement soit pris en compte
+    console.log("[Trigr] Déploiement Vercel en cours...");
+    execSync("vercel --prod --yes", { cwd: __dirname, stdio: "pipe", timeout: 180000 });
+    console.log("[Trigr] Déploiement Vercel terminé ✓");
+  } catch (e) {
+    console.error("[Trigr] Erreur mise à jour Vercel :", e.message?.slice(0, 200));
+  }
 }
 
 function startTunnel() {
@@ -62,7 +48,8 @@ function startTunnel() {
         urlCaptured = true;
         const tunnelUrl = match[0];
         console.log("[Trigr] Tunnel actif :", tunnelUrl);
-        updateEdgeConfig(tunnelUrl).catch((e) => console.error("[Trigr] Échec mise à jour Edge Config:", e.message));
+        // Lance la mise à jour en arrière-plan pour ne pas bloquer
+        setImmediate(() => updateVercelBridgeUrl(tunnelUrl));
       }
     }
   }
@@ -72,6 +59,7 @@ function startTunnel() {
 
   ssh.on("close", (code) => {
     console.log("[Trigr] Tunnel fermé (code", code, "). Redémarrage dans 5s...");
+    urlCaptured = false;
     setTimeout(startTunnel, 5000);
   });
 

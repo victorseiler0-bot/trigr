@@ -1,0 +1,7 @@
+.git
+.next
+node_modules
+.env
+.env.local
+whatsapp-bridge/auth
+npm-debug.log
