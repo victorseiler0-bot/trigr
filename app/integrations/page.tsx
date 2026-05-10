@@ -41,26 +41,26 @@ const L = {
   Shopify: () => <svg viewBox="0 0 87.3 100" width="20" height="24" fill="#95BF47"><path d="M74.7 14.8s-1.4.4-3.7 1.1c-.4-1.3-1-2.8-1.8-4.4-2.6-5-6.5-7.7-11.1-7.7-.3 0-.6 0-1 .1-.1-.2-.3-.3-.4-.5-2-2.1-4.5-3.1-7.6-3-5.9.1-11.8 4.4-16.5 12-3.4 5.3-5.9 12-6.6 17.2l-11.4 3.5c-3.3 1-3.5 1.2-3.9 4.3C10.2 39.5 0 108.9 0 108.9l73.1 12.7V14.5l-1.4.3-.3-1c.3.3.3.3.3.3l3-.9-.7 1.9-.4.4zm-17.2 5.3c-3.9 1.2-8.2 2.5-12.4 3.8.4-2.4 1.2-4.8 2.3-6.9 1.5-3 3.6-5.4 6-7 2.5 4.7 4.1 10 4.1 10.1z"/></svg>,
 };
 
-// ── 20 apps définies ───────────────────────────────────────────────────────────
+// ── 19 apps définies (slugs vérifiés contre Pipedream API) ─────────────────────
 const APPS: AppDef[] = [
   // Google = natif (traité séparément)
   { slug: "microsoft_outlook", name: "Microsoft Outlook", description: "Emails, calendrier et Teams en un seul compte Microsoft.", category: "Communication", color: "#0078D4", logo: <L.Outlook />, popular: true },
-  { slug: "whatsapp_business", name: "WhatsApp Business", description: "Lis et envoie des messages WhatsApp directement depuis l'assistant.", category: "Communication", color: "#25D366", logo: <L.WhatsApp />, popular: true },
+  { slug: "whatsapp_business", name: "WhatsApp Business", description: "Connexion via clé API Meta — pas OAuth iframe.", category: "Communication", color: "#25D366", logo: <L.WhatsApp />, popular: true },
   { slug: "slack", name: "Slack", description: "Canaux, messages directs et notifications dans ton espace de travail.", category: "Communication", color: "#E01E5A", logo: <L.Slack />, popular: true },
   { slug: "discord", name: "Discord", description: "Serveurs, canaux vocaux et messages Discord.", category: "Communication", color: "#5865F2", logo: <L.Discord /> },
   { slug: "notion", name: "Notion", description: "Pages, databases, notes et projets Notion.", category: "Productivité", color: "#191919", logo: <L.Notion />, popular: true },
-  { slug: "airtable", name: "Airtable", description: "Bases de données, vues et automatisations.", category: "Productivité", color: "#FFBF00", logo: <L.Airtable />, popular: true },
+  { slug: "airtable_oauth", name: "Airtable", description: "Bases de données, vues et automatisations.", category: "Productivité", color: "#FFBF00", logo: <L.Airtable />, popular: true },
   { slug: "trello", name: "Trello", description: "Boards, cartes et listes pour gérer vos projets.", category: "Productivité", color: "#0052CC", logo: <L.Trello /> },
   { slug: "clickup", name: "ClickUp", description: "Tâches, documents et objectifs en une seule plateforme.", category: "Productivité", color: "#7B68EE", logo: <L.ClickUp /> },
-  { slug: "calendly", name: "Calendly", description: "Prise de rendez-vous automatique et gestion de disponibilités.", category: "Productivité", color: "#006BFF", logo: <L.Calendly /> },
+  { slug: "calendly_v2", name: "Calendly", description: "Prise de rendez-vous automatique et gestion de disponibilités.", category: "Productivité", color: "#006BFF", logo: <L.Calendly /> },
   { slug: "hubspot", name: "HubSpot CRM", description: "Contacts, deals, pipeline et séquences marketing.", category: "CRM", color: "#FF7A59", logo: <L.HubSpot />, popular: true },
-  { slug: "salesforce", name: "Salesforce", description: "CRM enterprise, leads, opportunités et rapports.", category: "CRM", color: "#00A1E0", logo: <L.Salesforce /> },
+  { slug: "salesforce_rest_api", name: "Salesforce", description: "CRM enterprise, leads, opportunités et rapports.", category: "CRM", color: "#00A1E0", logo: <L.Salesforce /> },
   { slug: "asana", name: "Asana", description: "Tâches, projets et workflows d'équipe.", category: "CRM", color: "#F06A6A", logo: <L.Asana /> },
   { slug: "github", name: "GitHub", description: "Repos, issues, pull requests et actions CI/CD.", category: "Dev", color: "#24292f", logo: <L.GitHub />, popular: true },
   { slug: "linear", name: "Linear", description: "Issues, cycles et roadmap pour les équipes produit.", category: "Dev", color: "#5E6AD2", logo: <L.Linear /> },
   { slug: "jira", name: "Jira", description: "Issues, sprints, epics et projets Agile.", category: "Dev", color: "#2684FF", logo: <L.Jira /> },
   { slug: "zoom", name: "Zoom", description: "Réunions, webinaires, recordings et transcriptions.", category: "Communication", color: "#2D8CFF", logo: <L.Zoom /> },
-  { slug: "stripe", name: "Stripe", description: "Paiements, abonnements, factures et webhooks.", category: "Finance", color: "#635BFF", logo: <L.Stripe />, popular: true },
+  { slug: "stripe", name: "Stripe", description: "Connexion via clé API Stripe — pas OAuth iframe.", category: "Finance", color: "#635BFF", logo: <L.Stripe />, popular: true },
   { slug: "shopify", name: "Shopify", description: "Produits, commandes, clients et inventaire.", category: "Finance", color: "#96BF47", logo: <L.Shopify /> },
 ];
 

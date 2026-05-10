@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { getPipedreamBrowserClient } from "@/lib/pipedream-browser";
 
-type ConnectStep = "idle" | "opening" | "authenticating" | "saving" | "done" | "error";
+type ConnectStep = "idle" | "loading_sdk" | "opening" | "authenticating" | "saving" | "done" | "error";
 
 interface Props {
   appSlug: string;
@@ -15,13 +16,13 @@ interface Props {
   category: string;
   onConnected: (accountId: string) => void;
   onDisconnected: () => void;
-  // userId kept for API compat but unused in component (backend reads from Clerk session)
   userId?: string;
 }
 
 const STEP_LABELS: Partial<Record<ConnectStep, string>> = {
+  loading_sdk: "Chargement du SDK…",
   opening: "Récupération du token…",
-  authenticating: "Autorisation en cours…",
+  authenticating: "Autorisation OAuth…",
   saving: "Sauvegarde…",
 };
 
@@ -32,54 +33,86 @@ export function PipedreamConnectButton({
   const [step, setStep] = useState<ConnectStep>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [disconnecting, setDisconnecting] = useState(false);
-  const pdRef = useRef<import("@pipedream/sdk/browser").PipedreamClient | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
 
-  // Initialise le client une seule fois — sans options (token passé par appel)
+  // Charge le SDK dès le montage et marque ready
   useEffect(() => {
     let alive = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    import("@pipedream/sdk/browser").then(({ createFrontendClient }: any) => {
-      if (!alive) return;
-      pdRef.current = createFrontendClient();
-    });
+    getPipedreamBrowserClient()
+      .then(() => { if (alive) setSdkReady(true); })
+      .catch(err => { if (alive) { setErrorMsg(`SDK : ${err?.message ?? "erreur"}`); setStep("error"); } });
     return () => { alive = false; };
   }, []);
 
-  async function handleConnect() {
-    if (!pdRef.current || step !== "idle") return;
-    setStep("opening"); setErrorMsg("");
+  const handleConnect = useCallback(async () => {
+    console.log(`[Connect ${appSlug}] Click détecté`);
+    if (step !== "idle" && step !== "error") {
+      console.log(`[Connect ${appSlug}] Ignoré — step=${step}`);
+      return;
+    }
+    setStep("loading_sdk");
+    setErrorMsg("");
 
-    // 1. Récupère un connect token depuis notre backend (lié au user Clerk)
-    let token: string;
+    // 1. Attend le SDK (au cas où pas encore chargé)
+    let pd;
     try {
-      const r = await fetch("/api/pipedream/token", { method: "POST" });
-      if (!r.ok) throw new Error(`Token fetch ${r.status}`);
-      const body = await r.json();
-      token = body.token;
-      if (!token) throw new Error("Token vide dans la réponse");
+      console.log(`[Connect ${appSlug}] Attente du SDK…`);
+      pd = await getPipedreamBrowserClient();
+      console.log(`[Connect ${appSlug}] SDK prêt`);
     } catch (e: unknown) {
+      console.error(`[Connect ${appSlug}] SDK fail:`, e);
       setStep("error");
-      setErrorMsg(`Erreur token : ${(e as Error).message}`);
-      setTimeout(() => setStep("idle"), 4000);
+      setErrorMsg(`SDK indisponible : ${(e as Error)?.message ?? "erreur"}`);
+      setTimeout(() => setStep("idle"), 5000);
       return;
     }
 
-    setStep("authenticating");
-
-    // 2. Ouvre l'iframe OAuth Pipedream avec le token
+    // 2. Fetch token
+    setStep("opening");
+    let token: string;
     try {
-      await pdRef.current.connectAccount({
+      console.log(`[Connect ${appSlug}] Fetch /api/pipedream/token…`);
+      const r = await fetch("/api/pipedream/token", { method: "POST" });
+      console.log(`[Connect ${appSlug}] Token response status: ${r.status}`);
+      if (!r.ok) {
+        const text = await r.text();
+        throw new Error(`HTTP ${r.status} : ${text.slice(0, 100)}`);
+      }
+      const body = await r.json();
+      console.log(`[Connect ${appSlug}] Token reçu :`, body);
+      token = body.token;
+      if (!token) throw new Error("Token vide dans la réponse");
+    } catch (e: unknown) {
+      console.error(`[Connect ${appSlug}] Token fail:`, e);
+      setStep("error");
+      setErrorMsg(`Token : ${(e as Error).message}`);
+      setTimeout(() => setStep("idle"), 5000);
+      return;
+    }
+
+    // 3. Open Pipedream Connect iframe
+    setStep("authenticating");
+    try {
+      console.log(`[Connect ${appSlug}] Appel connectAccount avec token=${token.slice(0, 12)}…`);
+      pd.connectAccount({
         token,
         app: appSlug,
-        onSuccess: async ({ id }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onSuccess: async (res: any) => {
+          console.log(`[Connect ${appSlug}] onSuccess`, res);
+          const id = res?.id;
+          if (!id) {
+            setStep("error");
+            setErrorMsg("ID de compte manquant dans la réponse");
+            return;
+          }
           setStep("saving");
           try {
-            const r = await fetch("/api/pipedream/accounts", {
+            await fetch("/api/pipedream/accounts", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ appSlug, accountId: id }),
             });
-            if (!r.ok) throw new Error("Sauvegarde échouée");
             setStep("done");
             onConnected(id);
             setTimeout(() => setStep("idle"), 2000);
@@ -89,22 +122,27 @@ export function PipedreamConnectButton({
           }
         },
         onError: (err: Error) => {
+          console.error(`[Connect ${appSlug}] onError`, err);
           setStep("error");
           setErrorMsg(err?.message ?? "Erreur OAuth Pipedream");
-          setTimeout(() => setStep("idle"), 4000);
+          setTimeout(() => setStep("idle"), 5000);
         },
-        onClose: () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onClose: (status: any) => {
+          console.log(`[Connect ${appSlug}] onClose`, status);
           setStep(s => (s === "authenticating" || s === "opening") ? "idle" : s);
         },
       });
+      console.log(`[Connect ${appSlug}] connectAccount lancé (l'iframe devrait s'ouvrir)`);
     } catch (e: unknown) {
+      console.error(`[Connect ${appSlug}] connectAccount fail:`, e);
       setStep("error");
-      setErrorMsg((e as Error)?.message ?? "Erreur inattendue");
-      setTimeout(() => setStep("idle"), 4000);
+      setErrorMsg(`connectAccount : ${(e as Error)?.message ?? "erreur"}`);
+      setTimeout(() => setStep("idle"), 5000);
     }
-  }
+  }, [appSlug, step, onConnected]);
 
-  async function handleDisconnect() {
+  const handleDisconnect = useCallback(async () => {
     if (!accountId) return;
     setDisconnecting(true);
     try {
@@ -115,11 +153,11 @@ export function PipedreamConnectButton({
       });
       onDisconnected();
     } finally { setDisconnecting(false); }
-  }
+  }, [accountId, appSlug, onDisconnected]);
 
-  const isBusy = step === "opening" || step === "authenticating" || step === "saving";
+  const isBusy = step === "loading_sdk" || step === "opening" || step === "authenticating" || step === "saving";
   const isConnected = connected && step !== "error";
-  const STEPS_LIST: ConnectStep[] = ["opening", "authenticating", "saving"];
+  const STEPS_LIST: ConnectStep[] = ["loading_sdk", "opening", "authenticating", "saving"];
   const stepIdx = STEPS_LIST.indexOf(step);
 
   return (
@@ -134,7 +172,6 @@ export function PipedreamConnectButton({
       )}
 
       <div className="p-5 flex flex-col gap-4">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
@@ -153,7 +190,7 @@ export function PipedreamConnectButton({
 
         <p className="text-xs text-slate-500 leading-relaxed">{description}</p>
 
-        {/* Barre de progression */}
+        {/* Progress steps */}
         {isBusy && stepIdx >= 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
@@ -172,7 +209,7 @@ export function PipedreamConnectButton({
                           : <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                       }
                     </div>
-                    {i < 2 && <div className={`flex-1 h-px ${isDone ? "bg-emerald-300" : "bg-slate-200"}`} />}
+                    {i < STEPS_LIST.length - 1 && <div className={`flex-1 h-px ${isDone ? "bg-emerald-300" : "bg-slate-200"}`} />}
                   </div>
                 );
               })}
@@ -191,7 +228,9 @@ export function PipedreamConnectButton({
         )}
 
         {step === "error" && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 break-words">{errorMsg}</p>
+          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 break-words">
+            <strong>Erreur :</strong> {errorMsg}
+          </div>
         )}
 
         {/* CTA */}
@@ -213,7 +252,7 @@ export function PipedreamConnectButton({
               ? <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               : <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
             }
-            {isBusy ? (STEP_LABELS[step] ?? "Connexion…") : "Connecter"}
+            {isBusy ? (STEP_LABELS[step] ?? "Connexion…") : (sdkReady ? "Connecter" : "Connecter")}
           </button>
         )}
       </div>
