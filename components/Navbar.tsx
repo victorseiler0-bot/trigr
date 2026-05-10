@@ -38,7 +38,7 @@ export default function Navbar() {
     )}>
       <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link href={isSignedIn ? "/assistant" : "/"} className="flex items-center gap-2 shrink-0">
+        <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center shadow-[0_2px_8px_rgba(124,58,237,0.35)]">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
