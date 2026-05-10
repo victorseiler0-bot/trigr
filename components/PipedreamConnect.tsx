@@ -14,9 +14,9 @@ interface Props {
   logo: React.ReactNode;
   description: string;
   category: string;
+  userId: string; // REQUIS — Clerk user ID
   onConnected: (accountId: string) => void;
   onDisconnected: () => void;
-  userId?: string;
 }
 
 const STEP_LABELS: Partial<Record<ConnectStep, string>> = {
@@ -28,7 +28,7 @@ const STEP_LABELS: Partial<Record<ConnectStep, string>> = {
 
 export function PipedreamConnectButton({
   appSlug, appName, appColor, connected, accountId,
-  logo, description, category, onConnected, onDisconnected,
+  logo, description, category, userId, onConnected, onDisconnected,
 }: Props) {
   const [step, setStep] = useState<ConnectStep>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -37,12 +37,13 @@ export function PipedreamConnectButton({
 
   // Charge le SDK dès le montage et marque ready
   useEffect(() => {
+    if (!userId) return;
     let alive = true;
-    getPipedreamBrowserClient()
+    getPipedreamBrowserClient(userId)
       .then(() => { if (alive) setSdkReady(true); })
       .catch(err => { if (alive) { setErrorMsg(`SDK : ${err?.message ?? "erreur"}`); setStep("error"); } });
     return () => { alive = false; };
-  }, []);
+  }, [userId]);
 
   const handleConnect = useCallback(async () => {
     console.log(`[Connect ${appSlug}] Click détecté`);
@@ -56,8 +57,8 @@ export function PipedreamConnectButton({
     // 1. Attend le SDK (au cas où pas encore chargé)
     let pd;
     try {
-      console.log(`[Connect ${appSlug}] Attente du SDK…`);
-      pd = await getPipedreamBrowserClient();
+      console.log(`[Connect ${appSlug}] Attente du SDK… userId=${userId.slice(0, 8)}`);
+      pd = await getPipedreamBrowserClient(userId);
       console.log(`[Connect ${appSlug}] SDK prêt`);
     } catch (e: unknown) {
       console.error(`[Connect ${appSlug}] SDK fail:`, e);
@@ -140,7 +141,7 @@ export function PipedreamConnectButton({
       setErrorMsg(`connectAccount : ${(e as Error)?.message ?? "erreur"}`);
       setTimeout(() => setStep("idle"), 5000);
     }
-  }, [appSlug, step, onConnected]);
+  }, [appSlug, step, userId, onConnected]);
 
   const handleDisconnect = useCallback(async () => {
     if (!accountId) return;

@@ -1,30 +1,42 @@
 "use client";
 
-// Singleton browser client — chargé une seule fois côté navigateur
+// Cache de clients Pipedream par externalUserId
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let clientPromise: Promise<any> | null = null;
+const clients: Map<string, Promise<any>> = new Map();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getPipedreamBrowserClient(): Promise<any> {
-  if (clientPromise) return clientPromise;
+export function getPipedreamBrowserClient(externalUserId: string): Promise<any> {
   if (typeof window === "undefined") return Promise.reject(new Error("Pas côté serveur"));
+  if (!externalUserId) return Promise.reject(new Error("externalUserId requis"));
 
-  clientPromise = import("@pipedream/sdk/browser").then(mod => {
+  const existing = clients.get(externalUserId);
+  if (existing) return existing;
+
+  const p = import("@pipedream/sdk/browser").then(mod => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { createFrontendClient } = mod as any;
-    const client = createFrontendClient();
-    console.log("[Pipedream] Client browser créé", client);
+    const client = createFrontendClient({
+      externalUserId,
+      tokenCallback: async () => {
+        const r = await fetch("/api/pipedream/token", { method: "POST" });
+        if (!r.ok) throw new Error(`Token fetch ${r.status}`);
+        const body = await r.json();
+        // Le SDK attend { token, expiresAt, connectLinkUrl }
+        return {
+          token: body.token,
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : new Date(Date.now() + 3600_000),
+          connectLinkUrl: body.connectLinkUrl ?? "",
+        };
+      },
+    });
+    console.log("[Pipedream] Client browser créé pour user:", externalUserId.slice(0, 8));
     return client;
   }).catch(err => {
     console.error("[Pipedream] Erreur de chargement du SDK :", err);
-    clientPromise = null; // permettre un retry
+    clients.delete(externalUserId); // permettre un retry
     throw err;
   });
 
-  return clientPromise;
-}
-
-// Précharge dès que ce module est importé côté client (en parallèle de la page)
-if (typeof window !== "undefined") {
-  getPipedreamBrowserClient().catch(() => {/* déjà loggé */});
+  clients.set(externalUserId, p);
+  return p;
 }
