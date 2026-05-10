@@ -34,54 +34,57 @@ export default function Navbar() {
   return (
     <header className={cn(
       "fixed top-0 inset-x-0 z-50 transition-all duration-300",
-      scrolled ? "bg-[#09090b]/80 backdrop-blur-xl border-b border-white/[0.06]" : "bg-transparent"
+      scrolled ? "bg-white/90 backdrop-blur-xl border-b border-slate-200 shadow-sm" : "bg-white/60 backdrop-blur-md"
     )}>
       <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        {/* Logo */}
         <Link href={isSignedIn ? "/assistant" : "/"} className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_16px_rgba(139,92,246,0.5)]">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center shadow-[0_2px_8px_rgba(124,58,237,0.35)]">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="font-bold text-white text-base tracking-tight">Trig<span className="text-violet-400">r</span></span>
+          <span className="font-bold text-slate-900 text-base tracking-tight">Trig<span className="text-violet-600">r</span></span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(([href, label]) => (
-            <Link key={href} href={href} className="text-sm text-zinc-400 hover:text-white transition-colors">{label}</Link>
+            <Link key={href} href={href}
+              className="text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-all font-medium">
+              {label}
+            </Link>
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3 shrink-0">
+        {/* Desktop actions */}
+        <div className="hidden md:flex items-center gap-2 shrink-0">
           {isSignedIn ? (
             <>
-              <span className="text-xs text-zinc-500 truncate max-w-[120px]">{user?.primaryEmailAddress?.emailAddress}</span>
-              <Link href="/settings" className="text-zinc-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/[0.04]" title="Paramètres">
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </Link>
+              <span className="text-xs text-slate-400 truncate max-w-[120px]">{user?.primaryEmailAddress?.emailAddress}</span>
               <SignOutButton>
-                <button className="text-sm text-zinc-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/[0.04]">
+                <button className="text-sm text-slate-500 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100">
                   Déconnexion
                 </button>
               </SignOutButton>
             </>
           ) : (
             <>
-              <Link href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/[0.04]">
+              <Link href="/login"
+                className="text-sm text-slate-600 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 font-medium">
                 Se connecter
               </Link>
-              <Link href="/signup" className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]">
+              <Link href="/signup"
+                className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_2px_8px_rgba(124,58,237,0.3)] hover:shadow-[0_4px_16px_rgba(124,58,237,0.4)]">
                 Essai gratuit
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6h8M7 3l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6h8M7 3l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </Link>
             </>
           )}
         </div>
 
-        <button className="md:hidden text-zinc-400 hover:text-white p-2" onClick={() => setOpen(!open)}>
+        {/* Mobile toggle */}
+        <button className="md:hidden text-slate-600 hover:text-slate-900 p-2 rounded-lg" onClick={() => setOpen(!open)}>
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
             {open
               ? <path d="M5 5l14 14M19 5l-14 14" strokeLinecap="round"/>
@@ -91,21 +94,26 @@ export default function Navbar() {
         </button>
       </nav>
 
+      {/* Mobile menu */}
       {open && (
-        <div className="md:hidden bg-[#09090b]/95 backdrop-blur-xl border-b border-white/[0.06] px-6 py-4 flex flex-col gap-3">
+        <div className="md:hidden bg-white border-b border-slate-200 px-6 py-4 flex flex-col gap-2 shadow-lg">
           {navLinks.map(([href, label]) => (
-            <Link key={href} href={href} className="text-sm text-zinc-300 py-1" onClick={() => setOpen(false)}>{label}</Link>
+            <Link key={href} href={href}
+              className="text-sm text-slate-700 py-2 px-3 rounded-lg hover:bg-slate-100 font-medium"
+              onClick={() => setOpen(false)}>
+              {label}
+            </Link>
           ))}
-          <div className="flex gap-3 mt-2">
+          <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100">
             {isSignedIn ? (
               <SignOutButton>
-                <button className="flex-1 text-center text-sm text-zinc-300 border border-white/[0.08] py-2.5 rounded-xl" onClick={() => setOpen(false)}>
+                <button className="flex-1 text-center text-sm text-slate-600 border border-slate-200 py-2.5 rounded-xl" onClick={() => setOpen(false)}>
                   Déconnexion
                 </button>
               </SignOutButton>
             ) : (
               <>
-                <Link href="/login" className="flex-1 text-center text-sm text-zinc-300 border border-white/[0.08] py-2.5 rounded-xl" onClick={() => setOpen(false)}>
+                <Link href="/login" className="flex-1 text-center text-sm text-slate-600 border border-slate-200 py-2.5 rounded-xl" onClick={() => setOpen(false)}>
                   Se connecter
                 </Link>
                 <Link href="/signup" className="flex-1 text-center bg-violet-600 text-white text-sm font-semibold py-2.5 rounded-xl" onClick={() => setOpen(false)}>
