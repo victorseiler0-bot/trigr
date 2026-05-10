@@ -13,7 +13,7 @@ const PUBLIC_NAV = [
 
 const APP_NAV = [
   ["/assistant", "Assistant"],
-  ["/crm", "CRM"],
+  ["/integrations", "Intégrations"],
   ["/marketplace", "Marketplace"],
   ["/settings", "Paramètres"],
 ];
