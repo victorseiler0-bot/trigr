@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
+import { PipedreamConnectButton } from "@/components/PipedreamConnect";
 
 // ── API endpoints ──────────────────────────────────────────────────────────────
 const APPLE_API = "/api/apple/connect";
@@ -181,6 +182,9 @@ export default function SettingsPage() {
   const [plan, setPlan] = useState<"free" | "solo" | "pro" | "equipe">("free");
   const [subBusy, setSubBusy] = useState<string | null>(null);
 
+  // Pipedream Connect — comptes connectés { slug: accountId }
+  const [pdAccounts, setPdAccounts] = useState<Record<string, string>>({});
+
   // n8n workflows
   const [workflows, setWorkflows] = useState<N8nWorkflow[]>([]);
   const [wfLoading, setWfLoading] = useState(false);
@@ -195,6 +199,8 @@ export default function SettingsPage() {
     fetch(NOTION_API).then(r => r.json()).then(d => { if (d.configured) { setNotionConnected(true); setNotionWorkspace(d.workspace); } }).catch(() => {});
     fetch(SLACK_API).then(r => r.json()).then(d => { if (d.configured) { setSlackConnected(true); setSlackTeam(d.team); } }).catch(() => {});
     fetch(HUBSPOT_API).then(r => r.json()).then(d => { if (d.configured) setHubspotConnected(true); }).catch(() => {});
+    // Pipedream — liste les comptes connectés
+    fetch("/api/pipedream/accounts").then(r => r.json()).then(d => { if (d.connected) setPdAccounts(d.connected); }).catch(() => {});
   }, [isSignedIn]);
 
   // Load n8n workflows when tab becomes active
@@ -532,6 +538,47 @@ export default function SettingsPage() {
                       badge="OAuth 2.0"
                     />
                   </div>
+                </div>
+
+                {/* Pipedream Connect — 2000+ intégrations */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">⚡ Via Pipedream Connect</p>
+                    <span className="text-xs text-zinc-600 bg-white/[0.03] border border-white/[0.06] px-2 py-0.5 rounded-md">2 000+ apps disponibles</span>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {[
+                      { slug: "airtable", name: "Airtable", desc: "Bases de données · Vues · Grilles",
+                        logo: <svg viewBox="0 0 200 170" width="20" height="18"><path d="M90.039 12.368L24.079 38.66c-4.418 1.748-4.39 7.985.045 9.694l66.26 25.455c6.027 2.314 12.719 2.314 18.746 0l66.261-25.455c4.435-1.71 4.462-7.946.045-9.694L109.416 12.368c-6.231-2.45-13.146-2.45-19.377 0z" fill="#FFBF00"/><path d="M105.382 95.387v67.79c0 3.225 3.245 5.388 6.222 4.19l73.394-28.593c1.73-.674 2.86-2.35 2.86-4.19V66.794c0-3.225-3.246-5.388-6.222-4.19l-73.395 28.593c-1.73.675-2.86 2.35-2.86 4.19z" fill="#18BFFF"/><path d="M88.198 99.55L65.862 89.22l-2.584-1.21L18.8 68.906c-3.006-1.395-6.442.748-6.442 4.08v67.765c0 1.77.963 3.393 2.54 4.205l7.478 3.868 59.868 30.992c3.149 1.63 6.822-.625 6.822-4.205V103.63a4.663 4.663 0 00-2.868-4.08z" fill="#F82B60"/></svg> },
+                      { slug: "github", name: "GitHub", desc: "Repos · Issues · Pull Requests",
+                        logo: <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> },
+                      { slug: "trello", name: "Trello", desc: "Boards · Cartes · Listes",
+                        logo: <svg viewBox="0 0 24 24" width="20" height="20" fill="#0052CC"><path d="M21 0H3C1.343 0 0 1.343 0 3v18c0 1.656 1.343 3 3 3h18c1.656 0 3-1.344 3-3V3c0-1.657-1.344-3-3-3zM10.44 18.18c0 .795-.645 1.44-1.44 1.44H4.56c-.795 0-1.44-.645-1.44-1.44V4.56c0-.795.645-1.44 1.44-1.44H9c.795 0 1.44.645 1.44 1.44v13.62zm10.44-6c0 .794-.645 1.44-1.44 1.44H15c-.795 0-1.44-.646-1.44-1.44V4.56c0-.795.645-1.44 1.44-1.44h4.44c.795 0 1.44.645 1.44 1.44v7.62z"/></svg> },
+                      { slug: "linear", name: "Linear", desc: "Issues · Cycles · Roadmap",
+                        logo: <svg viewBox="0 0 100 100" width="20" height="20"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#5E6AD2"/><stop offset="100%" stopColor="#8A92E3"/></linearGradient></defs><circle cx="50" cy="50" r="50" fill="url(#lg1)"/><path d="M17.68 62.99L37 82.32a41.06 41.06 0 01-19.32-19.33zM15 54.09L45.91 85a40.99 40.99 0 01-6.55-1.26L16.26 60.65A40.88 40.88 0 0115 54.1zM85 45.91L54.09 15a41.06 41.06 0 0130.91 30.91zM82.32 37L37.01 82.32a41.08 41.08 0 01-19.33-19.33L62.99 17.68A41.06 41.06 0 0182.32 37zM62.99 17.68L17.68 62.99a41 41 0 01-1.42-6.9L56.09 16.26a40.9 40.9 0 016.9 1.42z" fill="white"/></svg> },
+                      { slug: "jira", name: "Jira", desc: "Issues · Sprints · Projets",
+                        logo: <svg viewBox="0 0 32 32" width="20" height="20"><path d="M28.226 1.81H15.706L27.7 13.804a2.58 2.58 0 010 3.641L15.706 29.44h12.52A2.58 2.58 0 0030.806 26.86V4.39A2.58 2.58 0 0028.226 1.81z" fill="#2684FF"/><path d="M15.854 15.975L4.168 4.294a2.58 2.58 0 00-3.641 0L.504 4.317v23.47a2.58 2.58 0 002.58 2.58H15.6L3.606 18.373a2.58 2.58 0 010-3.641l12.248-12.244z" fill="#0052CC"/></svg> },
+                      { slug: "zoom", name: "Zoom", desc: "Réunions · Webinaires · Recordings",
+                        logo: <svg viewBox="0 0 24 24" width="20" height="20" fill="#2D8CFF"><path d="M4.5 4.5h15A4.5 4.5 0 0124 9v6a4.5 4.5 0 01-4.5 4.5h-15A4.5 4.5 0 010 15V9A4.5 4.5 0 014.5 4.5zm12 3v9l6-3V10.5l-6-3z"/></svg> },
+                    ].map(app => (
+                      <PipedreamConnectButton
+                        key={app.slug}
+                        userId={user.id}
+                        appSlug={app.slug}
+                        appName={app.name}
+                        description={app.desc}
+                        logo={app.logo}
+                        connected={!!pdAccounts[app.slug]}
+                        accountId={pdAccounts[app.slug]}
+                        onConnected={(id) => setPdAccounts(prev => ({ ...prev, [app.slug]: id }))}
+                        onDisconnected={() => setPdAccounts(prev => { const n = { ...prev }; delete n[app.slug]; return n; })}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-zinc-700 mt-3 flex items-center gap-1.5">
+                    <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5.5" cy="5.5" r="4.5"/><path d="M5.5 3.5v2l1.5 1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Connexion OAuth sécurisée via Pipedream Connect — vos credentials ne transitent jamais par Trigr
+                  </p>
                 </div>
 
                 {/* Apple iCloud */}
