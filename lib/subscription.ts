@@ -11,7 +11,7 @@ export async function getUserPlan(userId: string): Promise<Plan> {
 }
 
 export const PLAN_LIMITS: Record<Plan, { actionsPerDay: number; integrations: number; users: number }> = {
-  free:   { actionsPerDay: 10,  integrations: 2,   users: 1 },
+  free:   { actionsPerDay: 50,  integrations: 2,   users: 1 },
   solo:   { actionsPerDay: 50,  integrations: 3,   users: 1 },
   pro:    { actionsPerDay: 999, integrations: 999, users: 1 },
   equipe: { actionsPerDay: 999, integrations: 999, users: 5 },

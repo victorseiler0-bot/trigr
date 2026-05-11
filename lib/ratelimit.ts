@@ -3,7 +3,12 @@ import { getUserPlan, PLAN_LIMITS } from "./subscription";
 
 const TODAY_KEY = () => new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
 
+// Admin users bypass le rate limiting complètement
+const ADMIN_IDS = (process.env.ADMIN_CLERK_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+
 export async function checkAndIncrementAction(userId: string): Promise<{ allowed: boolean; remaining: number }> {
+  if (ADMIN_IDS.includes(userId)) return { allowed: true, remaining: 999 };
+
   const plan = await getUserPlan(userId);
   const limit = PLAN_LIMITS[plan].actionsPerDay;
 
