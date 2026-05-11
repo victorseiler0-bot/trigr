@@ -253,7 +253,7 @@ async function executeTool(
 
   // ─── WhatsApp — Whapi.cloud (cloud) ou Baileys local (fallback) ────────────
   if (name === "voir_chats_whatsapp") {
-    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp." });
+    if (!whapiToken && !bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Paramètres > WhatsApp." });
     if (whapiToken) {
       const data = await whapiGet("chats?count=25", whapiToken);
       if (!data) return JSON.stringify({ error: "Impossible de récupérer les conversations Whapi." });
@@ -276,7 +276,7 @@ async function executeTool(
   }
 
   if (name === "lire_messages_whatsapp") {
-    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (!whapiToken && !bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { jid, limit } = args as { jid?: string; limit?: number };
     if (whapiToken) {
       if (!jid) return JSON.stringify({ hint: "Précise un chat_id pour lire une conversation." });
@@ -298,7 +298,7 @@ async function executeTool(
   }
 
   if (name === "envoyer_whatsapp") {
-    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (!whapiToken && !bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { to, message } = args as { to: string; message: string };
     if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
     if (whapiToken) {
@@ -311,7 +311,7 @@ async function executeTool(
   }
 
   if (name === "voir_contacts_whatsapp") {
-    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (!whapiToken && !bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     if (whapiToken) {
       const data = await whapiGet("contacts?count=100", whapiToken);
       if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts." });
@@ -328,7 +328,7 @@ async function executeTool(
   }
 
   if (name === "messages_envoyes") {
-    if (!bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (!whapiToken && !bridgeData.wa?.connected) return JSON.stringify({ error: "WhatsApp non connecté." });
     if (whapiToken) {
       const chatsData = await whapiGet("chats?count=10", whapiToken);
       const chats = (chatsData?.chats ?? []).slice(0, 5) as Record<string, unknown>[];
