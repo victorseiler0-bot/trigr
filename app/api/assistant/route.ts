@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Groq from "groq-sdk";
 import { whapiChannel, getUserWhapiMeta } from "@/lib/whapi";
+import { sendWaMessage, type WaMessage } from "@/app/api/whatsapp/route";
 import { getAppleMeta, getAppleCalendar, getAppleContacts, createAppleEvent } from "@/lib/apple";
 import { checkAndIncrementAction } from "@/lib/ratelimit";
 import { getNotionMeta, searchNotionPages, getNotionPage, createNotionPage } from "@/lib/notion";
@@ -128,7 +129,10 @@ async function executeTool(
   slackToken: string | null,
   hubspotToken: string | null,
   pdAccountIds: Record<string, string>,
-  userId: string
+  userId: string,
+  waStoredMessages: WaMessage[],
+  waMetaToken: string | undefined,
+  waPhoneId: string | undefined
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -271,46 +275,58 @@ async function executeTool(
     return JSON.stringify({ contacts });
   }
 
-  // ─── WhatsApp — Whapi (lecture+envoi) ou Pipedream WA Business (envoi seul) ──
-  const waAccountId = pdAccountIds.whatsapp_business;
-  const hasWa = !!whapiToken || !!waAccountId || bridgeData.wa?.connected === true;
+  // ─── WhatsApp — Meta API directe (WHATSAPP_TOKEN) + messages stockés via webhook ──
+  const hasWa = !!whapiToken || !!waMetaToken || !!pdAccountIds.whatsapp_business || bridgeData.wa?.connected === true;
 
   if (name === "voir_chats_whatsapp") {
-    if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Intégrations > WhatsApp Business." });
-    if (whapiToken) {
-      const data = await whapiGet("chats?count=25", whapiToken);
-      if (!data) return JSON.stringify({ error: "Connexion WhatsApp expirée. Action requise : va sur panel.whapi.cloud → channel AQUAMN-7JPQ9 → Reconnect → scanne le QR avec ton téléphone. Aucune modification Vercel nécessaire si le token n'a pas changé." });
-      const chats = (data.chats ?? []).map((c: Record<string, unknown>) => {
-        const lm = c.last_message as Record<string, unknown> | undefined;
-        const phone = String(c.id ?? "").split("@")[0];
-        return { id: c.id, name: (c.name as string) || (lm?.from_name as string) || phone, phone, unread: c.unread_count ?? 0, lastMessage: (lm?.text as Record<string, string>)?.body || (lm?.type as string) || "" };
-      });
+    if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
+    // Priorité 1 : messages reçus via webhook (stockés dans Clerk)
+    if (waStoredMessages.length > 0) {
+      const bySender = new Map<string, WaMessage[]>();
+      for (const m of waStoredMessages) {
+        const key = m.incoming ? m.from : "me";
+        if (!bySender.has(key)) bySender.set(key, []);
+        bySender.get(key)!.push(m);
+      }
+      const chats = Array.from(bySender.entries()).map(([phone, msgs]) => ({
+        id: phone, name: msgs.find(m => m.fromName !== phone)?.fromName ?? phone,
+        phone, lastMessage: msgs[0]?.text ?? "", unread: msgs.filter(m => m.incoming).length,
+      }));
       return JSON.stringify({ chats });
     }
-    if (waAccountId) return JSON.stringify({ info: "WhatsApp Business via Meta API connecté. La lecture de l'historique des conversations n'est pas disponible via l'API officielle Meta (envoi uniquement). Utilisez 'envoyer_whatsapp' pour envoyer un message." });
-    if (bridgeData.wa?.chats) return JSON.stringify({ chats: bridgeData.wa.chats });
-    const data = await waFetch("chats");
-    return data ? JSON.stringify({ chats: data.chats }) : JSON.stringify({ error: "Impossible de récupérer les conversations." });
+    // Priorité 2 : Whapi si token valide
+    if (whapiToken) {
+      const data = await whapiGet("chats?count=25", whapiToken);
+      if (data) {
+        const chats = (data.chats ?? []).map((c: Record<string, unknown>) => {
+          const lm = c.last_message as Record<string, unknown> | undefined;
+          const phone = String(c.id ?? "").split("@")[0];
+          return { id: c.id, name: (c.name as string) || (lm?.from_name as string) || phone, phone, unread: c.unread_count ?? 0, lastMessage: (lm?.text as Record<string, string>)?.body || "" };
+        });
+        return JSON.stringify({ chats });
+      }
+    }
+    return JSON.stringify({ info: "WhatsApp Business connecté. Aucun message reçu pour le moment. Envoie un message à ton numéro WhatsApp Business pour initialiser la conversation." });
   }
 
   if (name === "lire_messages_whatsapp") {
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { jid, limit } = args as { jid?: string; limit?: number };
-    if (whapiToken) {
-      if (!jid) return JSON.stringify({ hint: "Précise un chat_id pour lire une conversation." });
-      const data = await whapiGet(`messages/list/${encodeURIComponent(jid)}?count=${limit ?? 20}`, whapiToken);
-      if (!data) return JSON.stringify({ error: "Conversation introuvable." });
-      const msgs = (data.messages ?? []).map((m: Record<string, unknown>) => ({
-        id: m.id, from: (m.from_name as string) || String((m.from as string)?.split("@")[0] ?? ""),
-        text: (m.text as Record<string, string>)?.body ?? "", timestamp: m.timestamp, fromMe: m.from_me,
-      }));
-      return JSON.stringify({ messages: msgs });
+    // Lire depuis les messages stockés
+    if (waStoredMessages.length > 0) {
+      const msgs = jid
+        ? waStoredMessages.filter(m => m.from === jid || (!m.incoming && jid === "me")).slice(0, limit ?? 20)
+        : waStoredMessages.slice(0, limit ?? 20);
+      return JSON.stringify({ messages: msgs.map(m => ({ id: m.id, from: m.fromName, text: m.text, timestamp: m.timestamp, fromMe: !m.incoming })) });
     }
-    if (waAccountId) return JSON.stringify({ info: "L'API officielle Meta WhatsApp Business ne permet pas de lire l'historique des messages (webhooks uniquement). Utilisez 'envoyer_whatsapp' pour envoyer." });
-    if (!jid) return JSON.stringify({ chats: (bridgeData.wa?.chats ?? []).slice(0, 5), hint: "Précise un jid." });
-    if (bridgeData.wa?.messages?.[jid]) return JSON.stringify({ messages: (bridgeData.wa.messages[jid] as unknown[]).slice(0, limit ?? 20) });
-    const data = await waFetch(`messages/${encodeURIComponent(jid)}?limit=${limit ?? 20}`);
-    return data ? JSON.stringify({ messages: data.messages }) : JSON.stringify({ error: "Conversation introuvable." });
+    if (whapiToken && jid) {
+      const data = await whapiGet(`messages/list/${encodeURIComponent(jid)}?count=${limit ?? 20}`, whapiToken);
+      if (data) {
+        const msgs = (data.messages ?? []).map((m: Record<string, unknown>) => ({ id: m.id, from: (m.from_name as string) || String((m.from as string)?.split("@")[0] ?? ""), text: (m.text as Record<string, string>)?.body ?? "", timestamp: m.timestamp, fromMe: m.from_me }));
+        return JSON.stringify({ messages: msgs });
+      }
+    }
+    return JSON.stringify({ info: "Aucun message stocké. Les messages arrivent automatiquement dès que quelqu'un t'écrit sur WhatsApp Business." });
   }
 
   if (name === "envoyer_whatsapp") {
@@ -318,47 +334,42 @@ async function executeTool(
     const { to, message } = args as { to: string; message: string };
     if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
     const phone = to.replace(/\D/g, "");
+    // Priorité 1 : Meta API directe via env vars
+    if (waMetaToken && waPhoneId) {
+      const ok = await sendWaMessage(phone, message);
+      if (ok) return JSON.stringify({ success: true });
+    }
+    // Priorité 2 : Whapi
     if (whapiToken) {
       const r = await whapiPost("messages/text", { to: phone, body: message }, whapiToken);
-      return r?.sent ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi Whapi" });
-    }
-    if (waAccountId) {
-      // Meta Cloud API — besoin du phone_number_id depuis les credentials Pipedream
-      try {
-        const pd = getPipedreamClient();
-        const acc = await pd.accounts.retrieve(waAccountId, { includeCredentials: true });
-        const creds = acc.credentials as Record<string, unknown> | undefined;
-        const phoneNumberId = (creds?.phoneNumberId ?? creds?.phone_number_id) as string | undefined;
-        if (!phoneNumberId) return JSON.stringify({ error: "phone_number_id manquant dans les credentials WhatsApp Business. Reconnectez l'app dans Intégrations." });
-        const result = await pdPost(userId, waAccountId, `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`, {
-          messaging_product: "whatsapp", to: phone, type: "text", text: { body: message }
-        }) as Record<string, unknown>;
-        return result?.error ? JSON.stringify({ error: result.error }) : JSON.stringify({ success: true });
-      } catch (err: unknown) {
-        return JSON.stringify({ error: `Erreur envoi WA Business: ${(err as Error)?.message ?? err}` });
-      }
+      return r?.sent ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
     }
     clientActions.push({ type: "send_whatsapp", to, message });
-    return JSON.stringify({ success: true, message: "Message WhatsApp envoyé." });
+    return JSON.stringify({ success: true });
   }
 
   if (name === "voir_contacts_whatsapp") {
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
+    if (waStoredMessages.length > 0) {
+      const contacts = [...new Map(waStoredMessages.filter(m => m.incoming).map(m => [m.from, { id: m.from, name: m.fromName, phone: m.from }])).values()];
+      return JSON.stringify({ contacts });
+    }
     if (whapiToken) {
       const data = await whapiGet("contacts?count=100", whapiToken);
-      if (!data) return JSON.stringify({ error: "Impossible de récupérer les contacts." });
-      const contacts = (data.contacts ?? []).map((c: Record<string, unknown>) => ({ id: c.id, name: (c.name as string) || (c.pushname as string) || String(c.id ?? ""), phone: String(c.id ?? "") }));
-      return JSON.stringify({ contacts: contacts.slice(0, 50) });
+      if (data) {
+        const contacts = (data.contacts ?? []).map((c: Record<string, unknown>) => ({ id: c.id, name: (c.name as string) || String(c.id ?? ""), phone: String(c.id ?? "") }));
+        return JSON.stringify({ contacts: contacts.slice(0, 50) });
+      }
     }
-    if (waAccountId) return JSON.stringify({ info: "L'API Meta WhatsApp Business ne permet pas de lister les contacts. Utilisez 'envoyer_whatsapp' avec le numéro directement." });
-    if (bridgeData.wa?.contacts) return JSON.stringify({ contacts: (bridgeData.wa.contacts as unknown[]).slice(0, 30) });
-    const data = await waFetch("contacts");
-    return data ? JSON.stringify({ contacts: data.contacts?.slice(0, 30) }) : JSON.stringify({ error: "Impossible de récupérer les contacts." });
+    return JSON.stringify({ info: "Contacts disponibles dès que des messages sont reçus sur WhatsApp Business." });
   }
 
   if (name === "messages_envoyes") {
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
-    if (waAccountId && !whapiToken) return JSON.stringify({ info: "L'API Meta WhatsApp Business ne permet pas de lire l'historique des messages envoyés." });
+    if (waStoredMessages.length > 0) {
+      const sent = waStoredMessages.filter(m => !m.incoming).slice(0, 20);
+      return JSON.stringify({ messages: sent.map(m => ({ to: m.from, text: m.text, timestamp: m.timestamp })) });
+    }
     if (whapiToken) {
       const chatsData = await whapiGet("chats?count=10", whapiToken);
       const chats = (chatsData?.chats ?? []).slice(0, 5) as Record<string, unknown>[];
@@ -609,6 +620,9 @@ export async function POST(req: NextRequest) {
     let slackToken: string | null = null;
     let hubspotToken: string | null = null;
     let pdAccountIds: Record<string, string> = {};
+    let waStoredMessages: WaMessage[] = [];
+    const waMetaToken = process.env.WHATSAPP_TOKEN;
+    const waPhoneId   = process.env.WHATSAPP_PHONE_NUMBER_ID;
     try {
       const client = await clerkClient();
       const [gData, mData] = await Promise.allSettled([
@@ -626,8 +640,8 @@ export async function POST(req: NextRequest) {
       if (pm.notionToken) notionToken = pm.notionToken as string;
       if (pm.slackToken) slackToken = pm.slackToken as string;
       if (pm.hubspotToken) hubspotToken = pm.hubspotToken as string;
-      // Apps connectées via Pipedream Connect (/integrations)
       pdAccountIds = (pm.pipedream as Record<string, string>) ?? {};
+      waStoredMessages = (pm.waMessages as WaMessage[]) ?? [];
     } catch { /* no tokens */ }
 
     const hasApple = !!appleCredentials;
@@ -636,7 +650,7 @@ export async function POST(req: NextRequest) {
     const hasHubSpot = !!hubspotToken;
     const hasGitHub = !!pdAccountIds.github;
     const hasMicrosoft = !!msToken || !!pdAccountIds.microsoft_outlook;
-    const hasWhatsApp = !!whapiToken || !!pdAccountIds.whatsapp_business || bridgeData.wa?.connected === true;
+    const hasWhatsApp = !!whapiToken || !!waMetaToken || !!pdAccountIds.whatsapp_business || bridgeData.wa?.connected === true;
     const tools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub);
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
@@ -670,7 +684,7 @@ export async function POST(req: NextRequest) {
         msg.tool_calls.map(async (tc) => {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId);
+          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
