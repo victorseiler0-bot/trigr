@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
   const enriched: Record<string, unknown> = { ...payload, userId };
 
   if (workflow.startsWith("wa")) {
-    enriched.token = (pm.whapiToken as string | undefined) ?? process.env.WHAPI_TOKEN;
+    enriched.waToken = process.env.WHATSAPP_TOKEN;
+    enriched.phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    // Fallback Whapi si Meta pas configuré
+    if (!enriched.waToken) enriched.token = (pm.whapiToken as string | undefined) ?? process.env.WHAPI_TOKEN;
   }
   if (workflow === "ig") {
     const igMeta = pm.igMeta as { token: string; pageId: string } | undefined;
