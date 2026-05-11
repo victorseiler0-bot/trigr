@@ -7,6 +7,7 @@ import { checkAndIncrementAction } from "@/lib/ratelimit";
 import { getNotionMeta, searchNotionPages, getNotionPage, createNotionPage } from "@/lib/notion";
 import { getSlackMeta, getSlackChannels, getSlackMessages, sendSlackMessage } from "@/lib/slack";
 import { getHubSpotMeta, searchHubSpotContacts, getHubSpotDeals, createHubSpotContact, createHubSpotDeal } from "@/lib/hubspot";
+import { getPipedreamClient } from "@/lib/pipedream";
 
 export const maxDuration = 60; // secondes — nécessaire pour les chaînes d'outils Groq + Whapi
 
@@ -14,6 +15,14 @@ let _groq: Groq | null = null;
 function getGroq() {
   if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   return _groq;
+}
+
+async function getPipedreamToken(accountId: string): Promise<string | null> {
+  try {
+    const pd = getPipedreamClient();
+    const acc = await pd.accounts.retrieve(accountId, { includeCredentials: true });
+    return acc.credentials?.oauthAccessToken ?? null;
+  } catch { return null; }
 }
 
 const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
@@ -27,6 +36,7 @@ Outils disponibles selon les connexions de l'utilisateur :
 - Notion connecté : chercher_notion, lire_page_notion, creer_page_notion
 - Slack connecté : voir_canaux_slack, lire_messages_slack, envoyer_slack
 - HubSpot connecté : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
+- GitHub connecté : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
 
 RÈGLES IMPORTANTES :
 1. WhatsApp : utilise TOUJOURS voir_chats_whatsapp en premier pour obtenir les IDs de conversation avant de lire les messages. Les IDs ressemblent à "336XXXXXXXX@s.whatsapp.net" pour les contacts ou "XXXXXXXXX@g.us" pour les groupes.
@@ -99,7 +109,8 @@ async function executeTool(
   appleCredentials: { email: string; appPassword: string } | null,
   notionToken: string | null,
   slackToken: string | null,
-  hubspotToken: string | null
+  hubspotToken: string | null,
+  githubToken: string | null
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -412,12 +423,62 @@ async function executeTool(
     return JSON.stringify(result);
   }
 
+  // ─── GitHub ──────────────────────────────────────────────────────────────────
+  if (name === "voir_repos_github") {
+    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté. Va dans Paramètres > Intégrations." });
+    const r = await fetch("https://api.github.com/user/repos?sort=updated&per_page=20", {
+      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    });
+    const repos = await r.json();
+    if (!Array.isArray(repos)) return JSON.stringify({ error: repos?.message ?? "Erreur GitHub" });
+    return JSON.stringify({ repos: repos.map((repo: Record<string, unknown>) => ({ name: repo.full_name, private: repo.private, description: repo.description, stars: repo.stargazers_count, open_issues: repo.open_issues_count, url: repo.html_url })) });
+  }
+
+  if (name === "lire_issues_github") {
+    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté." });
+    const { repo, state, limit } = args as { repo?: string; state?: string; limit?: number };
+    const url = repo
+      ? `https://api.github.com/repos/${repo}/issues?state=${state ?? "open"}&per_page=${limit ?? 20}`
+      : `https://api.github.com/issues?filter=assigned&state=${state ?? "open"}&per_page=${limit ?? 20}`;
+    const r = await fetch(url, {
+      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    });
+    const issues = await r.json();
+    if (!Array.isArray(issues)) return JSON.stringify({ error: issues?.message ?? "Erreur GitHub" });
+    return JSON.stringify({ issues: issues.map((i: Record<string, unknown>) => ({ number: i.number, title: i.title, state: i.state, url: i.html_url, labels: (i.labels as Array<Record<string, string>>)?.map(l => l.name), assignee: (i.assignee as Record<string, string>)?.login, created_at: i.created_at })) });
+  }
+
+  if (name === "creer_issue_github") {
+    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté." });
+    const { repo, title, body, labels } = args as { repo: string; title: string; body?: string; labels?: string[] };
+    if (!repo || !title) return JSON.stringify({ error: "repo et title requis." });
+    const r = await fetch(`https://api.github.com/repos/${repo}/issues`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
+      body: JSON.stringify({ title, body: body ?? "", labels: labels ?? [] }),
+    });
+    const issue = await r.json();
+    return issue?.number ? JSON.stringify({ success: true, number: issue.number, url: issue.html_url }) : JSON.stringify({ error: issue?.message ?? "Erreur création" });
+  }
+
+  if (name === "voir_prs_github") {
+    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté." });
+    const { repo, state, limit } = args as { repo: string; state?: string; limit?: number };
+    if (!repo) return JSON.stringify({ error: "repo requis (ex: owner/repo)." });
+    const r = await fetch(`https://api.github.com/repos/${repo}/pulls?state=${state ?? "open"}&per_page=${limit ?? 20}`, {
+      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    });
+    const prs = await r.json();
+    if (!Array.isArray(prs)) return JSON.stringify({ error: prs?.message ?? "Erreur GitHub" });
+    return JSON.stringify({ prs: prs.map((p: Record<string, unknown>) => ({ number: p.number, title: p.title, state: p.state, url: p.html_url, author: (p.user as Record<string, string>)?.login, draft: p.draft, created_at: p.created_at })) });
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
 // ── Définitions des outils pour Groq ──────────────────────────────────────────
 
-function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasApple: boolean, hasNotion: boolean, hasSlack: boolean, hasHubSpot: boolean): Groq.Chat.ChatCompletionTool[] {
+function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasApple: boolean, hasNotion: boolean, hasSlack: boolean, hasHubSpot: boolean, hasGitHub: boolean): Groq.Chat.ChatCompletionTool[] {
   const tools: Groq.Chat.ChatCompletionTool[] = [];
 
   if (hasGoogle) {
@@ -481,6 +542,15 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     );
   }
 
+  if (hasGitHub) {
+    tools.push(
+      { type: "function", function: { name: "voir_repos_github", description: "Lister les repos GitHub de l'utilisateur (triés par dernière mise à jour).", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "lire_issues_github", description: "Lister les issues GitHub. Sans repo = toutes les issues assignées à l'utilisateur.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo, ex: victorseiler0-bot/trigr" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } } } } },
+      { type: "function", function: { name: "creer_issue_github", description: "Créer une issue dans un repo GitHub.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo" }, title: { type: "string" }, body: { type: "string" }, labels: { type: "array", items: { type: "string" } } }, required: ["repo", "title"] } } },
+      { type: "function", function: { name: "voir_prs_github", description: "Lister les pull requests d'un repo GitHub.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } }, required: ["repo"] } } }
+    );
+  }
+
   return tools;
 }
 
@@ -516,6 +586,7 @@ export async function POST(req: NextRequest) {
     let notionToken: string | null = null;
     let slackToken: string | null = null;
     let hubspotToken: string | null = null;
+    let githubToken: string | null = null;
     try {
       const client = await clerkClient();
       const [gData, mData] = await Promise.allSettled([
@@ -534,14 +605,27 @@ export async function POST(req: NextRequest) {
       if (pm.notionToken) notionToken = pm.notionToken as string;
       if (pm.slackToken) slackToken = pm.slackToken as string;
       if (pm.hubspotToken) hubspotToken = pm.hubspotToken as string;
+
+      // Tokens Pipedream pour les apps connectées via /integrations
+      const pipedreamMeta = (pm.pipedream as Record<string, string>) ?? {};
+      const pdTokenFetches: Promise<void>[] = [];
+
+      if (!msToken && pipedreamMeta.microsoft_outlook) {
+        pdTokenFetches.push(getPipedreamToken(pipedreamMeta.microsoft_outlook).then(t => { if (t) msToken = t; }));
+      }
+      if (pipedreamMeta.github) {
+        pdTokenFetches.push(getPipedreamToken(pipedreamMeta.github).then(t => { githubToken = t; }));
+      }
+      if (pdTokenFetches.length > 0) await Promise.allSettled(pdTokenFetches);
     } catch { /* no tokens */ }
 
     const hasApple = !!appleCredentials;
     const hasNotion = !!notionToken;
     const hasSlack = !!slackToken;
     const hasHubSpot = !!hubspotToken;
+    const hasGitHub = !!githubToken;
     const hasWhatsApp = !!whapiToken || bridgeData.wa?.connected === true;
-    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot);
+    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub);
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -574,7 +658,7 @@ export async function POST(req: NextRequest) {
         msg.tool_calls.map(async (tc) => {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken);
+          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, githubToken);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
