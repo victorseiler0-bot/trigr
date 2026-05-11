@@ -279,7 +279,7 @@ async function executeTool(
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté. Va dans Intégrations > WhatsApp Business." });
     if (whapiToken) {
       const data = await whapiGet("chats?count=25", whapiToken);
-      if (!data) return JSON.stringify({ error: "Token Whapi invalide ou expiré. Reconnectez WhatsApp dans Intégrations." });
+      if (!data) return JSON.stringify({ error: "Connexion WhatsApp expirée. Action requise : va sur panel.whapi.cloud → channel AQUAMN-7JPQ9 → Reconnect → scanne le QR avec ton téléphone. Aucune modification Vercel nécessaire si le token n'a pas changé." });
       const chats = (data.chats ?? []).map((c: Record<string, unknown>) => {
         const lm = c.last_message as Record<string, unknown> | undefined;
         const phone = String(c.id ?? "").split("@")[0];
