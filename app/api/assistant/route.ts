@@ -270,7 +270,7 @@ async function executeTool(
       });
       return JSON.stringify({ chats });
     }
-    if (bridgeData.wa.chats) return JSON.stringify({ chats: bridgeData.wa.chats });
+    if (bridgeData.wa?.chats) return JSON.stringify({ chats: bridgeData.wa.chats });
     const data = await waFetch("chats");
     return data ? JSON.stringify({ chats: data.chats }) : JSON.stringify({ error: "Impossible de récupérer les conversations." });
   }
@@ -291,8 +291,8 @@ async function executeTool(
       }));
       return JSON.stringify({ messages: msgs });
     }
-    if (!jid) return JSON.stringify({ chats: (bridgeData.wa.chats ?? []).slice(0, 5), hint: "Précise un jid." });
-    if (bridgeData.wa.messages?.[jid]) return JSON.stringify({ messages: (bridgeData.wa.messages[jid] as unknown[]).slice(0, limit ?? 20) });
+    if (!jid) return JSON.stringify({ chats: (bridgeData.wa?.chats ?? []).slice(0, 5), hint: "Précise un jid." });
+    if (bridgeData.wa?.messages?.[jid]) return JSON.stringify({ messages: (bridgeData.wa.messages[jid] as unknown[]).slice(0, limit ?? 20) });
     const data = await waFetch(`messages/${encodeURIComponent(jid)}?limit=${limit ?? 20}`);
     return data ? JSON.stringify({ messages: data.messages }) : JSON.stringify({ error: "Conversation introuvable." });
   }
@@ -322,7 +322,7 @@ async function executeTool(
       }));
       return JSON.stringify({ contacts: contacts.slice(0, 50) });
     }
-    if (bridgeData.wa.contacts) return JSON.stringify({ contacts: (bridgeData.wa.contacts as unknown[]).slice(0, 30) });
+    if (bridgeData.wa?.contacts) return JSON.stringify({ contacts: (bridgeData.wa.contacts as unknown[]).slice(0, 30) });
     const data = await waFetch("contacts");
     return data ? JSON.stringify({ contacts: data.contacts?.slice(0, 30) }) : JSON.stringify({ error: "Impossible de récupérer les contacts." });
   }
