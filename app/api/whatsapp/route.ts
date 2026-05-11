@@ -59,18 +59,23 @@ export async function POST(req: NextRequest) {
 
 async function generateResponse(message: string, _from: string): Promise<string> {
   const now = new Date();
-  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: `Tu es Trigr, assistant IA via WhatsApp. Réponds en français, très concis. Date: ${now.toLocaleDateString("fr-FR")} ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}` },
-        { role: "user", content: message },
-      ],
-      max_tokens: 300, temperature: 0.7,
-    }),
-  });
-  const data = await r.json();
-  return data.choices?.[0]?.message?.content ?? "Désolé, réessaie.";
+  const systemMsg = `Tu es Trigr, assistant IA via WhatsApp. Réponds en français, très concis. Date: ${now.toLocaleDateString("fr-FR")} ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`;
+  const body = JSON.stringify({ messages: [{ role: "system", content: systemMsg }, { role: "user", content: message }], max_tokens: 300, temperature: 0.7 });
+
+  // Essayer Gemini d'abord, puis Groq en fallback
+  const providers = [
+    process.env.GEMINI_API_KEY && { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: process.env.GEMINI_API_KEY, model: "gemini-2.0-flash" },
+    { url: "https://api.groq.com/openai/v1/chat/completions", key: GROQ_KEY, model: "llama-3.1-8b-instant" },
+  ].filter(Boolean) as { url: string; key: string; model: string }[];
+
+  for (const p of providers) {
+    try {
+      const r = await fetch(p.url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${p.key}` }, body: JSON.stringify({ ...JSON.parse(body), model: p.model }) });
+      if (!r.ok) continue;
+      const data = await r.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch { continue; }
+  }
+  return "Désolé, réessaie dans quelques instants.";
 }

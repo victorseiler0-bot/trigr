@@ -48,3 +48,5 @@ whatsapp-bridge/auth/
 whatsapp-bridge/wa-data.json
 whatsapp-bridge/.wa-auth-export.txt
 setup-railway.ps1
+
+.env*.local

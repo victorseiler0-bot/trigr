@@ -21,6 +21,7 @@ export type PipedreamApp = {
 };
 
 export const PIPEDREAM_APPS: PipedreamApp[] = [
+  { slug: "instagram_business", name: "Instagram", category: "social", description: "DMs · Commentaires · Stories" },
   { slug: "slack", name: "Slack", category: "messaging", description: "Canaux · Messages · Bots" },
   { slug: "notion", name: "Notion", category: "productivity", description: "Pages · Databases · Notes" },
   { slug: "hubspot", name: "HubSpot", category: "crm", description: "Contacts · Deals · Pipeline" },

@@ -13,14 +13,18 @@ interface AppDef {
   name: string;
   description: string;
   category: Category;
-  color: string; // couleur de la marque
+  color: string;
   logo: React.ReactNode;
   popular?: boolean;
+  comingSoon?: boolean;
+  comingSoonReason?: string;
+  footerNote?: React.ReactNode;
 }
 
 // ── Logos SVG ─────────────────────────────────────────────────────────────────
 const L = {
   Google: () => <svg viewBox="0 0 18 18" width="24" height="24" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616Z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/></svg>,
+  Instagram: () => <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><defs><radialGradient id="ig1" cx="30%" cy="107%" r="150%"><stop offset="0%" stopColor="#fdf497"/><stop offset="5%" stopColor="#fdf497"/><stop offset="45%" stopColor="#fd5949"/><stop offset="60%" stopColor="#d6249f"/><stop offset="90%" stopColor="#285AEB"/></radialGradient></defs><rect width="20" height="20" x="2" y="2" rx="5" ry="5" fill="url(#ig1)"/><path d="M12 7a5 5 0 100 10A5 5 0 0012 7zm0 8.2a3.2 3.2 0 110-6.4 3.2 3.2 0 010 6.4zm5.2-8.4a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4z" fill="white"/></svg>,
   Outlook: () => <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M7.88 12.04q0 .45-.11.87-.1.41-.33.74-.22.33-.58.52-.37.2-.87.2t-.85-.2q-.35-.21-.57-.55-.22-.33-.33-.75-.1-.42-.1-.86t.1-.87q.1-.43.34-.76.22-.34.59-.54.36-.2.87-.2t.86.2q.35.21.57.55.22.34.31.77.1.43.1.88zM24 12v9.38q0 .46-.33.8-.33.32-.8.32H7.13q-.46 0-.8-.33-.32-.33-.32-.8V18H1q-.41 0-.7-.3-.3-.29-.3-.7V7q0-.41.3-.7Q.58 6 1 6h6.5V2.55q0-.44.3-.75.3-.3.75-.3h12.9q.44 0 .75.3.3.3.3.75V10.5q0 .46-.3.77-.3.3-.75.3H13.5V12H24zm-12.5-3.5H13V10h-1.5V8.5zM14.5 10H16V8.5h-1.5V10zM16 10h1.5V8.5H16V10zm1.5 0H19V8.5h-1.5V10zm1.5 0h1.5V8.5H19V10zm-7.5 3H13v-1.5h-1.5V13zm1.5 0h1.5v-1.5H13V13zm1.5 0H16v-1.5h-1.5V13zM16 13h1.5v-1.5H16V13zm1.5 0H19v-1.5h-1.5V13zm1.5 0h1.5v-1.5H19V13zM8.08 9.45q-.9 0-1.6.3-.7.29-1.2.82-.49.53-.76 1.27-.26.75-.26 1.67 0 .85.24 1.57.25.72.7 1.24.46.52 1.13.81.67.3 1.53.3.86 0 1.52-.3.67-.29 1.14-.82.47-.52.72-1.25.25-.73.25-1.6 0-.9-.27-1.64-.26-.74-.74-1.27-.48-.52-1.15-.81-.67-.29-1.49-.29zM22 22v-9H13.5v.5H22z" fill="#0078D4"/></svg>,
   WhatsApp: () => <svg viewBox="0 0 24 24" width="24" height="24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>,
   Slack: () => <svg viewBox="0 0 122.8 122.8" width="22" height="22"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0S90.5 5.8 90.5 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg>,
@@ -44,7 +48,8 @@ const L = {
 // ── 19 apps définies (slugs vérifiés contre Pipedream API) ─────────────────────
 const APPS: AppDef[] = [
   // Google = natif (traité séparément)
-  { slug: "microsoft_outlook", name: "Microsoft Outlook", description: "Emails, calendrier et Teams en un seul compte Microsoft.", category: "Communication", color: "#0078D4", logo: <L.Outlook />, popular: true },
+  { slug: "instagram_business", name: "Instagram", description: "DMs Instagram. Prérequis : compte Instagram Business ou Créateur relié à une Page Facebook.", category: "Communication", color: "#E1306C", logo: <L.Instagram />, popular: true },
+  { slug: "microsoft_outlook", name: "Microsoft Outlook", description: "Emails et calendrier Microsoft (compte personnel recommandé).", category: "Communication", color: "#0078D4", logo: <L.Outlook />, popular: true, footerNote: <a href="/settings" className="text-xs text-violet-600 hover:underline">Compte école/entreprise ? → Connecter via IMAP dans Paramètres</a> },
   { slug: "whatsapp_business", name: "WhatsApp Business", description: "Connexion via clé API Meta — pas OAuth iframe.", category: "Communication", color: "#25D366", logo: <L.WhatsApp />, popular: true },
   { slug: "slack", name: "Slack", description: "Canaux, messages directs et notifications dans ton espace de travail.", category: "Communication", color: "#E01E5A", logo: <L.Slack />, popular: true },
   { slug: "discord", name: "Discord", description: "Serveurs, canaux vocaux et messages Discord.", category: "Communication", color: "#5865F2", logo: <L.Discord /> },
@@ -71,20 +76,46 @@ function AppCard({ app, userId, connected, accountId, onConnected, onDisconnecte
   app: AppDef; userId: string; connected: boolean; accountId?: string;
   onConnected: (id: string) => void; onDisconnected: () => void;
 }) {
+  if (app.comingSoon) {
+    return (
+      <div className="relative rounded-2xl border border-slate-200 bg-white flex flex-col overflow-hidden opacity-75">
+        <div className="absolute top-3 right-3 z-10">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 font-medium">Bientôt</span>
+        </div>
+        <div className="p-5 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 grayscale">{app.logo}</div>
+            <div>
+              <span className="text-sm font-semibold text-slate-700">{app.name}</span>
+              <div className="text-xs text-slate-400">{app.category}</div>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">{app.comingSoonReason ?? app.description}</p>
+          <div className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-400 text-xs font-medium py-2.5 rounded-xl cursor-not-allowed">
+            Bientôt disponible
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <PipedreamConnectButton
-      userId={userId}
-      appSlug={app.slug}
-      appName={app.name}
-      appColor={app.color}
-      description={app.description}
-      category={app.category}
-      logo={app.logo}
-      connected={connected}
-      accountId={accountId}
-      onConnected={onConnected}
-      onDisconnected={onDisconnected}
-    />
+    <div className="flex flex-col gap-1">
+      <PipedreamConnectButton
+        userId={userId}
+        appSlug={app.slug}
+        appName={app.name}
+        appColor={app.color}
+        description={app.description}
+        category={app.category}
+        logo={app.logo}
+        connected={connected}
+        accountId={accountId}
+        onConnected={onConnected}
+        onDisconnected={onDisconnected}
+      />
+      {app.footerNote && <div className="px-1">{app.footerNote}</div>}
+    </div>
   );
 }
 

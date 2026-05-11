@@ -11,10 +11,34 @@ import express from "express";
 import cors from "cors";
 import QRCode from "qrcode";
 import pino from "pino";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { fetch as nodeFetch } from "undici";
 
 const PORT = process.env.PORT || 3001;
+
+// ── Restauration session WA depuis env var (Railway / cloud) ──────────────────
+// Si le volume est vide et que WA_AUTH_JSON est défini, on restaure la session
+// sans devoir rescanner le QR code.
+function restoreAuthFromEnv() {
+  const encoded = process.env.WA_AUTH_JSON;
+  if (!encoded) return;
+  try {
+    const files = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+    mkdirSync("./auth", { recursive: true });
+    let restored = 0;
+    for (const [name, content] of Object.entries(files)) {
+      const dest = `./auth/${name}`;
+      if (!existsSync(dest)) {
+        writeFileSync(dest, content, "utf8");
+        restored++;
+      }
+    }
+    if (restored > 0) console.log(`[Auth] ${restored} fichiers restaurés depuis WA_AUTH_JSON`);
+  } catch (e) {
+    console.error("[Auth] Erreur restauration:", e.message);
+  }
+}
+restoreAuthFromEnv();
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -377,8 +401,7 @@ app.get("/messages/:jid", (req, res) => {
 app.get("/sent", (_, res) => {
   const sent = [];
   for (const [jid, msgs] of Object.entries(messages)) {
-    const chat = store.chats.get(jid);
-    const chatName = chat?.name ?? getContactName(jid);
+    const chatName = chats[jid]?.name ?? getContactName(jid);
     for (const m of msgs) {
       if (m.fromMe) sent.push({ ...m, chatName, jid });
     }

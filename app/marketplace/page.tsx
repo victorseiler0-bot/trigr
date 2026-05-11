@@ -168,18 +168,18 @@ const TEMPLATES: Template[] = [
 const CATEGORIES: Category[] = ["Tous", "Email", "Agenda", "WhatsApp", "CRM", "Productivité"];
 
 const planConfig = {
-  gratuit: { label: "Gratuit", bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  pro: { label: "Pro", bg: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
-  business: { label: "Business", bg: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  gratuit: { label: "Gratuit", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  pro: { label: "Pro", bg: "bg-violet-50 text-violet-700 border-violet-200" },
+  business: { label: "Business", bg: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
 const accentBorder: Record<string, string> = {
-  violet: "hover:border-violet-500/40",
-  cyan: "hover:border-cyan-500/40",
-  emerald: "hover:border-emerald-500/40",
-  amber: "hover:border-amber-500/40",
-  pink: "hover:border-pink-500/40",
-  orange: "hover:border-orange-500/40",
+  violet: "hover:border-violet-400 hover:shadow-md",
+  cyan: "hover:border-cyan-400 hover:shadow-md",
+  emerald: "hover:border-emerald-400 hover:shadow-md",
+  amber: "hover:border-amber-400 hover:shadow-md",
+  pink: "hover:border-pink-400 hover:shadow-md",
+  orange: "hover:border-orange-400 hover:shadow-md",
 };
 
 export default function MarketplacePage() {
@@ -246,23 +246,20 @@ export default function MarketplacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center relative">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-violet-600/[0.05] rounded-full blur-[100px]" />
-        </div>
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-500/20 bg-violet-500/[0.06] text-violet-300 text-xs font-medium mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-200 bg-violet-50 text-violet-600 text-xs font-medium mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
             {TEMPLATES.length} automatisations disponibles
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Marketplace <span className="text-violet-400">Trigr</span>
+            Marketplace <span className="text-violet-600">Trigr</span>
           </h1>
-          <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
             Automatisations prêtes à l'emploi pour freelancers et PMEs. Active en 1 clic, fonctionne immédiatement.
           </p>
 
@@ -274,8 +271,8 @@ export default function MarketplacePage() {
               { value: "5", label: "Catégories" },
             ].map((s) => (
               <div key={s.label} className="text-center">
-                <div className="text-2xl font-bold text-white">{s.value}</div>
-                <div className="text-xs text-zinc-500 mt-0.5">{s.label}</div>
+                <div className="text-2xl font-bold text-slate-900">{s.value}</div>
+                <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
@@ -283,7 +280,7 @@ export default function MarketplacePage() {
       </section>
 
       {/* Filters */}
-      <div className="sticky top-16 z-30 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/[0.04] px-6 py-3">
+      <div className="sticky top-16 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200 px-6 py-3">
         <div className="max-w-5xl mx-auto flex gap-2 overflow-x-auto scrollbar-none">
           {CATEGORIES.map((cat) => (
             <button
@@ -291,8 +288,8 @@ export default function MarketplacePage() {
               onClick={() => setCategory(cat)}
               className={`shrink-0 text-sm px-4 py-1.5 rounded-full border transition-all ${
                 category === cat
-                  ? "bg-violet-600 border-violet-500 text-white font-medium"
-                  : "border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20"
+                  ? "bg-violet-600 border-violet-600 text-white font-medium"
+                  : "border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 bg-white"
               }`}
             >
               {cat}
@@ -303,10 +300,10 @@ export default function MarketplacePage() {
 
       {/* Toast activation */}
       {activated && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium px-5 py-3 rounded-2xl shadow-xl backdrop-blur-xl">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium px-5 py-3 rounded-2xl shadow-xl">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           Workflow activé !
-          <button onClick={() => setActivated(null)} className="ml-2 text-emerald-500 hover:text-emerald-300">✕</button>
+          <button onClick={() => setActivated(null)} className="ml-2 text-emerald-400 hover:text-emerald-600">✕</button>
         </div>
       )}
 
@@ -316,7 +313,7 @@ export default function MarketplacePage() {
           {filtered.map((t) => (
             <div
               key={t.id}
-              className={`group relative rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex flex-col gap-4 transition-all duration-200 ${accentBorder[t.accentColor]}`}
+              className={`group relative rounded-2xl border border-slate-200 bg-white p-5 flex flex-col gap-4 transition-all duration-200 ${accentBorder[t.accentColor]}`}
             >
               {/* Icon + badges */}
               <div className="flex items-start justify-between">
@@ -330,17 +327,17 @@ export default function MarketplacePage() {
 
               {/* Content */}
               <div className="flex-1">
-                <div className="text-xs text-zinc-500 mb-1">{t.category}</div>
-                <h3 className="font-semibold text-white mb-2">{t.name}</h3>
-                <p className="text-sm text-zinc-400 leading-relaxed">{t.desc}</p>
+                <div className="text-xs text-slate-400 mb-1">{t.category}</div>
+                <h3 className="font-semibold text-slate-900 mb-2">{t.name}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{t.desc}</p>
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
-                <span className="text-xs text-zinc-600">{t.activations} activations</span>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <span className="text-xs text-slate-400">{t.activations} activations</span>
                 {t.n8nId && activeWorkflows[t.n8nId] ? (
-                  <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
                     Actif
                   </span>
                 ) : (
@@ -349,8 +346,8 @@ export default function MarketplacePage() {
                     disabled={loading === t.id}
                     className={`text-sm font-semibold px-4 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
                       t.plan === "gratuit"
-                        ? "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/20"
-                        : "bg-violet-600 hover:bg-violet-500 text-white shadow-[0_0_16px_rgba(139,92,246,0.3)]"
+                        ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"
+                        : "bg-violet-600 hover:bg-violet-500 text-white shadow-sm"
                     }`}
                   >
                     {loading === t.id
@@ -366,14 +363,14 @@ export default function MarketplacePage() {
         </div>
 
         {/* CTA bottom */}
-        <div className="mt-16 rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-8 text-center">
-          <h2 className="text-xl font-bold mb-2">Tu veux un workflow sur mesure ?</h2>
-          <p className="text-sm text-zinc-400 mb-6">
+        <div className="mt-16 rounded-2xl border border-violet-200 bg-violet-50 p-8 text-center">
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Tu veux un workflow sur mesure ?</h2>
+          <p className="text-sm text-slate-500 mb-6">
             Décris ton besoin et on te construit une automatisation personnalisée.
           </p>
           <Link
             href="/assistant"
-            className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+            className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-all shadow-sm"
           >
             Parler à l'assistant IA
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">

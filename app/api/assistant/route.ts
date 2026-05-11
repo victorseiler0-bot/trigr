@@ -1,21 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import Groq from "groq-sdk";
+import OpenAI from "openai";
 import { whapiChannel, getUserWhapiMeta } from "@/lib/whapi";
-import { sendMetaWaMessage, type WaMessage } from "@/lib/whatsapp-meta";
+import { sendMetaWaMessage, storeWaMessage, markWaMessagesRead, countUnread, type WaMessage } from "@/lib/whatsapp-meta";
 import { getAppleMeta, getAppleCalendar, getAppleContacts, createAppleEvent } from "@/lib/apple";
 import { checkAndIncrementAction } from "@/lib/ratelimit";
 import { getNotionMeta, searchNotionPages, getNotionPage, createNotionPage } from "@/lib/notion";
 import { getSlackMeta, getSlackChannels, getSlackMessages, sendSlackMessage } from "@/lib/slack";
 import { getHubSpotMeta, searchHubSpotContacts, getHubSpotDeals, createHubSpotContact, createHubSpotDeal } from "@/lib/hubspot";
 import { getPipedreamClient } from "@/lib/pipedream";
+import { readImapEmails, sendImapEmail, type ImapConfig } from "@/lib/imap";
 
-export const maxDuration = 60; // secondes — nécessaire pour les chaînes d'outils Groq + Whapi
+export const maxDuration = 60;
 
-let _groq: Groq | null = null;
-function getGroq() {
-  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return _groq;
+// Gemini si dispo, sinon Groq
+const USE_GEMINI    = !!process.env.GEMINI_API_KEY;
+const PRIMARY_MODEL = USE_GEMINI ? "gemini-2.0-flash"         : "llama-3.3-70b-versatile";
+const FALLBACK_MODEL= USE_GEMINI ? "gemini-2.0-flash"         : "llama-3.1-8b-instant"; // 500k tokens/jour sur Groq
+
+let _ai: OpenAI | null = null;
+function getAI(): OpenAI {
+  if (!_ai) {
+    _ai = USE_GEMINI
+      ? new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/" })
+      : new OpenAI({ apiKey: process.env.GROQ_API_KEY,   baseURL: "https://api.groq.com/openai/v1" });
+  }
+  return _ai;
 }
 
 // Pipedream proxy — HttpResponsePromise.then() unwraps { data } automatiquement → res = data directement
@@ -43,27 +53,60 @@ async function pdPost(
   }
 }
 
-const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
-Date et heure actuelles : ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+function buildSystemPrompt(compact = false) {
+  const date = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  if (compact) {
+    return `Tu es Trigr, assistant IA personnel. Réponds en français, concis. Date: ${date}. Utilise les outils disponibles pour aider l'utilisateur.`;
+  }
+  return `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
+Date et heure actuelles : ${date}
 
-Outils disponibles selon les connexions de l'utilisateur :
-- Google connecté : lire_emails, envoyer_email, voir_agenda, creer_evenement (Gmail + Google Calendar)
-- Microsoft connecté : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams (Outlook + Teams)
-- WhatsApp connecté : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp, messages_envoyes
-- Apple connecté : voir_calendrier_apple, creer_evenement_apple, voir_contacts_apple
-- Notion connecté : chercher_notion, lire_page_notion, creer_page_notion
-- Slack connecté : voir_canaux_slack, lire_messages_slack, envoyer_slack
-- HubSpot connecté : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
-- GitHub connecté : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
+Outils disponibles selon les connexions :
+- Google : lire_emails, envoyer_email, voir_agenda, creer_evenement
+- Microsoft : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams
+- WhatsApp : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp, messages_envoyes
+- Instagram : voir_conversations_instagram, lire_messages_instagram, envoyer_instagram
+- Apple : voir_calendrier_apple, creer_evenement_apple, voir_contacts_apple
+- Notion : chercher_notion, lire_page_notion, creer_page_notion
+- Slack : voir_canaux_slack, lire_messages_slack, envoyer_slack
+- HubSpot : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
+- GitHub : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
 
-RÈGLES IMPORTANTES :
-1. WhatsApp : utilise TOUJOURS voir_chats_whatsapp en premier pour obtenir les IDs de conversation avant de lire les messages. Les IDs ressemblent à "336XXXXXXXX@s.whatsapp.net" pour les contacts ou "XXXXXXXXX@g.us" pour les groupes.
-2. Pour envoyer un WA : utilise le numéro sans + ni espaces (ex: "336XXXXXXXX").
-3. Propose proactivement des actions utiles — si l'utilisateur parle d'une personne, propose de lui envoyer un message WA. Si il parle d'un sujet urgent, propose de vérifier ses emails.
-4. Après avoir utilisé un outil, résume les résultats clairement et propose une action suivante pertinente.
-5. Si un outil échoue, explique brièvement et propose une alternative.`;
+RÈGLES :
+1. WhatsApp/Instagram : utilise TOUJOURS voir_chats d'abord pour avoir les IDs.
+2. Envoyer WA : numéro sans + ni espaces (ex: "336XXXXXXXX").
+3. Au 1er message sans historique : vérifie les messages non lus WA et Instagram.
+4. Si outil retourne "setup" : explique les étapes clairement une fois.`;
+}
 
 const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
+
+// En mode compact : garde seulement les outils les plus utiles (max ~1500 tokens)
+function compactTools(tools: OpenAI.Chat.ChatCompletionTool[]): OpenAI.Chat.ChatCompletionTool[] | undefined {
+  const KEEP = ["envoyer_whatsapp", "envoyer_instagram", "envoyer_email", "envoyer_email_outlook", "voir_chats_whatsapp", "lire_messages_whatsapp", "envoyer_slack"];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filtered = tools.filter(t => KEEP.includes((t as any).function?.name));
+  return filtered.length > 0 ? filtered : undefined;
+}
+
+// Abonne automatiquement le WABA au webhook Meta (fait une seule fois par compte)
+async function autoSubscribeWaba(
+  token: string, phoneId: string, userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  clerk: any
+) {
+  try {
+    const res  = await fetch(`https://graph.facebook.com/v21.0/${phoneId}?fields=whatsapp_business_account&access_token=${token}`);
+    const data = await res.json() as Record<string, unknown>;
+    const wabaId = (data.whatsapp_business_account as Record<string, string> | undefined)?.id;
+    if (!wabaId) return;
+    await fetch(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+    });
+    // Flag pour ne plus refaire
+    await clerk.users.updateUserMetadata(userId, { privateMetadata: { wabaSubscribed: true } });
+  } catch { /* non bloquant */ }
+}
 
 const whapiGet  = (path: string, token: string | null) => whapiChannel(token!, path);
 const whapiPost = (path: string, body: unknown, token: string | null) => whapiChannel(token!, path, "POST", body);
@@ -132,7 +175,8 @@ async function executeTool(
   userId: string,
   waStoredMessages: WaMessage[],
   waMetaToken: string | undefined,
-  waPhoneId: string | undefined
+  waPhoneId: string | undefined,
+  imapConfig: ImapConfig | null
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -282,6 +326,7 @@ async function executeTool(
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
     // Priorité 1 : messages reçus via webhook (stockés dans Clerk)
     if (waStoredMessages.length > 0) {
+      const unreadCount = countUnread(waStoredMessages);
       const bySender = new Map<string, WaMessage[]>();
       for (const m of waStoredMessages) {
         const key = m.incoming ? m.from : "me";
@@ -289,15 +334,19 @@ async function executeTool(
         bySender.get(key)!.push(m);
       }
       const chats = Array.from(bySender.entries()).map(([phone, msgs]) => ({
-        id: phone, name: msgs.find(m => m.fromName !== phone)?.fromName ?? phone,
-        phone, lastMessage: msgs[0]?.text ?? "", unread: msgs.filter(m => m.incoming).length,
-      }));
-      return JSON.stringify({ chats });
+        id: phone,
+        name: msgs.find(m => m.fromName !== phone)?.fromName ?? phone,
+        phone,
+        lastMessage: msgs[0]?.text ?? "",
+        unread: msgs.filter(m => m.incoming && !m.read).length,
+        lastTimestamp: msgs[0]?.timestamp,
+      })).sort((a, b) => (b.lastTimestamp ?? 0) - (a.lastTimestamp ?? 0));
+      return JSON.stringify({ chats, totalUnread: unreadCount });
     }
     // Priorité 2 : Whapi si token valide
     if (whapiToken) {
       const data = await whapiGet("chats?count=25", whapiToken);
-      if (data) {
+      if (data?.chats?.length) {
         const chats = (data.chats ?? []).map((c: Record<string, unknown>) => {
           const lm = c.last_message as Record<string, unknown> | undefined;
           const phone = String(c.id ?? "").split("@")[0];
@@ -306,18 +355,23 @@ async function executeTool(
         return JSON.stringify({ chats });
       }
     }
-    return JSON.stringify({ info: "WhatsApp Business connecté. Aucun message reçu pour le moment. Envoie un message à ton numéro WhatsApp Business pour initialiser la conversation." });
+    return JSON.stringify({
+      info: "Aucun message WhatsApp reçu pour le moment.",
+      setup: "Pour activer la réception en temps réel, configure le webhook Meta : dans Meta Developer Console > ton App > WhatsApp > Configuration > Modifier le webhook. URL : https://trigr-eight.vercel.app/api/whatsapp — Token de vérification : celui dans la variable WHATSAPP_VERIFY_TOKEN de Vercel.",
+    });
   }
 
   if (name === "lire_messages_whatsapp") {
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { jid, limit } = args as { jid?: string; limit?: number };
-    // Lire depuis les messages stockés
+    // Lire depuis les messages stockés + marquer comme lus
     if (waStoredMessages.length > 0) {
       const msgs = jid
         ? waStoredMessages.filter(m => m.from === jid || (!m.incoming && jid === "me")).slice(0, limit ?? 20)
         : waStoredMessages.slice(0, limit ?? 20);
-      return JSON.stringify({ messages: msgs.map(m => ({ id: m.id, from: m.fromName, text: m.text, timestamp: m.timestamp, fromMe: !m.incoming })) });
+      // Marquer comme lus en arrière-plan
+      markWaMessagesRead(userId, jid).catch(() => {});
+      return JSON.stringify({ messages: msgs.map(m => ({ id: m.id, from: m.fromName, text: m.text, timestamp: m.timestamp, fromMe: !m.incoming, read: m.read })) });
     }
     if (whapiToken && jid) {
       const data = await whapiGet(`messages/list/${encodeURIComponent(jid)}?count=${limit ?? 20}`, whapiToken);
@@ -326,7 +380,7 @@ async function executeTool(
         return JSON.stringify({ messages: msgs });
       }
     }
-    return JSON.stringify({ info: "Aucun message stocké. Les messages arrivent automatiquement dès que quelqu'un t'écrit sur WhatsApp Business." });
+    return JSON.stringify({ info: "Aucun message stocké. Les messages arrivent automatiquement dès que quelqu'un t'écrit sur WhatsApp Business (webhook Meta requis)." });
   }
 
   if (name === "envoyer_whatsapp") {
@@ -334,18 +388,22 @@ async function executeTool(
     const { to, message } = args as { to: string; message: string };
     if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
     const phone = to.replace(/\D/g, "");
-    // Priorité 1 : Meta API directe via env vars
+    // Priorité 1 : Meta API directe
     if (waMetaToken && waPhoneId) {
       const ok = await sendMetaWaMessage(phone, message);
-      if (ok) return JSON.stringify({ success: true });
+      if (ok) {
+        // Stocker le message envoyé
+        await storeWaMessage({ id: `sent_${Date.now()}`, from: phone, fromName: phone, text: message, timestamp: Math.floor(Date.now() / 1000), incoming: false, read: true }).catch(() => {});
+        return JSON.stringify({ success: true, via: "Meta API", to: phone });
+      }
+      return JSON.stringify({ error: `Échec envoi Meta API. Vérifie que WHATSAPP_TOKEN est valide et que le numéro ${phone} a déjà envoyé un message à ton compte Business (opt-in requis par Meta).` });
     }
-    // Priorité 2 : Whapi
+    // Priorité 2 : Whapi (si disponible)
     if (whapiToken) {
       const r = await whapiPost("messages/text", { to: phone, body: message }, whapiToken);
-      return r?.sent ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
+      return r?.sent ? JSON.stringify({ success: true, via: "Whapi" }) : JSON.stringify({ error: r?.error ?? "Canal Whapi introuvable — recréer le canal sur whapi.cloud." });
     }
-    clientActions.push({ type: "send_whatsapp", to, message });
-    return JSON.stringify({ success: true });
+    return JSON.stringify({ error: "Aucun moyen d'envoi WhatsApp disponible. WHATSAPP_TOKEN manquant dans Vercel." });
   }
 
   if (name === "voir_contacts_whatsapp") {
@@ -506,13 +564,70 @@ async function executeTool(
     return JSON.stringify({ prs: prs.map(p => ({ number: p.number, title: p.title, state: p.state, url: p.html_url, author: (p.user as Record<string, string>)?.login, draft: p.draft, created_at: p.created_at })) });
   }
 
+  // ─── Email IMAP (comptes entreprise/école) ───────────────────────────────────
+  if (name === "lire_emails_imap") {
+    if (!imapConfig) return JSON.stringify({ error: "Email IMAP non configuré. Va dans Paramètres > Email IMAP." });
+    const { limit, unreadOnly } = args as { limit?: number; unreadOnly?: boolean };
+    const emails = await readImapEmails(imapConfig, { limit: limit ?? 10, unreadOnly: unreadOnly ?? false });
+    return JSON.stringify({ emails, account: imapConfig.user });
+  }
+
+  if (name === "envoyer_email_imap") {
+    if (!imapConfig) return JSON.stringify({ error: "Email IMAP non configuré." });
+    const { to, subject, body } = args as { to: string; subject: string; body: string };
+    if (!to || !subject || !body) return JSON.stringify({ error: "to, subject et body requis." });
+    const ok = await sendImapEmail(imapConfig, to, subject, body);
+    return ok ? JSON.stringify({ success: true, from: imapConfig.user }) : JSON.stringify({ error: "Envoi échoué. Vérifiez les identifiants SMTP." });
+  }
+
+  // ─── Instagram DMs (via Pipedream) ──────────────────────────────────────────
+  if (name === "voir_conversations_instagram") {
+    if (!pdAccountIds.instagram_business) return JSON.stringify({ error: "Instagram non connecté. Va dans Intégrations." });
+    const convs = await pdGet(userId, pdAccountIds.instagram_business,
+      "https://graph.facebook.com/v21.0/me/conversations?platform=instagram&fields=id,participants,updated_time,messages{message,from,created_time}&limit=10"
+    ) as Record<string, unknown>;
+    if ((convs as Record<string, unknown>)?.error) return JSON.stringify({ error: (convs as Record<string, Record<string, string>>).error?.message ?? "Erreur Instagram" });
+    const threads = ((convs as Record<string, unknown>).data as Array<Record<string, unknown>> ?? []).map(t => {
+      const participants = ((t.participants as Record<string, unknown>)?.data as Array<Record<string, string>> ?? []).filter(p => p.username !== "me").map(p => p.name ?? p.username);
+      const lastMsg = ((t.messages as Record<string, unknown>)?.data as Array<Record<string, unknown>> ?? [])[0];
+      return { id: t.id, with: participants.join(", "), lastMessage: lastMsg?.message ?? "", updatedAt: t.updated_time };
+    });
+    return JSON.stringify({ conversations: threads });
+  }
+
+  if (name === "lire_messages_instagram") {
+    if (!pdAccountIds.instagram_business) return JSON.stringify({ error: "Instagram non connecté." });
+    const { conversationId, limit } = args as { conversationId: string; limit?: number };
+    if (!conversationId) return JSON.stringify({ error: "conversationId requis." });
+    const data = await pdGet(userId, pdAccountIds.instagram_business,
+      `https://graph.facebook.com/v21.0/${conversationId}/messages?fields=message,from,created_time&limit=${limit ?? 20}`
+    ) as Record<string, unknown>;
+    const msgs = ((data as Record<string, unknown>).data as Array<Record<string, unknown>> ?? []).map(m => ({
+      from: (m.from as Record<string, string>)?.name ?? "inconnu",
+      message: m.message,
+      at: m.created_time,
+    }));
+    return JSON.stringify({ messages: msgs });
+  }
+
+  if (name === "envoyer_instagram") {
+    if (!pdAccountIds.instagram_business) return JSON.stringify({ error: "Instagram non connecté." });
+    const { recipientId, message: text } = args as { recipientId: string; message: string };
+    if (!recipientId || !text) return JSON.stringify({ error: "recipientId et message requis." });
+    const r = await pdPost(userId, pdAccountIds.instagram_business,
+      "https://graph.facebook.com/v21.0/me/messages",
+      { recipient: { id: recipientId }, message: { text }, messaging_type: "RESPONSE" }
+    ) as Record<string, unknown>;
+    return r?.message_id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
-// ── Définitions des outils pour Groq ──────────────────────────────────────────
+// ── Définitions des outils ────────────────────────────────────────────────────
 
-function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasApple: boolean, hasNotion: boolean, hasSlack: boolean, hasHubSpot: boolean, hasGitHub: boolean): Groq.Chat.ChatCompletionTool[] {
-  const tools: Groq.Chat.ChatCompletionTool[] = [];
+function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: boolean, hasInstagram: boolean, hasApple: boolean, hasNotion: boolean, hasSlack: boolean, hasHubSpot: boolean, hasGitHub: boolean, hasImap: boolean): OpenAI.Chat.ChatCompletionTool[] {
+  const tools: OpenAI.Chat.ChatCompletionTool[] = [];
 
   if (hasGoogle) {
     tools.push(
@@ -539,6 +654,14 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
       { type: "function", function: { name: "envoyer_whatsapp", description: "Envoyer un message WhatsApp.", parameters: { type: "object" as const, properties: { to: { type: "string", description: "Numéro ou jid" }, message: { type: "string" } }, required: ["to", "message"] } } },
       { type: "function", function: { name: "voir_contacts_whatsapp", description: "Lister les contacts WhatsApp.", parameters: { type: "object" as const, properties: {} } } },
       { type: "function", function: { name: "messages_envoyes", description: "Voir les derniers messages envoyés par l'utilisateur sur WhatsApp (toutes conversations).", parameters: { type: "object" as const, properties: {} } } }
+    );
+  }
+
+  if (hasInstagram) {
+    tools.push(
+      { type: "function", function: { name: "voir_conversations_instagram", description: "Lister les conversations Instagram Direct récentes.", parameters: { type: "object" as const, properties: {} } } },
+      { type: "function", function: { name: "lire_messages_instagram", description: "Lire les messages d'une conversation Instagram.", parameters: { type: "object" as const, properties: { conversationId: { type: "string" }, limit: { type: "number" } }, required: ["conversationId"] } } },
+      { type: "function", function: { name: "envoyer_instagram", description: "Envoyer un message Instagram Direct.", parameters: { type: "object" as const, properties: { recipientId: { type: "string", description: "Instagram user ID du destinataire" }, message: { type: "string" } }, required: ["recipientId", "message"] } } }
     );
   }
 
@@ -584,6 +707,13 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     );
   }
 
+  if (hasImap) {
+    tools.push(
+      { type: "function", function: { name: "lire_emails_imap", description: "Lire les emails d'un compte IMAP (entreprise, ESME, etc.).", parameters: { type: "object" as const, properties: { limit: { type: "number" }, unreadOnly: { type: "boolean" } } } } },
+      { type: "function", function: { name: "envoyer_email_imap", description: "Envoyer un email depuis le compte IMAP configuré.", parameters: { type: "object" as const, properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["to", "subject", "body"] } } }
+    );
+  }
+
   return tools;
 }
 
@@ -621,6 +751,7 @@ export async function POST(req: NextRequest) {
     let hubspotToken: string | null = null;
     let pdAccountIds: Record<string, string> = {};
     let waStoredMessages: WaMessage[] = [];
+    let imapConfig: ImapConfig | null = null;
     const waMetaToken = process.env.WHATSAPP_TOKEN;
     const waPhoneId   = process.env.WHATSAPP_PHONE_NUMBER_ID;
     try {
@@ -642,6 +773,12 @@ export async function POST(req: NextRequest) {
       if (pm.hubspotToken) hubspotToken = pm.hubspotToken as string;
       pdAccountIds = (pm.pipedream as Record<string, string>) ?? {};
       waStoredMessages = (pm.waMessages as WaMessage[]) ?? [];
+      if (pm.imap) imapConfig = pm.imap as ImapConfig;
+
+      // Auto-subscribe WABA au webhook Meta si pas encore fait et token Meta dispo
+      if (waMetaToken && waPhoneId && !pm.wabaSubscribed) {
+        autoSubscribeWaba(waMetaToken, waPhoneId, userId, client).catch(() => {});
+      }
     } catch { /* no tokens */ }
 
     const hasApple = !!appleCredentials;
@@ -651,26 +788,67 @@ export async function POST(req: NextRequest) {
     const hasGitHub = !!pdAccountIds.github;
     const hasMicrosoft = !!msToken || !!pdAccountIds.microsoft_outlook;
     const hasWhatsApp = !!whapiToken || !!waMetaToken || !!pdAccountIds.whatsapp_business || bridgeData.wa?.connected === true;
-    const tools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub);
+    const hasInstagram = !!pdAccountIds.instagram_business;
+    const hasImap = !!imapConfig;
+    const tools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasInstagram, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub, hasImap);
 
-    const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    let compact = false; // passe en mode compact si contexte trop grand
+    const buildMessages = (): OpenAI.Chat.ChatCompletionMessageParam[] => [
+      { role: "system", content: buildSystemPrompt(compact) },
+      ...history.slice(compact ? -2 : -16).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: message },
     ];
 
     const clientActions: ClientAction[] = [];
+    let currentModel = PRIMARY_MODEL; // persiste entre tours — une fois fallback, on reste fallback
+    let messages = buildMessages();
 
     // Boucle tool-calling (max 5 tours)
     for (let i = 0; i < 5; i++) {
-      const completion = await getGroq().chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        tool_choice: tools.length > 0 ? "auto" : undefined,
-        max_tokens: 1024,
-        temperature: 0.3,
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let completion: any;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          completion = await getAI().chat.completions.create({
+            model: currentModel,
+            messages,
+            tools: compact ? compactTools(tools) : (tools.length > 0 ? tools : undefined),
+            tool_choice: tools.length > 0 ? "auto" : undefined,
+            max_tokens: 1024,
+            temperature: 0.3,
+          });
+          break;
+        } catch (err: unknown) {
+          const e = err as Record<string, unknown>;
+          const status = e?.status as number | undefined;
+
+          // 413 = contexte trop grand → passer en mode compact et réessayer
+          if (status === 413 && !compact) {
+            compact = true;
+            messages = buildMessages();
+            continue;
+          }
+
+          if ((status !== 429 && status !== 413) || attempt >= 3) throw err;
+
+          // Lire retry-after (Headers Fetch API ou objet plain)
+          const h = e?.headers;
+          const retryAfterRaw: string | null =
+            h && typeof (h as { get?: unknown }).get === "function"
+              ? (h as { get: (k: string) => string | null }).get("retry-after")
+              : ((h as Record<string, string>)?.["retry-after"] ?? null);
+          const retryAfterSec = parseFloat(retryAfterRaw ?? "0");
+
+          // Quota journalier (retry-after long) OU code rate_limit_exceeded → fallback model
+          const isTPD = retryAfterSec > 15 || (e?.code as string) === "rate_limit_exceeded";
+          if (isTPD && currentModel !== FALLBACK_MODEL) {
+            currentModel = FALLBACK_MODEL;
+            continue;
+          }
+          // RPM → attendre et réessayer (max 6s)
+          await new Promise(r => setTimeout(r, Math.min(retryAfterSec * 1000 || 3000, 6000)));
+        }
+      }
 
       const choice = completion.choices[0];
       const msg = choice.message;
@@ -679,12 +857,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ response: msg.content ?? "", clientActions, remaining });
       }
 
-      messages.push(msg as Groq.Chat.ChatCompletionMessageParam);
+      messages.push(msg as OpenAI.Chat.ChatCompletionMessageParam);
       const toolResults = await Promise.all(
-        msg.tool_calls.map(async (tc) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        msg.tool_calls.map(async (tc: any) => {
           let args: Record<string, unknown> = {};
-          try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId);
+          try { const p = JSON.parse(tc.function?.arguments ?? "{}"); if (p && typeof p === "object" && !Array.isArray(p)) args = p; } catch {}
+          const name: string = tc.function?.name ?? "";
+          const result = await executeTool(name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId, imapConfig);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
@@ -694,6 +874,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ response: "Désolé, je n'ai pas pu terminer cette action.", clientActions });
   } catch (err) {
     console.error("[assistant]", err);
-    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
+    // Ne jamais renvoyer un 500 brut — le client reçoit toujours une réponse lisible
+    const msg = (err as Record<string, unknown>)?.message as string | undefined;
+    const friendly = msg?.includes("rate_limit") || msg?.includes("429")
+      ? "Je suis temporairement surchargé. Réessaie dans quelques secondes."
+      : "Une erreur inattendue s'est produite. Réessaie.";
+    return NextResponse.json({ response: friendly }, { status: 200 });
   }
 }

@@ -13,13 +13,13 @@ function updateVercelBridgeUrl(bridgeUrl) {
     // Met à jour l'env var Vercel (CLI OAuth, pas besoin de token)
     execSync(
       `echo "${bridgeUrl}" | vercel env add WHATSAPP_BRIDGE_URL production --force`,
-      { cwd: __dirname, stdio: "pipe", timeout: 30000 }
+      { cwd: __dirname, stdio: "pipe", timeout: 30000, windowsHide: true }
     );
     console.log("[Trigr] WHATSAPP_BRIDGE_URL mis à jour sur Vercel :", bridgeUrl);
 
     // Redéploiement automatique pour que le changement soit pris en compte
     console.log("[Trigr] Déploiement Vercel en cours...");
-    execSync("vercel --prod --yes", { cwd: __dirname, stdio: "pipe", timeout: 180000 });
+    execSync("vercel --prod --yes", { cwd: __dirname, stdio: "pipe", timeout: 180000, windowsHide: true });
     console.log("[Trigr] Déploiement Vercel terminé ✓");
   } catch (e) {
     console.error("[Trigr] Erreur mise à jour Vercel :", e.message?.slice(0, 200));
@@ -37,7 +37,7 @@ function startTunnel() {
     "-o", "ExitOnForwardFailure=yes",
     "-R", "80:localhost:3001",
     "serveo.net",
-  ], { stdio: ["pipe", "pipe", "pipe"] });
+  ], { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
 
   function onData(data) {
     const text = data.toString();

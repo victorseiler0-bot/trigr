@@ -64,6 +64,13 @@ export default function SettingsPage() {
   // Pipedream accounts count
   const [pdCount, setPdCount] = useState(0);
 
+  // IMAP
+  const [imapEmail, setImapEmail] = useState<string | null>(null);
+  const [imapForm, setImapForm] = useState({ host: "outlook.office365.com", port: "993", user: "", password: "", smtpHost: "smtp.office365.com", smtpPort: "587" });
+  const [imapBusy, setImapBusy] = useState(false);
+  const [imapError, setImapError] = useState("");
+  const [imapOpen, setImapOpen] = useState(false);
+
   useEffect(() => { if (isLoaded && !isSignedIn) router.replace("/login"); }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
@@ -72,7 +79,24 @@ export default function SettingsPage() {
     fetch("/api/pipedream/accounts").then(r => r.json()).then(d => {
       if (d.connected) setPdCount(Object.keys(d.connected).length);
     }).catch(() => {});
+    fetch("/api/imap").then(r => r.json()).then(d => { if (d.email) setImapEmail(d.email); }).catch(() => {});
   }, [isSignedIn]);
+
+  async function saveImap() {
+    setImapBusy(true); setImapError("");
+    try {
+      const r = await fetch("/api/imap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...imapForm, port: Number(imapForm.port), smtpPort: Number(imapForm.smtpPort) }) });
+      const d = await r.json();
+      if (!r.ok) { setImapError(d.error ?? "Erreur"); return; }
+      setImapEmail(imapForm.user); setImapOpen(false); setImapForm(f => ({ ...f, password: "" }));
+    } catch { setImapError("Erreur réseau"); }
+    finally { setImapBusy(false); }
+  }
+
+  async function disconnectImap() {
+    await fetch("/api/imap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disconnect" }) });
+    setImapEmail(null);
+  }
 
   useEffect(() => {
     if (activeTab !== "workflows" || workflows.length > 0) return;
@@ -238,6 +262,68 @@ export default function SettingsPage() {
                       }
                       {googleBusy ? "Connexion…" : "Se connecter avec Google"}
                     </button>
+                  )}
+                </div>
+
+                {/* ── Email IMAP (comptes entreprise/école) ───────────────── */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900">Email IMAP</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Pour les comptes entreprise/école non compatibles OAuth (ESME, etc.)</p>
+                    </div>
+                    {imapEmail && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                  </div>
+
+                  {imapEmail ? (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{imapEmail}</p>
+                        <p className="text-xs text-emerald-600 mt-0.5">Connecté via IMAP</p>
+                      </div>
+                      <button onClick={disconnectImap} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
+                    </div>
+                  ) : (
+                    <>
+                      {!imapOpen ? (
+                        <button onClick={() => setImapOpen(true)}
+                          className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
+                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
+                          Connecter un email IMAP
+                        </button>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Preset */}
+                          <select onChange={e => {
+                            const presets: Record<string, { host: string; smtpHost: string }> = {
+                              esme: { host: "outlook.office365.com", smtpHost: "smtp.office365.com" },
+                              gmail: { host: "imap.gmail.com", smtpHost: "smtp.gmail.com" },
+                              yahoo: { host: "imap.mail.yahoo.com", smtpHost: "smtp.mail.yahoo.com" },
+                            };
+                            const p = presets[e.target.value];
+                            if (p) setImapForm(f => ({ ...f, ...p }));
+                          }} className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20">
+                            <option value="">Choisir un preset…</option>
+                            <option value="esme">ESME / Outlook / Office365</option>
+                            <option value="gmail">Gmail (mot de passe app)</option>
+                            <option value="yahoo">Yahoo Mail</option>
+                          </select>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input value={imapForm.host} onChange={e => setImapForm(f => ({ ...f, host: e.target.value }))} placeholder="Serveur IMAP" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 col-span-2" />
+                            <input value={imapForm.user} onChange={e => setImapForm(f => ({ ...f, user: e.target.value }))} placeholder="Email (ex: victor@esme.fr)" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 col-span-2" />
+                            <input value={imapForm.password} type="password" onChange={e => setImapForm(f => ({ ...f, password: e.target.value }))} placeholder="Mot de passe" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 col-span-2" />
+                          </div>
+                          {imapError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{imapError}</p>}
+                          <div className="flex gap-2">
+                            <button onClick={() => { setImapOpen(false); setImapError(""); }} className="flex-1 text-sm text-slate-500 border border-slate-200 rounded-xl py-2.5 hover:bg-slate-50 transition-all">Annuler</button>
+                            <button onClick={saveImap} disabled={imapBusy} className="flex-1 text-sm bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-2.5 font-semibold transition-all disabled:opacity-50">
+                              {imapBusy ? "Test…" : "Tester et sauvegarder"}
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-400 text-center">Le mot de passe est chiffré dans Clerk. Pour ESME/Office365 : utilise ton mot de passe habituel.</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
