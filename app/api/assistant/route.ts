@@ -358,8 +358,8 @@ async function executeTool(
       }
     }
     return JSON.stringify({
-      info: "Aucun message WhatsApp reçu pour le moment.",
-      setup: "Pour activer la réception en temps réel, configure le webhook Meta : dans Meta Developer Console > ton App > WhatsApp > Configuration > Modifier le webhook. URL : https://trigr-eight.vercel.app/api/whatsapp — Token de vérification : celui dans la variable WHATSAPP_VERIFY_TOKEN de Vercel.",
+      info: "Aucun message reçu pour l'instant. Le webhook Meta est en cours de configuration. Pour envoyer un message, utilise l'outil envoyer_whatsapp.",
+      connected: !!waMetaToken,
     });
   }
 
@@ -382,7 +382,7 @@ async function executeTool(
         return JSON.stringify({ messages: msgs });
       }
     }
-    return JSON.stringify({ info: "Aucun message stocké. Les messages arrivent automatiquement dès que quelqu'un t'écrit sur WhatsApp Business (webhook Meta requis)." });
+    return JSON.stringify({ info: "Aucun message reçu pour l'instant. Les messages entrants arrivent automatiquement dès que le webhook est configuré." });
   }
 
   if (name === "envoyer_whatsapp") {
