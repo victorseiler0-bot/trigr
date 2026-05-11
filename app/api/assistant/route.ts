@@ -17,12 +17,23 @@ function getGroq() {
   return _groq;
 }
 
-async function getPipedreamToken(accountId: string): Promise<string | null> {
-  try {
-    const pd = getPipedreamClient();
-    const acc = await pd.accounts.retrieve(accountId, { includeCredentials: true });
-    return acc.credentials?.oauthAccessToken ?? null;
-  } catch { return null; }
+// Pipedream proxy — injecte l'auth automatiquement, jamais de token brut
+async function pdGet(
+  externalUserId: string, accountId: string, url: string,
+  headers?: Record<string, string>, params?: Record<string, string>
+): Promise<unknown> {
+  const pd = getPipedreamClient();
+  const res = await pd.proxy.get({ url, externalUserId, accountId, headers, params });
+  return (res as Record<string, unknown>)?.body ?? res;
+}
+
+async function pdPost(
+  externalUserId: string, accountId: string, url: string,
+  body: Record<string, unknown>, headers?: Record<string, string>
+): Promise<unknown> {
+  const pd = getPipedreamClient();
+  const res = await pd.proxy.post({ url, externalUserId, accountId, body, headers });
+  return (res as Record<string, unknown>)?.body ?? res;
 }
 
 const SYSTEM_PROMPT = `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
@@ -110,7 +121,8 @@ async function executeTool(
   notionToken: string | null,
   slackToken: string | null,
   hubspotToken: string | null,
-  githubToken: string | null
+  pdAccountIds: Record<string, string>,
+  userId: string
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -163,10 +175,12 @@ async function executeTool(
 
   // ─── Microsoft Outlook + Teams ────────────────────────────────────────────────
   if (name === "lire_emails_outlook") {
-    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Outlook." });
+    const msAccountId = pdAccountIds.microsoft_outlook;
+    if (!msToken && !msAccountId) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Outlook." });
     const max = (args.maxResults as number) || 8;
     const filter = (args.filter as string) || "isRead eq false";
-    const data = await gFetch(`https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$top=${max}&$select=subject,from,receivedDateTime,bodyPreview,isRead`, msToken);
+    const url = `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$top=${max}&$select=subject,from,receivedDateTime,bodyPreview,isRead`;
+    const data = msToken ? await gFetch(url, msToken) : await pdGet(userId, msAccountId, url);
     const emails = (data.value ?? []).map((m: Record<string, unknown>) => ({
       id: m.id,
       subject: m.subject,
@@ -179,28 +193,24 @@ async function executeTool(
   }
 
   if (name === "envoyer_email_outlook") {
-    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour envoyer via Outlook." });
+    const msAccountId = pdAccountIds.microsoft_outlook;
+    if (!msToken && !msAccountId) return JSON.stringify({ error: "Connectez votre compte Microsoft pour envoyer via Outlook." });
     const { to, subject, body } = args as { to: string; subject: string; body: string };
-    const message = {
-      message: {
-        subject,
-        body: { contentType: "Text", content: body },
-        toRecipients: [{ emailAddress: { address: to } }],
-      },
-    };
-    const r = await gFetch("https://graph.microsoft.com/v1.0/me/sendMail", msToken, {
-      method: "POST",
-      body: JSON.stringify(message),
-    });
-    return r?.error ? JSON.stringify({ error: r.error }) : JSON.stringify({ success: true });
+    const payload = { message: { subject, body: { contentType: "Text", content: body }, toRecipients: [{ emailAddress: { address: to } }] } };
+    const r = msToken
+      ? await gFetch("https://graph.microsoft.com/v1.0/me/sendMail", msToken, { method: "POST", body: JSON.stringify(payload) })
+      : await pdPost(userId, msAccountId, "https://graph.microsoft.com/v1.0/me/sendMail", payload);
+    return (r as Record<string, unknown>)?.error ? JSON.stringify({ error: (r as Record<string, unknown>).error }) : JSON.stringify({ success: true });
   }
 
   if (name === "voir_agenda_outlook") {
-    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Outlook Calendar." });
+    const msAccountId = pdAccountIds.microsoft_outlook;
+    if (!msToken && !msAccountId) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Outlook Calendar." });
     const now = new Date();
     const start = (args.startDateTime as string) || now.toISOString();
     const end = (args.endDateTime as string) || new Date(now.getTime() + 7 * 86400000).toISOString();
-    const data = await gFetch(`https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(start)}&endDateTime=${encodeURIComponent(end)}&$top=${(args.maxResults as number) || 10}&$select=subject,start,end,location,organizer`, msToken);
+    const calUrl = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(start)}&endDateTime=${encodeURIComponent(end)}&$top=${(args.maxResults as number) || 10}&$select=subject,start,end,location,organizer`;
+    const data = msToken ? await gFetch(calUrl, msToken) : await pdGet(userId, msAccountId, calUrl);
     const events = (data.value ?? []).map((e: Record<string, unknown>) => ({
       subject: e.subject,
       start: (e.start as Record<string, string>)?.dateTime,
@@ -212,15 +222,19 @@ async function executeTool(
   }
 
   if (name === "lire_teams") {
-    if (!msToken) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Teams." });
-    const chats = await gFetch("https://graph.microsoft.com/v1.0/me/chats?$top=5&$expand=members", msToken);
+    const msAccountId = pdAccountIds.microsoft_outlook;
+    if (!msToken && !msAccountId) return JSON.stringify({ error: "Connectez votre compte Microsoft pour accéder à Teams." });
+    const chats = msToken
+      ? await gFetch("https://graph.microsoft.com/v1.0/me/chats?$top=5&$expand=members", msToken)
+      : await pdGet(userId, msAccountId, "https://graph.microsoft.com/v1.0/me/chats?$top=5&$expand=members");
     const chatList = (chats.value ?? []).map((c: Record<string, unknown>) => ({
       id: c.id,
       topic: c.topic,
       type: c.chatType,
     }));
     if (chatList[0]?.id) {
-      const msgs = await gFetch(`https://graph.microsoft.com/v1.0/me/chats/${chatList[0].id}/messages?$top=5`, msToken);
+      const msUrl2 = `https://graph.microsoft.com/v1.0/me/chats/${chatList[0].id}/messages?$top=5`;
+      const msgs = msToken ? await gFetch(msUrl2, msToken) : await pdGet(userId, pdAccountIds.microsoft_outlook!, msUrl2);
       const messages = (msgs.value ?? []).map((m: Record<string, unknown>) => ({
         from: (m.from as Record<string, Record<string, string>>)?.user?.displayName,
         content: (m.body as Record<string, string>)?.content?.replace(/<[^>]+>/g, "").trim(),
@@ -423,54 +437,46 @@ async function executeTool(
     return JSON.stringify(result);
   }
 
-  // ─── GitHub ──────────────────────────────────────────────────────────────────
+  // ─── GitHub (via Pipedream proxy) ────────────────────────────────────────────
   if (name === "voir_repos_github") {
-    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté. Va dans Paramètres > Intégrations." });
-    const r = await fetch("https://api.github.com/user/repos?sort=updated&per_page=20", {
-      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    });
-    const repos = await r.json();
-    if (!Array.isArray(repos)) return JSON.stringify({ error: repos?.message ?? "Erreur GitHub" });
-    return JSON.stringify({ repos: repos.map((repo: Record<string, unknown>) => ({ name: repo.full_name, private: repo.private, description: repo.description, stars: repo.stargazers_count, open_issues: repo.open_issues_count, url: repo.html_url })) });
+    if (!pdAccountIds.github) return JSON.stringify({ error: "GitHub non connecté. Va dans Intégrations." });
+    const ghHeaders = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    const repos = await pdGet(userId, pdAccountIds.github, "https://api.github.com/user/repos", ghHeaders, { sort: "updated", per_page: "20" }) as Array<Record<string, unknown>>;
+    if (!Array.isArray(repos)) return JSON.stringify({ error: (repos as Record<string, unknown>)?.message ?? "Erreur GitHub" });
+    return JSON.stringify({ repos: repos.map(r => ({ name: r.full_name, private: r.private, description: r.description, stars: r.stargazers_count, open_issues: r.open_issues_count, url: r.html_url })) });
   }
 
   if (name === "lire_issues_github") {
-    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté." });
+    if (!pdAccountIds.github) return JSON.stringify({ error: "GitHub non connecté." });
     const { repo, state, limit } = args as { repo?: string; state?: string; limit?: number };
-    const url = repo
-      ? `https://api.github.com/repos/${repo}/issues?state=${state ?? "open"}&per_page=${limit ?? 20}`
-      : `https://api.github.com/issues?filter=assigned&state=${state ?? "open"}&per_page=${limit ?? 20}`;
-    const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    });
-    const issues = await r.json();
-    if (!Array.isArray(issues)) return JSON.stringify({ error: issues?.message ?? "Erreur GitHub" });
-    return JSON.stringify({ issues: issues.map((i: Record<string, unknown>) => ({ number: i.number, title: i.title, state: i.state, url: i.html_url, labels: (i.labels as Array<Record<string, string>>)?.map(l => l.name), assignee: (i.assignee as Record<string, string>)?.login, created_at: i.created_at })) });
+    const ghHeaders = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    const ghUrl = repo
+      ? `https://api.github.com/repos/${repo}/issues`
+      : "https://api.github.com/issues";
+    const ghParams: Record<string, string> = { state: state ?? "open", per_page: String(limit ?? 20) };
+    if (!repo) ghParams.filter = "assigned";
+    const issues = await pdGet(userId, pdAccountIds.github, ghUrl, ghHeaders, ghParams) as Array<Record<string, unknown>>;
+    if (!Array.isArray(issues)) return JSON.stringify({ error: (issues as Record<string, unknown>)?.message ?? "Erreur GitHub" });
+    return JSON.stringify({ issues: issues.map(i => ({ number: i.number, title: i.title, state: i.state, url: i.html_url, labels: (i.labels as Array<Record<string, string>>)?.map(l => l.name), assignee: (i.assignee as Record<string, string>)?.login, created_at: i.created_at })) });
   }
 
   if (name === "creer_issue_github") {
-    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté." });
+    if (!pdAccountIds.github) return JSON.stringify({ error: "GitHub non connecté." });
     const { repo, title, body, labels } = args as { repo: string; title: string; body?: string; labels?: string[] };
     if (!repo || !title) return JSON.stringify({ error: "repo et title requis." });
-    const r = await fetch(`https://api.github.com/repos/${repo}/issues`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
-      body: JSON.stringify({ title, body: body ?? "", labels: labels ?? [] }),
-    });
-    const issue = await r.json();
+    const ghHeaders = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" };
+    const issue = await pdPost(userId, pdAccountIds.github, `https://api.github.com/repos/${repo}/issues`, { title, body: body ?? "", labels: labels ?? [] }, ghHeaders) as Record<string, unknown>;
     return issue?.number ? JSON.stringify({ success: true, number: issue.number, url: issue.html_url }) : JSON.stringify({ error: issue?.message ?? "Erreur création" });
   }
 
   if (name === "voir_prs_github") {
-    if (!githubToken) return JSON.stringify({ error: "GitHub non connecté." });
+    if (!pdAccountIds.github) return JSON.stringify({ error: "GitHub non connecté." });
     const { repo, state, limit } = args as { repo: string; state?: string; limit?: number };
     if (!repo) return JSON.stringify({ error: "repo requis (ex: owner/repo)." });
-    const r = await fetch(`https://api.github.com/repos/${repo}/pulls?state=${state ?? "open"}&per_page=${limit ?? 20}`, {
-      headers: { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    });
-    const prs = await r.json();
-    if (!Array.isArray(prs)) return JSON.stringify({ error: prs?.message ?? "Erreur GitHub" });
-    return JSON.stringify({ prs: prs.map((p: Record<string, unknown>) => ({ number: p.number, title: p.title, state: p.state, url: p.html_url, author: (p.user as Record<string, string>)?.login, draft: p.draft, created_at: p.created_at })) });
+    const ghHeaders = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    const prs = await pdGet(userId, pdAccountIds.github, `https://api.github.com/repos/${repo}/pulls`, ghHeaders, { state: state ?? "open", per_page: String(limit ?? 20) }) as Array<Record<string, unknown>>;
+    if (!Array.isArray(prs)) return JSON.stringify({ error: (prs as Record<string, unknown>)?.message ?? "Erreur GitHub" });
+    return JSON.stringify({ prs: prs.map(p => ({ number: p.number, title: p.title, state: p.state, url: p.html_url, author: (p.user as Record<string, string>)?.login, draft: p.draft, created_at: p.created_at })) });
   }
 
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
@@ -586,7 +592,7 @@ export async function POST(req: NextRequest) {
     let notionToken: string | null = null;
     let slackToken: string | null = null;
     let hubspotToken: string | null = null;
-    let githubToken: string | null = null;
+    let pdAccountIds: Record<string, string> = {};
     try {
       const client = await clerkClient();
       const [gData, mData] = await Promise.allSettled([
@@ -596,7 +602,6 @@ export async function POST(req: NextRequest) {
       if (gData.status === "fulfilled") googleToken = gData.value.data[0]?.token ?? null;
       if (mData.status === "fulfilled") msToken = mData.value.data[0]?.token ?? null;
       if (!whapiToken) whapiToken = (await getUserWhapiMeta(userId)).token;
-      // Apple + Notion : credentials dans Clerk privateMetadata
       const u = await client.users.getUser(userId);
       const pm = u.privateMetadata as Record<string, unknown>;
       if (pm.appleEmail && pm.appleAppPassword) {
@@ -605,27 +610,18 @@ export async function POST(req: NextRequest) {
       if (pm.notionToken) notionToken = pm.notionToken as string;
       if (pm.slackToken) slackToken = pm.slackToken as string;
       if (pm.hubspotToken) hubspotToken = pm.hubspotToken as string;
-
-      // Tokens Pipedream pour les apps connectées via /integrations
-      const pipedreamMeta = (pm.pipedream as Record<string, string>) ?? {};
-      const pdTokenFetches: Promise<void>[] = [];
-
-      if (!msToken && pipedreamMeta.microsoft_outlook) {
-        pdTokenFetches.push(getPipedreamToken(pipedreamMeta.microsoft_outlook).then(t => { if (t) msToken = t; }));
-      }
-      if (pipedreamMeta.github) {
-        pdTokenFetches.push(getPipedreamToken(pipedreamMeta.github).then(t => { githubToken = t; }));
-      }
-      if (pdTokenFetches.length > 0) await Promise.allSettled(pdTokenFetches);
+      // Apps connectées via Pipedream Connect (/integrations)
+      pdAccountIds = (pm.pipedream as Record<string, string>) ?? {};
     } catch { /* no tokens */ }
 
     const hasApple = !!appleCredentials;
     const hasNotion = !!notionToken;
     const hasSlack = !!slackToken;
     const hasHubSpot = !!hubspotToken;
-    const hasGitHub = !!githubToken;
+    const hasGitHub = !!pdAccountIds.github;
+    const hasMicrosoft = !!msToken || !!pdAccountIds.microsoft_outlook;
     const hasWhatsApp = !!whapiToken || bridgeData.wa?.connected === true;
-    const tools = buildTools(!!googleToken, !!msToken, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub);
+    const tools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub);
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -658,7 +654,7 @@ export async function POST(req: NextRequest) {
         msg.tool_calls.map(async (tc) => {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(tc.function.arguments); } catch {}
-          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, githubToken);
+          const result = await executeTool(tc.function.name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );
