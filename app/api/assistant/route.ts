@@ -10,6 +10,7 @@ import { getSlackMeta, getSlackChannels, getSlackMessages, sendSlackMessage } fr
 import { getHubSpotMeta, searchHubSpotContacts, getHubSpotDeals, createHubSpotContact, createHubSpotDeal } from "@/lib/hubspot";
 import { getPipedreamClient } from "@/lib/pipedream";
 import { readImapEmails, sendImapEmail, type ImapConfig } from "@/lib/imap";
+import { triggerN8nWebhook } from "@/lib/n8n";
 
 export const maxDuration = 60;
 
@@ -176,7 +177,8 @@ async function executeTool(
   waStoredMessages: WaMessage[],
   waMetaToken: string | undefined,
   waPhoneId: string | undefined,
-  imapConfig: ImapConfig | null
+  imapConfig: ImapConfig | null,
+  igMeta: { token: string; pageId: string } | null
 ): Promise<string> {
 
   // ─── Google Gmail + Calendar ─────────────────────────────────────────────────
@@ -580,19 +582,24 @@ async function executeTool(
     return ok ? JSON.stringify({ success: true, from: imapConfig.user }) : JSON.stringify({ error: "Envoi échoué. Vérifiez les identifiants SMTP." });
   }
 
-  // ─── Instagram DMs (via Pipedream) ──────────────────────────────────────────
+  // ─── Instagram DMs (Pipedream OAuth OU n8n + token direct) ─────────────────
   if (name === "voir_conversations_instagram") {
-    if (!pdAccountIds.instagram_business) return JSON.stringify({ error: "Instagram non connecté. Va dans Intégrations." });
-    const convs = await pdGet(userId, pdAccountIds.instagram_business,
-      "https://graph.facebook.com/v21.0/me/conversations?platform=instagram&fields=id,participants,updated_time,messages{message,from,created_time}&limit=10"
-    ) as Record<string, unknown>;
-    if ((convs as Record<string, unknown>)?.error) return JSON.stringify({ error: (convs as Record<string, Record<string, string>>).error?.message ?? "Erreur Instagram" });
-    const threads = ((convs as Record<string, unknown>).data as Array<Record<string, unknown>> ?? []).map(t => {
-      const participants = ((t.participants as Record<string, unknown>)?.data as Array<Record<string, string>> ?? []).filter(p => p.username !== "me").map(p => p.name ?? p.username);
-      const lastMsg = ((t.messages as Record<string, unknown>)?.data as Array<Record<string, unknown>> ?? [])[0];
-      return { id: t.id, with: participants.join(", "), lastMessage: lastMsg?.message ?? "", updatedAt: t.updated_time };
-    });
-    return JSON.stringify({ conversations: threads });
+    if (!pdAccountIds.instagram_business && !igMeta) return JSON.stringify({ error: "Instagram non connecté. Va dans Intégrations pour connecter ton compte Instagram Business." });
+    if (pdAccountIds.instagram_business) {
+      const convs = await pdGet(userId, pdAccountIds.instagram_business,
+        "https://graph.facebook.com/v21.0/me/conversations?platform=instagram&fields=id,participants,updated_time,messages{message,from,created_time}&limit=10"
+      ) as Record<string, unknown>;
+      if ((convs as Record<string, unknown>)?.error) return JSON.stringify({ error: (convs as Record<string, Record<string, string>>).error?.message ?? "Erreur Instagram" });
+      const threads = ((convs as Record<string, unknown>).data as Array<Record<string, unknown>> ?? []).map(t => {
+        const participants = ((t.participants as Record<string, unknown>)?.data as Array<Record<string, string>> ?? []).filter(p => p.username !== "me").map(p => p.name ?? p.username);
+        const lastMsg = ((t.messages as Record<string, unknown>)?.data as Array<Record<string, unknown>> ?? [])[0];
+        return { id: t.id, with: participants.join(", "), lastMessage: lastMsg?.message ?? "", updatedAt: t.updated_time };
+      });
+      return JSON.stringify({ conversations: threads });
+    }
+    // Fallback n8n + token direct Meta
+    const result = await triggerN8nWebhook("trigr-ig", { action: "read", token: igMeta!.token, pageId: igMeta!.pageId });
+    return JSON.stringify(result);
   }
 
   if (name === "lire_messages_instagram") {
@@ -611,14 +618,19 @@ async function executeTool(
   }
 
   if (name === "envoyer_instagram") {
-    if (!pdAccountIds.instagram_business) return JSON.stringify({ error: "Instagram non connecté." });
+    if (!pdAccountIds.instagram_business && !igMeta) return JSON.stringify({ error: "Instagram non connecté." });
     const { recipientId, message: text } = args as { recipientId: string; message: string };
     if (!recipientId || !text) return JSON.stringify({ error: "recipientId et message requis." });
-    const r = await pdPost(userId, pdAccountIds.instagram_business,
-      "https://graph.facebook.com/v21.0/me/messages",
-      { recipient: { id: recipientId }, message: { text }, messaging_type: "RESPONSE" }
-    ) as Record<string, unknown>;
-    return r?.message_id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
+    if (pdAccountIds.instagram_business) {
+      const r = await pdPost(userId, pdAccountIds.instagram_business,
+        "https://graph.facebook.com/v21.0/me/messages",
+        { recipient: { id: recipientId }, message: { text }, messaging_type: "RESPONSE" }
+      ) as Record<string, unknown>;
+      return r?.message_id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
+    }
+    // Fallback n8n
+    const result = await triggerN8nWebhook("trigr-ig", { action: "send", token: igMeta!.token, pageId: igMeta!.pageId, recipientId, message: text });
+    return JSON.stringify(result);
   }
 
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
@@ -752,6 +764,7 @@ export async function POST(req: NextRequest) {
     let pdAccountIds: Record<string, string> = {};
     let waStoredMessages: WaMessage[] = [];
     let imapConfig: ImapConfig | null = null;
+    let igMeta: { token: string; pageId: string } | null = null;
     const waMetaToken = process.env.WHATSAPP_TOKEN;
     const waPhoneId   = process.env.WHATSAPP_PHONE_NUMBER_ID;
     try {
@@ -774,6 +787,7 @@ export async function POST(req: NextRequest) {
       pdAccountIds = (pm.pipedream as Record<string, string>) ?? {};
       waStoredMessages = (pm.waMessages as WaMessage[]) ?? [];
       if (pm.imap) imapConfig = pm.imap as ImapConfig;
+      if (pm.igMeta) igMeta = pm.igMeta as { token: string; pageId: string };
 
       // Auto-subscribe WABA au webhook Meta si pas encore fait et token Meta dispo
       if (waMetaToken && waPhoneId && !pm.wabaSubscribed) {
@@ -788,7 +802,7 @@ export async function POST(req: NextRequest) {
     const hasGitHub = !!pdAccountIds.github;
     const hasMicrosoft = !!msToken || !!pdAccountIds.microsoft_outlook;
     const hasWhatsApp = !!whapiToken || !!waMetaToken || !!pdAccountIds.whatsapp_business || bridgeData.wa?.connected === true;
-    const hasInstagram = !!pdAccountIds.instagram_business;
+    const hasInstagram = !!pdAccountIds.instagram_business || !!igMeta?.token;
     const hasImap = !!imapConfig;
     const tools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasInstagram, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub, hasImap);
 
@@ -864,7 +878,7 @@ export async function POST(req: NextRequest) {
           let args: Record<string, unknown> = {};
           try { const p = JSON.parse(tc.function?.arguments ?? "{}"); if (p && typeof p === "object" && !Array.isArray(p)) args = p; } catch {}
           const name: string = tc.function?.name ?? "";
-          const result = await executeTool(name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId, imapConfig);
+          const result = await executeTool(name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId, imapConfig, igMeta);
           return { tool_call_id: tc.id, role: "tool" as const, content: result };
         })
       );

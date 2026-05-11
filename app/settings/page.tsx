@@ -66,6 +66,13 @@ export default function SettingsPage() {
 
   // IMAP
   const [imapEmail, setImapEmail] = useState<string | null>(null);
+
+  // Instagram Meta Direct
+  const [igPageName, setIgPageName] = useState<string | null>(null);
+  const [igForm, setIgForm] = useState({ token: "", pageId: "" });
+  const [igBusy, setIgBusy] = useState(false);
+  const [igError, setIgError] = useState("");
+  const [igOpen, setIgOpen] = useState(false);
   const [imapForm, setImapForm] = useState({ host: "outlook.office365.com", port: "993", user: "", password: "", smtpHost: "smtp.office365.com", smtpPort: "587" });
   const [imapBusy, setImapBusy] = useState(false);
   const [imapError, setImapError] = useState("");
@@ -80,6 +87,7 @@ export default function SettingsPage() {
       if (d.connected) setPdCount(Object.keys(d.connected).length);
     }).catch(() => {});
     fetch("/api/imap").then(r => r.json()).then(d => { if (d.email) setImapEmail(d.email); }).catch(() => {});
+    fetch("/api/instagram").then(r => r.json()).then(d => { if (d.pageName) setIgPageName(d.pageName); }).catch(() => {});
   }, [isSignedIn]);
 
   async function saveImap() {
@@ -91,6 +99,22 @@ export default function SettingsPage() {
       setImapEmail(imapForm.user); setImapOpen(false); setImapForm(f => ({ ...f, password: "" }));
     } catch { setImapError("Erreur réseau"); }
     finally { setImapBusy(false); }
+  }
+
+  async function saveIgMeta() {
+    setIgBusy(true); setIgError("");
+    try {
+      const r = await fetch("/api/instagram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(igForm) });
+      const d = await r.json();
+      if (!r.ok) { setIgError(d.error ?? "Erreur"); return; }
+      setIgPageName(d.pageName); setIgOpen(false); setIgForm({ token: "", pageId: "" });
+    } catch { setIgError("Erreur réseau"); }
+    finally { setIgBusy(false); }
+  }
+
+  async function disconnectIg() {
+    await fetch("/api/instagram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disconnect" }) });
+    setIgPageName(null);
   }
 
   async function disconnectImap() {
@@ -321,6 +345,50 @@ export default function SettingsPage() {
                             </button>
                           </div>
                           <p className="text-xs text-slate-400 text-center">Le mot de passe est chiffré dans Clerk. Pour ESME/Office365 : utilise ton mot de passe habituel.</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* ── Instagram Direct (Meta page token) ──────────────── */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900">Instagram Direct (Meta)</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Pour les DMs via ton Page Access Token Meta. Nécessite un compte Business + Page Facebook.</p>
+                    </div>
+                    {igPageName && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                  </div>
+
+                  {igPageName ? (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{igPageName}</p>
+                        <p className="text-xs text-emerald-600 mt-0.5">Connecté via Meta Graph API</p>
+                      </div>
+                      <button onClick={disconnectIg} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
+                    </div>
+                  ) : (
+                    <>
+                      {!igOpen ? (
+                        <button onClick={() => setIgOpen(true)}
+                          className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
+                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
+                          Connecter Instagram avec token Meta
+                        </button>
+                      ) : (
+                        <div className="space-y-3">
+                          <input value={igForm.pageId} onChange={e => setIgForm(f => ({ ...f, pageId: e.target.value }))} placeholder="Page ID Facebook (ex: 123456789)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                          <input value={igForm.token} onChange={e => setIgForm(f => ({ ...f, token: e.target.value }))} placeholder="Page Access Token (de developers.facebook.com)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                          {igError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{igError}</p>}
+                          <div className="flex gap-2">
+                            <button onClick={() => { setIgOpen(false); setIgError(""); }} className="flex-1 text-sm text-slate-500 border border-slate-200 rounded-xl py-2.5 hover:bg-slate-50 transition-all">Annuler</button>
+                            <button onClick={saveIgMeta} disabled={igBusy} className="flex-1 text-sm bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-2.5 font-semibold transition-all disabled:opacity-50">
+                              {igBusy ? "Vérification…" : "Sauvegarder"}
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-400 text-center">Token visible sur developers.facebook.com → ton app → Outils → Explorateur de token</p>
                         </div>
                       )}
                     </>
