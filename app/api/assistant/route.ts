@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Groq from "groq-sdk";
 import { whapiChannel, getUserWhapiMeta } from "@/lib/whapi";
-import { sendWaMessage, type WaMessage } from "@/app/api/whatsapp/route";
+import { sendMetaWaMessage, type WaMessage } from "@/lib/whatsapp-meta";
 import { getAppleMeta, getAppleCalendar, getAppleContacts, createAppleEvent } from "@/lib/apple";
 import { checkAndIncrementAction } from "@/lib/ratelimit";
 import { getNotionMeta, searchNotionPages, getNotionPage, createNotionPage } from "@/lib/notion";
@@ -336,7 +336,7 @@ async function executeTool(
     const phone = to.replace(/\D/g, "");
     // Priorité 1 : Meta API directe via env vars
     if (waMetaToken && waPhoneId) {
-      const ok = await sendWaMessage(phone, message);
+      const ok = await sendMetaWaMessage(phone, message);
       if (ok) return JSON.stringify({ success: true });
     }
     // Priorité 2 : Whapi
