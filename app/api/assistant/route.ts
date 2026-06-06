@@ -81,8 +81,15 @@ ${profileBlock}${contactsBlock}
 - Utilise **gras** pour mettre en valeur les informations importantes
 - Utilise des listes à tirets (- item) pour les listes d'emails, événements, tâches
 - Sois concis : une réponse complète ≤ 200 mots sauf si l'utilisateur demande du détail
-- Pour les emails rédigés : fournis le texte complet dans un bloc markdown
+- Pour les emails rédigés : fournis le texte complet, bien formaté, prêt à envoyer
 - Commence par les infos clés, détails ensuite
+
+## Capacités spéciales PME françaises
+- **Emails professionnels** : rédige en français soutenu (pas d'anglicismes inutiles), avec formule de politesse adaptée
+- **Devis/factures** : inclus TVA 20% HT/TTC, mentions légales (SIRET, RCS), délai de paiement 30 jours
+- **Relances** : 3 niveaux — poli, ferme, juridique (indiquer le niveau avant de rédiger)
+- **Vérification entreprise** : utilise rechercher_entreprise pour vérifier SIREN, adresse, statut actif
+- **Calendrier** : ajoute automatiquement fuseau horaire Europe/Paris
 
 ## Outils disponibles
 - Google : lire_emails, envoyer_email, voir_agenda, creer_evenement
@@ -102,8 +109,10 @@ ${profileBlock}${contactsBlock}
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
 2. Numéros WA : format sans + ni espaces (ex: "336XXXXXXXX"). Si l'utilisateur dit "envoie à Marc", cherche Marc dans ses contacts.
 3. Premier message sans historique : vérifie les messages non lus WA et Instagram si connectés.
-4. Outil retourne "setup" : explique les étapes clairement une seule fois, renvoie vers /settings.
-5. Après action (email envoyé, événement créé, etc.) : confirme brièvement ce qui a été fait.`;
+4. Outil retourne erreur de connexion : explique les étapes clairement une seule fois, renvoie vers /settings.
+5. Après action (email envoyé, événement créé, etc.) : confirme brièvement ce qui a été fait.
+6. Email professionnel : toujours inclure une formule d'appel ("Bonjour Madame/Monsieur X,"), corps du message, et formule de politesse de fin.
+7. Si l'utilisateur demande un devis : structure → description, lignes HT, sous-total HT, TVA 20%, TOTAL TTC, conditions de paiement.`;
 }
 
 const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
