@@ -195,7 +195,10 @@ export default function SettingsPage() {
   const initials = (user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "");
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.primaryEmailAddress?.emailAddress;
   const googleAccount = user.externalAccounts.find(a => a.provider === "google");
-  const totalConnected = (googleAccount ? 1 : 0) + pdCount;
+  const totalConnected = (googleAccount ? 1 : 0) + (imapEmail ? 1 : 0) + (igPageName ? 1 : 0) + pdCount;
+  const INTEGRATION_LIMITS: Record<string, number> = { free: 2, solo: 3, pro: 999, equipe: 999 };
+  const integrationLimit = INTEGRATION_LIMITS[plan] ?? 2;
+  const atIntegrationLimit = plan !== "pro" && plan !== "equipe" && totalConnected >= integrationLimit;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "account", label: "Compte" },
@@ -271,6 +274,23 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                {/* Integration limit banner */}
+                {atIntegrationLimit && (
+                  <div className="flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">
+                        Limite d&apos;intégrations atteinte ({totalConnected}/{integrationLimit})
+                      </p>
+                      <p className="text-xs text-amber-600 mt-0.5">
+                        {plan === "free" ? "Passez au plan Solo (9€/mois) pour 3 apps, ou Pro pour tout débloquer." : "Passez au plan Pro pour des intégrations illimitées."}
+                      </p>
+                    </div>
+                    <Link href="/pricing" className="shrink-0 bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+                      Voir les plans
+                    </Link>
+                  </div>
+                )}
+
                 {/* Google — connexion native */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                   <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Email & Agenda Google</h2>
@@ -305,6 +325,10 @@ export default function SettingsPage() {
                         </p>
                       )}
                     </div>
+                  ) : atIntegrationLimit ? (
+                    <Link href="/pricing" className="flex items-center justify-center gap-2 w-full border border-dashed border-amber-300 bg-amber-50 text-amber-600 text-sm font-semibold px-4 py-3 rounded-xl hover:bg-amber-100 transition-all">
+                      🔒 Limite atteinte — Voir les plans
+                    </Link>
                   ) : (
                     <button onClick={connectGoogle} disabled={googleBusy}
                       className="flex items-center gap-3 w-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-50">
@@ -351,11 +375,17 @@ export default function SettingsPage() {
                   ) : (
                     <>
                       {!imapOpen ? (
-                        <button onClick={() => setImapOpen(true)}
-                          className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
-                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
-                          Connecter un email IMAP
-                        </button>
+                        atIntegrationLimit ? (
+                          <Link href="/pricing" className="flex items-center justify-center gap-2 w-full border border-dashed border-amber-300 bg-amber-50 text-amber-600 text-sm py-3 rounded-xl hover:bg-amber-100 transition-all font-semibold">
+                            🔒 Limite atteinte — Voir les plans
+                          </Link>
+                        ) : (
+                          <button onClick={() => setImapOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
+                            Connecter un email IMAP
+                          </button>
+                        )
                       ) : (
                         <div className="space-y-3">
                           {/* Preset */}
@@ -426,11 +456,17 @@ export default function SettingsPage() {
                   ) : (
                     <>
                       {!igOpen ? (
-                        <button onClick={() => setIgOpen(true)}
-                          className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
-                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
-                          Connecter Instagram avec token Meta
-                        </button>
+                        atIntegrationLimit ? (
+                          <Link href="/pricing" className="flex items-center justify-center gap-2 w-full border border-dashed border-amber-300 bg-amber-50 text-amber-600 text-sm py-3 rounded-xl hover:bg-amber-100 transition-all font-semibold">
+                            🔒 Limite atteinte — Voir les plans
+                          </Link>
+                        ) : (
+                          <button onClick={() => setIgOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
+                            Connecter Instagram avec token Meta
+                          </button>
+                        )
                       ) : (
                         <div className="space-y-3">
                           <input value={igForm.pageId} onChange={e => setIgForm(f => ({ ...f, pageId: e.target.value }))} placeholder="Page ID Facebook (ex: 123456789)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
@@ -455,7 +491,7 @@ export default function SettingsPage() {
                     <div>
                       <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Toutes vos intégrations</h2>
                       <p className="text-xs text-slate-400">
-                        {totalConnected} app{totalConnected !== 1 ? "s" : ""} connectée{totalConnected !== 1 ? "s" : ""} · Outlook, WhatsApp, Slack, Notion, GitHub, Airtable…
+                        {totalConnected} / {integrationLimit === 999 ? "∞" : integrationLimit} app{totalConnected !== 1 ? "s" : ""} connectée{totalConnected !== 1 ? "s" : ""} · Outlook, WhatsApp, Slack, Notion, GitHub…
                       </p>
                     </div>
                     <div className={`text-lg font-bold ${totalConnected > 0 ? "text-emerald-600" : "text-slate-300"}`}>

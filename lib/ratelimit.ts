@@ -3,8 +3,9 @@ import { getUserPlan, PLAN_LIMITS } from "./subscription";
 
 const TODAY_KEY = () => new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
 
-// Admin users bypass le rate limiting complètement
 const ADMIN_IDS = (process.env.ADMIN_CLERK_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+
+type DayEntry = { date: string; count: number };
 
 export async function checkAndIncrementAction(userId: string): Promise<{ allowed: boolean; remaining: number }> {
   if (ADMIN_IDS.includes(userId)) return { allowed: true, remaining: 999 };
@@ -22,8 +23,17 @@ export async function checkAndIncrementAction(userId: string): Promise<{ allowed
 
   if (count >= limit) return { allowed: false, remaining: 0 };
 
+  // Maintain 7-day history
+  const history: DayEntry[] = Array.isArray(meta.actionHistory) ? (meta.actionHistory as DayEntry[]) : [];
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const filtered = history.filter(e => e.date >= cutoffStr);
+  const todayEntry = filtered.find(e => e.date === today);
+  if (todayEntry) todayEntry.count = count + 1;
+  else filtered.push({ date: today, count: count + 1 });
+
   await client.users.updateUserMetadata(userId, {
-    privateMetadata: { actionDate: today, actionCount: count + 1 },
+    privateMetadata: { actionDate: today, actionCount: count + 1, actionHistory: filtered },
   });
 
   return { allowed: true, remaining: limit - count - 1 };
