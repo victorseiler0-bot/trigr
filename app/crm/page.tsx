@@ -43,6 +43,8 @@ export default function CrmPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const sheetUrl = useRef<string>("");
 
   async function load() {
@@ -98,6 +100,23 @@ export default function CrmPage() {
     }
   }
 
+  async function handleImportGoogle() {
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const r = await fetch("/api/crm/import-google", { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) { setImportMsg({ text: d.error ?? "Erreur import", ok: false }); return; }
+      setImportMsg({ text: d.message, ok: true });
+      await load();
+    } catch {
+      setImportMsg({ text: "Erreur réseau", ok: false });
+    } finally {
+      setImporting(false);
+      setTimeout(() => setImportMsg(null), 5000);
+    }
+  }
+
   function openEdit(c: Contact) {
     setSelected(c);
     setForm({ nom: c.nom, email: c.email, entreprise: c.entreprise, telephone: c.telephone, statut: c.statut, tags: c.tags, notes: c.notes });
@@ -136,6 +155,15 @@ export default function CrmPage() {
                 Voir dans Sheets
               </a>
             )}
+            <button onClick={handleImportGoogle} disabled={importing}
+              className="text-sm px-3 py-2 rounded-xl border border-white/[0.08] text-zinc-300 hover:text-white hover:border-white/20 disabled:opacity-40 transition-all flex items-center gap-1.5">
+              {importing ? (
+                <svg className="animate-spin" width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              )}
+              {importing ? "Import…" : "Google Contacts"}
+            </button>
             <button onClick={openNew}
               className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)] flex items-center gap-2">
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 1v12M1 7h12" strokeLinecap="round"/></svg>
@@ -143,6 +171,13 @@ export default function CrmPage() {
             </button>
           </div>
         </div>
+
+        {/* Import result */}
+        {importMsg && (
+          <div className={`mb-5 px-4 py-3 rounded-xl border text-sm flex items-center gap-2 ${importMsg.ok ? "bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400" : "bg-red-500/[0.06] border-red-500/20 text-red-400"}`}>
+            {importMsg.ok ? "✓" : "✗"} {importMsg.text}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-8">
