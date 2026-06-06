@@ -205,7 +205,36 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Quick actions */}
+            {/* Quick access prompts */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-zinc-300">Accès rapide</h2>
+                <Link href="/assistant" className="text-xs text-violet-400 hover:text-violet-300">Assistant →</Link>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { icon: "📧", label: "Emails non lus", prompt: "Montre-moi mes emails non lus et résume les plus importants" },
+                  { icon: "📅", label: "Agenda du jour", prompt: "Quels sont mes événements du jour ?" },
+                  { icon: "💬", label: "Messages WA", prompt: "Quels sont mes derniers messages WhatsApp non lus ?" },
+                  { icon: "✍️", label: "Rédiger un email", prompt: "Aide-moi à rédiger un email professionnel" },
+                  { icon: "🏢", label: "Infos entreprise", prompt: "Recherche des informations officielles sur l'entreprise " },
+                  { icon: "👥", label: "Mes contacts", prompt: "/crm" },
+                ] as { icon: string; label: string; prompt: string }[]).map((item, i) => (
+                  item.prompt.startsWith("/")
+                    ? <Link key={i} href={item.prompt} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/20 transition-all">
+                        <span className="text-base">{item.icon}</span>
+                        <span className="text-xs text-zinc-300">{item.label}</span>
+                      </Link>
+                    : <Link key={i} href={"/assistant?prefill=" + encodeURIComponent(item.prompt)}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/20 transition-all">
+                        <span className="text-base">{item.icon}</span>
+                        <span className="text-xs text-zinc-300">{item.label}</span>
+                      </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Nav links */}
             <div className="grid grid-cols-2 gap-3">
               <Link href="/assistant" className="flex items-center gap-3 p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] hover:border-violet-500/30 transition-all group">
                 <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 flex items-center justify-center">
@@ -215,7 +244,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">Assistant IA</div>
-                  <div className="text-xs text-zinc-600">Poser une question</div>
+                  <div className="text-xs text-zinc-600">Nouvelle conversation</div>
                 </div>
               </Link>
               <Link href="/settings" className="flex items-center gap-3 p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-all group">
