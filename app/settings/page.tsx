@@ -255,6 +255,20 @@ export default function SettingsPage() {
     }
   }
 
+  // User profile
+  type UserProfile = { businessName?: string; profession?: string; city?: string; tone?: "formal" | "informal"; context?: string };
+  const [profile, setProfile] = useState<UserProfile>({});
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  async function saveProfile() {
+    setProfileSaving(true);
+    try {
+      const r = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) });
+      if (r.ok) { setProfileSaved(true); setTimeout(() => setProfileSaved(false), 2000); }
+    } finally { setProfileSaving(false); }
+  }
+
   // Brief du Matin
   const [briefEnabled, setBriefEnabled] = useState(false);
   const [briefWaNumber, setBriefWaNumber] = useState("");
@@ -371,6 +385,7 @@ export default function SettingsPage() {
     fetch("/api/instagram").then(r => r.json()).then(d => { if (d.pageName) setIgPageName(d.pageName); }).catch(() => {});
     fetch("/api/contacts").then(r => r.json()).then(d => { if (d.contacts) setContacts(d.contacts); }).catch(() => {});
     fetch("/api/automations").then(r => r.json()).then(d => { if (d.automations) setAutomations(d.automations); }).catch(() => {});
+    fetch("/api/profile").then(r => r.json()).then(d => { if (d.profile) setProfile(d.profile); }).catch(() => {});
   }, [isSignedIn]);
 
   async function saveImap() {
@@ -537,6 +552,69 @@ export default function SettingsPage() {
                       <p className="text-sm text-slate-500">{user.primaryEmailAddress?.emailAddress}</p>
                     </div>
                   </div>
+                </div>
+
+                {/* Profil business */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Personnalisation de l&apos;assistant</h2>
+                  <p className="text-xs text-slate-400 mb-5">Ces informations permettent à Trigr de vous répondre de façon plus pertinente.</p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">Votre métier / poste</label>
+                      <input
+                        value={profile.profession ?? ""}
+                        onChange={e => setProfile(p => ({ ...p, profession: e.target.value }))}
+                        placeholder="Consultant, Kiné, Artisan…"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">Entreprise / activité</label>
+                      <input
+                        value={profile.businessName ?? ""}
+                        onChange={e => setProfile(p => ({ ...p, businessName: e.target.value }))}
+                        placeholder="Nom de votre entreprise"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">Ville</label>
+                      <input
+                        value={profile.city ?? ""}
+                        onChange={e => setProfile(p => ({ ...p, city: e.target.value }))}
+                        placeholder="Paris, Lyon…"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">Ton préféré</label>
+                      <select
+                        value={profile.tone ?? "formal"}
+                        onChange={e => setProfile(p => ({ ...p, tone: e.target.value as "formal" | "informal" }))}
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none bg-white"
+                      >
+                        <option value="formal">Formel (vouvoyer)</option>
+                        <option value="informal">Informel (tutoyer)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-4">
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Contexte supplémentaire <span className="text-slate-400 font-normal">(optionnel)</span></label>
+                    <textarea
+                      value={profile.context ?? ""}
+                      onChange={e => setProfile(p => ({ ...p, context: e.target.value }))}
+                      rows={2}
+                      placeholder="Ex : Je travaille principalement avec des PME dans le BTP, mes clients sont souvent peu à l'aise avec les outils numériques."
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={saveProfile}
+                    disabled={profileSaving}
+                    className="text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl disabled:opacity-40 transition-all"
+                  >
+                    {profileSaved ? "✓ Sauvegardé !" : profileSaving ? "Sauvegarde…" : "Sauvegarder le profil"}
+                  </button>
                 </div>
 
                 {/* Integration limit banner */}

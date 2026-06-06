@@ -55,18 +55,28 @@ async function pdPost(
 }
 
 type SavedContact = { id: string; name: string; phone?: string; email?: string; notes?: string };
+type UserProfile = { businessName?: string; profession?: string; city?: string; tone?: "formal" | "informal"; context?: string };
 
-function buildSystemPrompt(compact = false, contacts: SavedContact[] = []) {
+function buildSystemPrompt(compact = false, contacts: SavedContact[] = [], profile: UserProfile = {}) {
   const date = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
   const contactsBlock = contacts.length > 0
     ? `\nContacts enregistrés de l'utilisateur :\n${contacts.map(c => `- ${c.name}${c.phone ? ` (WA: ${c.phone})` : ""}${c.email ? ` (email: ${c.email})` : ""}${c.notes ? ` — ${c.notes}` : ""}`).join("\n")}\n`
     : "";
+  const profileBlock = (profile.businessName || profile.profession || profile.city || profile.context)
+    ? `\nProfil de l'utilisateur : ${[
+        profile.profession && `Métier : ${profile.profession}`,
+        profile.businessName && `Entreprise : ${profile.businessName}`,
+        profile.city && `Ville : ${profile.city}`,
+        profile.tone && `Ton souhaité : ${profile.tone === "informal" ? "informel (tutoyer)" : "formel (vouvoyer)"}`,
+        profile.context && `Contexte : ${profile.context}`,
+      ].filter(Boolean).join(" | ")}\n`
+    : "";
   if (compact) {
-    return `Tu es Trigr, assistant IA personnel. Réponds en français, concis. Date: ${date}.${contactsBlock}Utilise les outils disponibles pour aider l'utilisateur.`;
+    return `Tu es Trigr, assistant IA personnel. Réponds en français, concis. Date: ${date}.${profileBlock}${contactsBlock}Utilise les outils disponibles pour aider l'utilisateur.`;
   }
   return `Tu es Trigr, l'assistant IA personnel de l'utilisateur. Tu réponds TOUJOURS en français.
 Date et heure : ${date}
-${contactsBlock}
+${profileBlock}${contactsBlock}
 ## Mise en forme des réponses
 - Utilise **gras** pour mettre en valeur les informations importantes
 - Utilise des listes à tirets (- item) pour les listes d'emails, événements, tâches
@@ -869,6 +879,7 @@ export async function POST(req: NextRequest) {
     let imapConfig: ImapConfig | null = null;
     let igMeta: { token: string; pageId: string } | null = null;
     let userContacts: SavedContact[] = [];
+    let userProfile: UserProfile = {};
     const waMetaToken = process.env.WHATSAPP_TOKEN;
     const waPhoneId   = process.env.WHATSAPP_PHONE_NUMBER_ID;
     try {
@@ -893,6 +904,7 @@ export async function POST(req: NextRequest) {
       if (pm.imap) imapConfig = pm.imap as ImapConfig;
       if (pm.igMeta) igMeta = pm.igMeta as { token: string; pageId: string };
       userContacts = (pm.userContacts as SavedContact[]) ?? [];
+      userProfile = (pm.userProfile as UserProfile) ?? {};
 
       // Auto-subscribe WABA au webhook Meta si pas encore fait et token Meta dispo
       if (waMetaToken && waPhoneId && !pm.wabaSubscribed) {
@@ -913,7 +925,7 @@ export async function POST(req: NextRequest) {
 
     let compact = false; // passe en mode compact si contexte trop grand
     const buildMessages = (): OpenAI.Chat.ChatCompletionMessageParam[] => [
-      { role: "system", content: buildSystemPrompt(compact, userContacts) },
+      { role: "system", content: buildSystemPrompt(compact, userContacts, userProfile) },
       ...history.slice(compact ? -2 : -16).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: message },
     ];
