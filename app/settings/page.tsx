@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import { useToast } from "@/components/Toast";
 
 type Tab = "account" | "templates" | "workflows" | "automations" | "subscription";
 type WaStatus = "idle" | "checking" | "connected";
@@ -223,6 +224,7 @@ function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
 export default function SettingsPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("account");
   const [oauthError, setOauthError] = useState("");
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -352,7 +354,7 @@ export default function SettingsPage() {
     try {
       const r = await fetch("/api/automations", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       const d = await r.json();
-      if (d.result) alert(d.result);
+      if (d.result) toast(d.result, "success");
     } finally { setAutoRunning(null); }
   }
 

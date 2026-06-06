@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useToast } from "@/components/Toast";
 
 type Plan = "gratuit" | "pro" | "business";
 type Category = "Tous" | "Email" | "Agenda" | "WhatsApp" | "CRM" | "Productivité" | "Artisans" | "Santé";
@@ -232,6 +233,7 @@ const accentBorder: Record<string, string> = {
 
 export default function MarketplacePage() {
   const { isLoaded, isSignedIn } = useUser();
+  const toast = useToast();
   const [category, setCategory] = useState<Category>("Tous");
   const [loading, setLoading] = useState<string | null>(null);
   const [activated, setActivated] = useState<string | null>(null);
@@ -287,7 +289,7 @@ export default function MarketplacePage() {
       const data = await r.json();
       if (data.url) window.location.href = data.url;
     } catch {
-      alert("Erreur lors de la redirection vers le paiement.");
+      toast("Erreur lors de la redirection vers le paiement.", "error");
     } finally {
       setLoading(null);
     }

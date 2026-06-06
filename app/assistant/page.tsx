@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
+import { useToast } from "@/components/Toast";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -274,6 +275,7 @@ function exportConversation(msgs: Msg[]) {
 
 export default function AssistantPage() {
   const { user } = useUser();
+  const toast = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -421,7 +423,7 @@ export default function AssistantPage() {
   function toggleVoice() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return; }
+    if (!SR) { toast("La reconnaissance vocale n'est pas supportée par ce navigateur.", "error"); return; }
 
     if (listening) {
       recognitionRef.current?.stop();

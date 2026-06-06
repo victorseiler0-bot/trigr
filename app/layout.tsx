@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { frFR } from "@clerk/localizations";
 import "./globals.css";
 import CookieBanner from "@/components/CookieBanner";
+import { ToastProvider } from "@/components/Toast";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -60,8 +61,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <meta name="mobile-web-app-capable" content="yes" />
         </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
-          {children}
-          <CookieBanner />
+          <ToastProvider>
+            {children}
+            <CookieBanner />
+          </ToastProvider>
         </body>
       </html>
     </ClerkProvider>
