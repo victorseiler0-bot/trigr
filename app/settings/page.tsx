@@ -8,6 +8,8 @@ import Navbar from "@/components/Navbar";
 
 type Tab = "account" | "workflows" | "subscription";
 type WaStatus = "idle" | "checking" | "connected";
+type HealthResult = { ok: boolean; message: string };
+type HealthMap = Record<string, HealthResult & { loading?: boolean }>;
 
 interface N8nWorkflow {
   id: string;
@@ -60,6 +62,24 @@ export default function SettingsPage() {
   // Subscription
   const [plan, setPlan] = useState<"free" | "solo" | "pro" | "equipe">("free");
   const [subBusy, setSubBusy] = useState<string | null>(null);
+
+  // Integration health checks
+  const [health, setHealth] = useState<HealthMap>({});
+
+  async function testIntegration(name: string) {
+    setHealth(h => ({ ...h, [name]: { ...h[name], loading: true, ok: false, message: "" } }));
+    try {
+      const r = await fetch("/api/integration-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ integration: name }),
+      });
+      const d = await r.json() as HealthResult;
+      setHealth(h => ({ ...h, [name]: { ok: d.ok, message: d.message, loading: false } }));
+    } catch {
+      setHealth(h => ({ ...h, [name]: { ok: false, message: "Erreur réseau", loading: false } }));
+    }
+  }
 
   // Pipedream accounts count
   const [pdCount, setPdCount] = useState(0);
@@ -259,23 +279,31 @@ export default function SettingsPage() {
                     <div className="mb-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{oauthError}</div>
                   )}
                   {googleAccount ? (
-                    <div className="flex items-center justify-between gap-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <GoogleLogo />
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">Google</p>
-                          <p className="text-xs text-slate-500">{googleAccount.emailAddress}</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <GoogleLogo />
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">Google</p>
+                            <p className="text-xs text-slate-500">{googleAccount.emailAddress}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => testIntegration("google")} disabled={health.google?.loading}
+                            className="text-xs text-violet-600 hover:text-violet-700 border border-violet-200 hover:border-violet-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
+                            {health.google?.loading ? "Test…" : "Tester"}
+                          </button>
+                          <button onClick={() => disconnectGoogle(googleAccount.id)} disabled={googleBusy}
+                            className="text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40">
+                            Retirer
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full status-connected" />Connecté
-                        </span>
-                        <button onClick={() => disconnectGoogle(googleAccount.id)} disabled={googleBusy}
-                          className="text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40">
-                          Retirer
-                        </button>
-                      </div>
+                      {health.google && !health.google.loading && (
+                        <p className={`text-xs px-3 py-1.5 rounded-lg ${health.google.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+                          {health.google.ok ? "✓" : "✗"} {health.google.message}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <button onClick={connectGoogle} disabled={googleBusy}
@@ -300,12 +328,25 @@ export default function SettingsPage() {
                   </div>
 
                   {imapEmail ? (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{imapEmail}</p>
-                        <p className="text-xs text-emerald-600 mt-0.5">Connecté via IMAP</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{imapEmail}</p>
+                          <p className="text-xs text-emerald-600 mt-0.5">Connecté via IMAP</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => testIntegration("imap")} disabled={health.imap?.loading}
+                            className="text-xs text-violet-600 hover:text-violet-700 border border-violet-200 hover:border-violet-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
+                            {health.imap?.loading ? "Test…" : "Tester"}
+                          </button>
+                          <button onClick={disconnectImap} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
+                        </div>
                       </div>
-                      <button onClick={disconnectImap} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
+                      {health.imap && !health.imap.loading && (
+                        <p className={`text-xs px-3 py-1.5 rounded-lg ${health.imap.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+                          {health.imap.ok ? "✓" : "✗"} {health.imap.message}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -362,12 +403,25 @@ export default function SettingsPage() {
                   </div>
 
                   {igPageName ? (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{igPageName}</p>
-                        <p className="text-xs text-emerald-600 mt-0.5">Connecté via Meta Graph API</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{igPageName}</p>
+                          <p className="text-xs text-emerald-600 mt-0.5">Connecté via Meta Graph API</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => testIntegration("instagram")} disabled={health.instagram?.loading}
+                            className="text-xs text-violet-600 hover:text-violet-700 border border-violet-200 hover:border-violet-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
+                            {health.instagram?.loading ? "Test…" : "Tester"}
+                          </button>
+                          <button onClick={disconnectIg} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
+                        </div>
                       </div>
-                      <button onClick={disconnectIg} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
+                      {health.instagram && !health.instagram.loading && (
+                        <p className={`text-xs px-3 py-1.5 rounded-lg ${health.instagram.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+                          {health.instagram.ok ? "✓" : "✗"} {health.instagram.message}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <>

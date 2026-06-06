@@ -172,6 +172,25 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── STATS BAR ──────────────────────────────────────────────────────── */}
+        <section className="py-8 px-6 bg-violet-600">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+              {[
+                { value: "5×", label: "Moins cher que Lindy" },
+                { value: "20+", label: "Intégrations OAuth" },
+                { value: "2 min", label: "Pour démarrer" },
+                { value: "100%", label: "Données chez vous" },
+              ].map(s => (
+                <div key={s.label}>
+                  <p className="text-3xl font-black text-white mb-1">{s.value}</p>
+                  <p className="text-xs text-violet-200 font-medium">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ── LOGOS ─────────────────────────────────────────────────────────── */}
         <section className="py-12 px-6 bg-slate-50 border-y border-slate-200">
           <div className="max-w-5xl mx-auto">
@@ -252,6 +271,72 @@ export default function Home() {
                   </div>
                   <h3 className="text-slate-900 font-bold text-lg">{s.title}</h3>
                   <p className="text-slate-500 text-sm leading-relaxed">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── USE CASES ───────────────────────────────────────────────────────── */}
+        <section className="py-24 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Qui utilise Trigr ?</p>
+              <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">
+                Conçu pour les <span className="gradient-text">pros français</span>
+              </h2>
+              <p className="text-slate-500 text-lg max-w-xl mx-auto">Pas un outil généraliste US. Un assistant pensé pour vos vrais usages quotidiens.</p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[
+                {
+                  emoji: "💆",
+                  role: "Kinésithérapeute",
+                  quote: "Je reçois les confirmations de RDV sur WhatsApp et mon agenda Google se remplit automatiquement. Fini les doubles réservations.",
+                  saves: "2h/semaine",
+                },
+                {
+                  emoji: "🔧",
+                  role: "Artisan plombier",
+                  quote: "Les clients m'envoient des photos sur WhatsApp, Trigr analyse et crée un devis dans Notion. Je valide en 30 secondes.",
+                  saves: "5h/semaine",
+                },
+                {
+                  emoji: "📊",
+                  role: "Consultant indépendant",
+                  quote: "Brief du matin à 8h dans ma boîte mail : résumé des emails urgents + agenda du jour + suivi des relances clients.",
+                  saves: "3h/semaine",
+                },
+                {
+                  emoji: "🏪",
+                  role: "Gérant de commerce",
+                  quote: "Mon assistant répond aux questions courantes sur Instagram et WhatsApp 24h/24. Je ne rate plus aucune commande la nuit.",
+                  saves: "4h/semaine",
+                },
+                {
+                  emoji: "🎓",
+                  role: "Formateur",
+                  quote: "Envoi automatique des supports de cours après chaque session, relance des participants qui n'ont pas rendu le devoir.",
+                  saves: "3h/semaine",
+                },
+                {
+                  emoji: "🏡",
+                  role: "Agent immobilier",
+                  quote: "Chaque nouveau lead Instagram est automatiquement ajouté dans HubSpot avec un email de bienvenue. Taux de contact ×3.",
+                  saves: "6h/semaine",
+                },
+              ].map(uc => (
+                <div key={uc.role} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">{uc.emoji}</span>
+                    <div>
+                      <p className="font-semibold text-slate-900 text-sm">{uc.role}</p>
+                      <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
+                        Économise {uc.saves}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-slate-600 text-sm leading-relaxed italic">&ldquo;{uc.quote}&rdquo;</p>
                 </div>
               ))}
             </div>
