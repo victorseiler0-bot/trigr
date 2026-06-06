@@ -104,6 +104,11 @@ const QUICK_SUGGESTIONS = [
     { label: "Météo France", prompt: "Quel temps fait-il en France aujourd'hui ?" },
     { label: "Infos entreprise", prompt: "Recherche des informations sur une entreprise" },
   ]},
+  { icon: "🏢", category: "Entreprises FR", prompts: [
+    { label: "Infos société (SIREN)", prompt: "Cherche les informations officielles (SIREN, adresse, activité) de l'entreprise " },
+    { label: "Vérifier un fournisseur", prompt: "Vérifie si cette entreprise est bien active et en règle : " },
+    { label: "Secteur d'activité", prompt: "Quel est le code NAF et l'activité principale de cette société : " },
+  ]},
 ];
 
 // ── Avatar AI ──────────────────────────────────────────────────────────────────

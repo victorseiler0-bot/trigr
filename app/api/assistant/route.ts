@@ -96,6 +96,7 @@ ${profileBlock}${contactsBlock}
 - GitHub : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
 - Contacts : voir_mes_contacts, ajouter_contact, supprimer_contact
 - Web : recherche_web (actualités, infos, météo, cours, etc.)
+- Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
 
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
@@ -718,6 +719,36 @@ async function executeTool(
     }
   }
 
+  if (name === "rechercher_entreprise") {
+    const { query } = args as { query: string };
+    try {
+      const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=3`;
+      const r = await fetch(url, { headers: { "User-Agent": "Trigr/1.0", Accept: "application/json" } });
+      if (!r.ok) return JSON.stringify({ error: "API entreprise indisponible." });
+      const data = await r.json() as Record<string, unknown>;
+      const results = (data.results as Array<Record<string, unknown>>) ?? [];
+      if (!results.length) return JSON.stringify({ message: `Aucune entreprise trouvée pour "${query}".` });
+      const companies = results.map(c => {
+        const siege = c.siege as Record<string, unknown> ?? {};
+        return {
+          nom: c.nom_complet ?? c.nom_raison_sociale,
+          siren: c.siren,
+          siret_siege: siege.siret,
+          forme_juridique: c.categorie_juridique_libelle ?? c.nature_juridique,
+          activite: c.activite_principale_libelle,
+          code_naf: c.activite_principale,
+          adresse: siege.adresse ?? [siege.numero_voie, siege.type_voie, siege.libelle_voie, siege.code_postal, siege.libelle_commune].filter(Boolean).join(" "),
+          creation: c.date_creation,
+          salaries: c.tranche_effectif_salarie,
+          statut: c.etat_administratif === "A" ? "Actif" : "Fermé",
+        };
+      });
+      return JSON.stringify({ companies, total: data.total_results });
+    } catch {
+      return JSON.stringify({ error: "Erreur lors de la recherche d'entreprise." });
+    }
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -821,6 +852,11 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // Web search — always available
   tools.push(
     { type: "function", function: { name: "recherche_web", description: "Rechercher des informations sur internet (actualités, infos entreprises, météo, cours bourse, etc.).", parameters: { type: "object" as const, properties: { query: { type: "string", description: "Requête de recherche en français ou anglais" } }, required: ["query"] } } }
+  );
+
+  // French company lookup — always available
+  tools.push(
+    { type: "function", function: { name: "rechercher_entreprise", description: "Rechercher des informations sur une entreprise française (SIREN, SIRET, adresse, activité, statut) via la base officielle de l'INSEE/gouvernement.", parameters: { type: "object" as const, properties: { query: { type: "string", description: "Nom de l'entreprise, SIREN (9 chiffres) ou SIRET (14 chiffres)" } }, required: ["query"] } } }
   );
 
   return tools;
