@@ -779,9 +779,25 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
 
 // ── Handler principal ──────────────────────────────────────────────────────────
 
+function streamText(text: string, clientActions: ClientAction[], remaining: number): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const CHUNK = 6;
+      for (let i = 0; i < text.length; i += CHUNK) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ c: text.slice(i, i + CHUNK) })}\n\n`));
+      }
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, clientActions, remaining })}\n\n`));
+      controller.close();
+    }
+  });
+  return new Response(stream, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
+}
+
 export async function POST(req: NextRequest) {
   const { isAuthenticated, userId } = await auth();
   if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const useStream = (req.headers.get("accept") ?? "").includes("text/event-stream");
 
   try {
     const body = await req.json();
@@ -918,7 +934,10 @@ export async function POST(req: NextRequest) {
       const msg = choice.message;
 
       if (!msg.tool_calls?.length || choice.finish_reason === "stop") {
-        return NextResponse.json({ response: msg.content ?? "", clientActions, remaining });
+        const text = msg.content ?? "";
+        return useStream
+          ? streamText(text, clientActions, remaining)
+          : NextResponse.json({ response: text, clientActions, remaining });
       }
 
       messages.push(msg as OpenAI.Chat.ChatCompletionMessageParam);
@@ -935,10 +954,12 @@ export async function POST(req: NextRequest) {
       messages.push(...toolResults);
     }
 
-    return NextResponse.json({ response: "Désolé, je n'ai pas pu terminer cette action.", clientActions });
+    const fallback = "Désolé, je n'ai pas pu terminer cette action.";
+    return useStream
+      ? streamText(fallback, clientActions, 0)
+      : NextResponse.json({ response: fallback, clientActions });
   } catch (err) {
     console.error("[assistant]", err);
-    // Ne jamais renvoyer un 500 brut — le client reçoit toujours une réponse lisible
     const msg = (err as Record<string, unknown>)?.message as string | undefined;
     const friendly = msg?.includes("rate_limit") || msg?.includes("429")
       ? "Je suis temporairement surchargé. Réessaie dans quelques secondes."

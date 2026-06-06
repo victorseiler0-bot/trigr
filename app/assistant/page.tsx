@@ -114,16 +114,53 @@ export default function AssistantPage() {
     try {
       const r = await fetch("/api/assistant", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),
       });
-      const data = await r.json();
+
       if (r.status === 429) {
+        const data = await r.json();
         setError(`${data.error} → <upgrade>`);
         return;
       }
-      if (!r.ok) throw new Error(data?.error || "Erreur");
-      setMessages([...next, { role: "assistant", content: data.response || "(réponse vide)" }]);
+      if (!r.ok) throw new Error("Erreur serveur");
+
+      const contentType = r.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/event-stream")) {
+        const data = await r.json();
+        setMessages([...next, { role: "assistant", content: data.response || "(réponse vide)" }]);
+        return;
+      }
+
+      // SSE streaming
+      const reader = r.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulated = "";
+      const streamMsg: Msg = { role: "assistant", content: "" };
+      setMessages([...next, streamMsg]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+            if (evt.c) {
+              accumulated += evt.c;
+              setMessages(prev => {
+                const copy = [...prev];
+                copy[copy.length - 1] = { role: "assistant", content: accumulated };
+                return copy;
+              });
+            }
+          } catch { /* ignore malformed chunks */ }
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
