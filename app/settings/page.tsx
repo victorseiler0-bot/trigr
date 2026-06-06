@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
-type Tab = "account" | "workflows" | "automations" | "subscription";
+type Tab = "account" | "templates" | "workflows" | "automations" | "subscription";
 type WaStatus = "idle" | "checking" | "connected";
 type HealthResult = { ok: boolean; message: string };
 type HealthMap = Record<string, HealthResult & { loading?: boolean }>;
@@ -42,6 +42,180 @@ function WorkflowToggle({ wf, onToggle, toggling }: { wf: N8nWorkflow; onToggle:
       >
         <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${wf.active ? "left-5" : "left-0.5"} ${toggling === wf.id ? "animate-pulse" : ""}`} />
       </button>
+    </div>
+  );
+}
+
+// ── Email Templates ────────────────────────────────────────────────────────────
+
+const EMAIL_TEMPLATES = [
+  {
+    id: "devis",
+    icon: "📋",
+    name: "Devis commercial",
+    subject: "Devis n°[NUMERO] — [SERVICE]",
+    body: `Bonjour [PRÉNOM],
+
+Suite à notre échange du [DATE], je vous adresse ci-dessous le devis pour [DESCRIPTION DU SERVICE].
+
+**Détail de la prestation :**
+- [LIGNE 1] : [PRIX] €
+- [LIGNE 2] : [PRIX] €
+
+**Total HT : [TOTAL] €**
+**TVA 20% : [TVA] €**
+**Total TTC : [TOTAL TTC] €**
+
+Ce devis est valable 30 jours à compter de sa date d'émission.
+
+Pour accepter ce devis, il vous suffit de me retourner ce document signé avec la mention "Bon pour accord".
+
+N'hésitez pas à me contacter pour toute question.
+
+Cordialement,
+[VOTRE NOM]`,
+  },
+  {
+    id: "relance",
+    icon: "🔔",
+    name: "Relance impayé (poli)",
+    subject: "Relance facture n°[NUMERO]",
+    body: `Bonjour [PRÉNOM],
+
+Je me permets de vous contacter au sujet de la facture n°[NUMERO] d'un montant de [MONTANT] €, émise le [DATE] et dont l'échéance était le [ECHEANCE].
+
+Sauf erreur de ma part, cette facture semble être restée impayée à ce jour.
+
+Pourriez-vous me confirmer qu'elle a bien été prise en compte et me communiquer une date de règlement prévisionnelle ?
+
+Dans l'attente de votre retour,
+
+Cordialement,
+[VOTRE NOM]`,
+  },
+  {
+    id: "confirmation_rdv",
+    icon: "📅",
+    name: "Confirmation de RDV",
+    subject: "Confirmation de notre rendez-vous du [DATE]",
+    body: `Bonjour [PRÉNOM],
+
+Je vous confirme notre rendez-vous du **[DATE] à [HEURE]** [LIEU/LIEN VISIO].
+
+**Ordre du jour :**
+- [POINT 1]
+- [POINT 2]
+- [POINT 3]
+
+Si vous avez des questions en amont ou souhaitez modifier l'horaire, n'hésitez pas à me contacter.
+
+À très bientôt,
+[VOTRE NOM]`,
+  },
+  {
+    id: "prospection",
+    icon: "🎯",
+    name: "Prospection (1er contact)",
+    subject: "Une solution pour [PROBLÈME]",
+    body: `Bonjour [PRÉNOM],
+
+Je me permets de vous contacter car j'ai vu que [ENTREPRISE/CONTEXTE] et je pense pouvoir vous aider.
+
+Chez [VOTRE ENTREPRISE], nous aidons [TYPE DE CLIENTS] à [BÉNÉFICE CLÉ] grâce à [SOLUTION].
+
+**Résultats concrets :** [EXEMPLE CHIFFRÉ]
+
+Seriez-vous disponible 15 minutes cette semaine pour en discuter ? Je vous propose le [JOUR] à [HEURE] ou le [JOUR2] à [HEURE2].
+
+Cordialement,
+[VOTRE NOM]`,
+  },
+  {
+    id: "remerciement",
+    icon: "🙏",
+    name: "Remerciement client",
+    subject: "Merci pour votre confiance",
+    body: `Bonjour [PRÉNOM],
+
+Je voulais prendre un moment pour vous remercier sincèrement de votre confiance.
+
+[CONTEXTE SPÉCIFIQUE : ex. "Ce projet a été passionnant à réaliser" / "Votre retour positif m'a fait très plaisir"]
+
+N'hésitez pas à me faire part de tout retour ou besoin futur. Ce sera toujours un plaisir de travailler avec vous.
+
+En vous souhaitant une excellente journée,
+
+[VOTRE NOM]`,
+  },
+  {
+    id: "refus_poli",
+    icon: "🚫",
+    name: "Refus poli",
+    subject: "Suite à votre demande",
+    body: `Bonjour [PRÉNOM],
+
+Merci pour votre message et l'intérêt que vous portez à [SUJET].
+
+Après réflexion, je ne suis malheureusement pas en mesure de [DONNER SUITE / ACCEPTER] pour les raisons suivantes : [RAISON].
+
+Je vous souhaite bonne continuation dans vos recherches et reste disponible pour toute autre demande qui pourrait correspondre davantage à mon domaine.
+
+Cordialement,
+[VOTRE NOM]`,
+  },
+];
+
+function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function copyTemplate(id: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900 mb-1">Modèles d&apos;emails</h2>
+        <p className="text-sm text-slate-500 mb-5">Modèles professionnels prêts à l&apos;emploi. Cliquez pour copier ou utiliser directement dans l&apos;assistant.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {EMAIL_TEMPLATES.map(tpl => (
+            <div key={tpl.id} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 hover:border-violet-200 hover:bg-violet-50/30 transition-all group">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{tpl.icon}</span>
+                  <span className="text-sm font-semibold text-slate-900">{tpl.name}</span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mb-3 truncate">Objet : {tpl.subject}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => copyTemplate(tpl.id, `Objet : ${tpl.subject}\n\n${tpl.body}`)}
+                  className="flex-1 text-xs border border-slate-200 bg-white hover:border-slate-300 text-slate-600 hover:text-slate-900 py-2 rounded-xl transition-all font-medium"
+                >
+                  {copied === tpl.id ? "✓ Copié !" : "Copier"}
+                </button>
+                <button
+                  onClick={() => {
+                    const prefill = `Aide-moi à rédiger un email de type "${tpl.name}". Voici le modèle de base :\n\nObjet : ${tpl.subject}\n\n${tpl.body.slice(0, 300)}…\n\nAdapte-le à ma situation.`;
+                    router.push(`/assistant?prefill=${encodeURIComponent(prefill)}`);
+                  }}
+                  className="flex-1 text-xs bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-xl transition-all font-medium"
+                >
+                  Utiliser avec Trigr
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-5 text-center">
+        <p className="text-sm text-slate-500 mb-1">💡 Conseil</p>
+        <p className="text-xs text-slate-400">Dans l&apos;assistant, vous pouvez demander <span className="text-violet-600 font-medium">&ldquo;Rédige-moi un devis pour [client]&rdquo;</span> et Trigr adaptera automatiquement le modèle à votre contexte.</p>
+      </div>
     </div>
   );
 }
@@ -291,6 +465,7 @@ export default function SettingsPage() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "account", label: "Compte" },
+    { id: "templates", label: "Modèles" },
     { id: "automations", label: "Automatisations" },
     { id: "workflows", label: "Workflows n8n" },
     { id: "subscription", label: "Abonnement" },
@@ -646,6 +821,11 @@ export default function SettingsPage() {
                   )}
                 </div>
               </>
+            )}
+
+            {/* ── MODÈLES D'EMAIL ────────────────────────────────────────── */}
+            {activeTab === "templates" && (
+              <TemplatesTab router={router} />
             )}
 
             {/* ── AUTOMATISATIONS ─────────────────────────────────────────── */}

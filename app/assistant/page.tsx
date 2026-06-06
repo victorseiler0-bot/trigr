@@ -153,7 +153,7 @@ export default function AssistantPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load history from localStorage on mount
+  // Load history from localStorage on mount + read ?prefill= URL param
   useEffect(() => {
     try {
       const saved = localStorage.getItem("trigr_history");
@@ -163,6 +163,14 @@ export default function AssistantPage() {
       }
     } catch { /* ignore */ }
     setHistoryLoaded(true);
+
+    // Pre-fill input from URL param (e.g. from CRM "Contacter avec Trigr")
+    const params = new URLSearchParams(window.location.search);
+    const prefill = params.get("prefill");
+    if (prefill) {
+      setInput(decodeURIComponent(prefill));
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
   }, []);
 
   // Save history to localStorage on change
