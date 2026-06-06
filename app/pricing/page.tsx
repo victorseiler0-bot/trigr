@@ -6,6 +6,26 @@ import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-white/[0.08] rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-white/[0.03] transition-colors">
+        <span className="text-sm font-medium text-zinc-200">{q}</span>
+        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className={`shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}>
+          <path d="M3 6l5 5 5-5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="px-5 pb-4">
+          <p className="text-sm text-zinc-400 leading-relaxed">{a}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PLANS = [
   {
     id: "free",
@@ -174,8 +194,58 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <p className="text-center text-xs text-zinc-600 mt-10">
-          Paiement sécurisé par Stripe · Annulation à tout moment · Facture disponible
+        {/* Guarantees */}
+        <div className="flex flex-wrap items-center justify-center gap-6 mt-10 mb-16">
+          {[
+            { icon: "🔒", text: "Paiement sécurisé Stripe" },
+            { icon: "✉️", text: "Facture disponible" },
+            { icon: "❌", text: "Annulation en 1 clic" },
+            { icon: "🛡️", text: "Données chez vous (RGPD)" },
+            { icon: "💬", text: "Support en français" },
+          ].map(g => (
+            <span key={g.text} className="flex items-center gap-1.5 text-xs text-zinc-500">
+              <span>{g.icon}</span>{g.text}
+            </span>
+          ))}
+        </div>
+
+        {/* FAQ */}
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-10">Questions fréquentes</h2>
+          <div className="space-y-4">
+            {[
+              {
+                q: "C'est quoi la différence avec Lindy ou Zapier ?",
+                a: "Lindy coûte 50$/mois (minimum), est 100% en anglais et stocke vos données aux États-Unis. Trigr démarre à 9€, est conçu pour les pros francophones et vous permet de self-hoster (vos données restent chez vous). Zapier est un outil d'automatisation sans IA native — Trigr combine IA conversationnelle + automatisations en une seule interface.",
+              },
+              {
+                q: "Mes données sont-elles en sécurité ?",
+                a: "Oui. Vos tokens OAuth (Gmail, Notion, etc.) sont stockés chiffrés dans Clerk, un service certifié SOC2. Aucune donnée n'est stockée sur nos serveurs — nous jouons juste le rôle d'intermédiaire au moment de l'action. Si vous choisissez le plan Self-hosted, vos données ne quittent jamais votre serveur.",
+              },
+              {
+                q: "Puis-je annuler à tout moment ?",
+                a: "Oui, sans préavis ni pénalité. Vous accédez à votre espace Stripe directement depuis les paramètres et annulez en 1 clic. Votre accès reste actif jusqu'à la fin de la période payée.",
+              },
+              {
+                q: "Trigr fonctionne-t-il avec mon iPhone / Mac ?",
+                a: "Oui. L'assistant est accessible depuis n'importe quel navigateur, et WhatsApp est disponible sur mobile. Le plan Solo inclut Apple iCloud (Calendrier + Contacts) via CalDAV.",
+              },
+              {
+                q: "Qu'est-ce qu'une \"action\" ?",
+                a: "Une action = une opération effectuée par l'assistant : lire un email, créer un événement, envoyer un message, mettre à jour un contact… Lire une réponse de l'IA ne compte pas. Le plan Pro propose des actions illimitées.",
+              },
+              {
+                q: "Proposez-vous un essai gratuit ?",
+                a: "Oui. Le plan Gratuit vous donne accès à toutes les fonctionnalités pendant 7 jours, sans carte bancaire requise. Vous pouvez passer à un plan payant à tout moment.",
+              },
+            ].map((faq, i) => (
+              <FaqItem key={i} q={faq.q} a={faq.a} />
+            ))}
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-zinc-700 mt-12">
+          Une question ? <a href="mailto:hello@trigr.app" className="text-violet-400 hover:underline">hello@trigr.app</a>
         </p>
       </main>
       <Footer />
