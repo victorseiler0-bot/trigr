@@ -230,6 +230,29 @@ function SmartActionBar({ content }: { content: string }) {
   return null;
 }
 
+// ── Session history ─────────────────────────────────────────────────────────────
+type ConvSession = { id: string; title: string; messages: Msg[]; ts: number };
+
+function saveSession(msgs: Msg[]) {
+  if (msgs.length === 0) return;
+  const title = msgs.find(m => m.role === "user")?.content.slice(0, 55) ?? "Conversation";
+  const session: ConvSession = { id: Date.now().toString(), title, messages: msgs.slice(-30), ts: Date.now() };
+  try {
+    const stored = localStorage.getItem("trigr_sessions");
+    const sessions: ConvSession[] = stored ? JSON.parse(stored) : [];
+    sessions.unshift(session);
+    localStorage.setItem("trigr_sessions", JSON.stringify(sessions.slice(0, 15)));
+  } catch { /* ignore */ }
+}
+
+function loadSessions(): ConvSession[] {
+  try {
+    const stored = localStorage.getItem("trigr_sessions");
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+
 export default function AssistantPage() {
   const { user } = useUser();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -240,6 +263,7 @@ export default function AssistantPage() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -428,9 +452,51 @@ export default function AssistantPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* History dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowHistory(h => !h)}
+                className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 p-2 rounded-xl transition-all"
+                title="Historique"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {showHistory && (
+                <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">Historique</span>
+                    <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                  </div>
+                  {(() => {
+                    const sessions = loadSessions();
+                    if (sessions.length === 0) return (
+                      <p className="text-xs text-slate-400 px-3 py-4 text-center">Aucune conversation sauvegardée</p>
+                    );
+                    return (
+                      <div className="max-h-64 overflow-y-auto">
+                        {sessions.map(s => (
+                          <button key={s.id} onClick={() => {
+                            saveSession(messages);
+                            setMessages(s.messages);
+                            setShowHistory(false);
+                          }}
+                            className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                          >
+                            <div className="text-xs font-medium text-slate-700 truncate">{s.title}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">{new Date(s.ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
             {hasMessages && (
               <button
-                onClick={() => { setMessages([]); try { localStorage.removeItem("trigr_history"); } catch { /* */ } }}
+                onClick={() => { saveSession(messages); setMessages([]); try { localStorage.removeItem("trigr_history"); } catch { /* */ } }}
                 className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1.5 rounded-xl transition-all"
                 title="Nouvelle conversation"
               >
@@ -585,7 +651,7 @@ export default function AssistantPage() {
                 </span>
               )}
               {hasMessages && (
-                <button type="button" onClick={() => { setMessages([]); setError(null); }}
+                <button type="button" onClick={() => { saveSession(messages); setMessages([]); setError(null); }}
                   className="text-slate-400 hover:text-slate-700 transition-colors">
                   Nouvelle conversation
                 </button>
