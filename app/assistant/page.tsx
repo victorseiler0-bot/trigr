@@ -58,8 +58,27 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectedCount, setConnectedCount] = useState(0);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load history from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("trigr_history");
+      if (saved) {
+        const parsed = JSON.parse(saved) as Msg[];
+        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+      }
+    } catch { /* ignore */ }
+    setHistoryLoaded(true);
+  }, []);
+
+  // Save history to localStorage on change
+  useEffect(() => {
+    if (!historyLoaded) return;
+    try { localStorage.setItem("trigr_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
+  }, [messages, historyLoaded]);
 
   // Detect connected integrations
   const hasGoogle = !!user?.externalAccounts.find(a => a.provider === "google");
@@ -140,11 +159,22 @@ export default function AssistantPage() {
               <p className="text-sm text-slate-500 mt-1">Comment puis-je t&apos;aider aujourd&apos;hui ?</p>
             )}
           </div>
-          <Link href="/integrations"
-            className="shrink-0 flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-all shadow-sm">
-            <span className={`w-1.5 h-1.5 rounded-full ${connectedCount > 0 ? "status-connected" : "status-disconnected"}`} />
-            {connectedCount} connectée{connectedCount !== 1 ? "s" : ""}
-          </Link>
+          <div className="flex items-center gap-2">
+            {hasMessages && (
+              <button
+                onClick={() => { setMessages([]); try { localStorage.removeItem("trigr_history"); } catch { /* */ } }}
+                className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1.5 rounded-xl transition-all"
+                title="Nouvelle conversation"
+              >
+                + Nouveau
+              </button>
+            )}
+            <Link href="/integrations"
+              className="shrink-0 flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-all shadow-sm">
+              <span className={`w-1.5 h-1.5 rounded-full ${connectedCount > 0 ? "status-connected" : "status-disconnected"}`} />
+              {connectedCount} connectée{connectedCount !== 1 ? "s" : ""}
+            </Link>
+          </div>
         </div>
 
         {/* État sans connexions */}
