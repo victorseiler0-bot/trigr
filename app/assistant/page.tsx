@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
@@ -8,8 +8,8 @@ import Navbar from "@/components/Navbar";
 type Msg = { role: "user" | "assistant"; content: string };
 
 // ── Inline markdown renderer ───────────────────────────────────────────────────
-function renderInline(text: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
+function renderInline(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
   const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
   let last = 0, m: RegExpExecArray | null;
   let key = 0;
@@ -26,7 +26,7 @@ function renderInline(text: string): React.ReactNode[] {
 
 function MarkdownText({ content, streaming }: { content: string; streaming?: boolean }) {
   const lines = content.split("\n");
-  const nodes: React.ReactNode[] = [];
+  const nodes: ReactNode[] = [];
   let listBuf: string[] = [];
   let isOrdered = false;
   let k = 0;
@@ -118,6 +118,22 @@ function UserAvatar({ initials }: { initials: string }) {
     <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center shrink-0 text-slate-700 font-semibold text-xs">
       {initials || "?"}
     </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 shrink-0"
+      title="Copier"
+    >
+      {copied
+        ? <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 7l3 3 6-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        : <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="9" y="9" width="10" height="10" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeLinecap="round"/></svg>
+      }
+    </button>
   );
 }
 
@@ -341,15 +357,20 @@ export default function AssistantPage() {
               return (
                 <div key={i} className={`flex gap-3 animate-fade-up ${m.role === "user" ? "flex-row-reverse" : ""}`}>
                   {m.role === "user" ? <UserAvatar initials={initials} /> : <BotAvatar />}
-                  <div className={`max-w-[78%] px-4 py-2.5 rounded-2xl ${
-                    m.role === "user"
-                      ? "bg-violet-600 text-white rounded-tr-md text-sm leading-relaxed"
-                      : "bg-white border border-slate-200 text-slate-800 rounded-tl-md shadow-sm"
-                  }`}>
-                    {m.role === "user"
-                      ? m.content
-                      : <MarkdownText content={m.content} streaming={isStreamingMsg} />
-                    }
+                  <div className={`group relative max-w-[78%] flex items-start gap-0 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+                    <div className={`px-4 py-2.5 rounded-2xl ${
+                      m.role === "user"
+                        ? "bg-violet-600 text-white rounded-tr-md text-sm leading-relaxed"
+                        : "bg-white border border-slate-200 text-slate-800 rounded-tl-md shadow-sm"
+                    }`}>
+                      {m.role === "user"
+                        ? m.content
+                        : <MarkdownText content={m.content} streaming={isStreamingMsg} />
+                      }
+                    </div>
+                    {m.role === "assistant" && !isStreamingMsg && m.content && (
+                      <CopyButton text={m.content} />
+                    )}
                   </div>
                 </div>
               );

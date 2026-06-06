@@ -9,8 +9,23 @@ import CookieBanner from "@/components/CookieBanner";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Trigr — AI Personal Assistant · RGPD-friendly",
-  description: "Your AI assistant for freelancers and SMEs. Gmail, WhatsApp Business, Google Calendar. RGPD-compliant, 5× cheaper than Lindy. 7-day free trial.",
+  title: "Trigr — Assistant IA pour indépendants et PME · RGPD-friendly",
+  description: "Ton assistant IA personnel : Gmail, WhatsApp Business, Google Calendar, Notion. RGPD-friendly, 5× moins cher que Lindy. Essai gratuit sans carte.",
+  keywords: ["assistant IA", "automatisation", "Gmail", "WhatsApp Business", "indépendant", "PME", "France", "RGPD", "workflow"],
+  openGraph: {
+    title: "Trigr — Ton assistant IA en français",
+    description: "Gmail, WhatsApp, Agenda — automatise tout à ta place. RGPD-friendly, sans engagement, 9€/mois.",
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Trigr",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Trigr — Assistant IA RGPD-friendly pour les pros FR",
+    description: "Gmail, WhatsApp, Agenda automatisés en français. 5× moins cher que Lindy.",
+  },
+  robots: { index: true, follow: true },
+  alternates: { canonical: "https://trigr-eight.vercel.app" },
 };
 
 async function detectLang(): Promise<string> {

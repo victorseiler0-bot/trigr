@@ -104,9 +104,9 @@ export default function Home() {
                     Démarrer gratuitement
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </Link>
-                  <Link href="/integrations"
+                  <Link href="/marketplace"
                     className="inline-flex items-center justify-center gap-2 text-slate-700 font-semibold px-6 py-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-base">
-                    Voir les intégrations
+                    Voir le marketplace
                   </Link>
                 </div>
                 <div className="flex flex-wrap gap-5 text-sm text-slate-500">
