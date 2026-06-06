@@ -81,6 +81,18 @@ export default function SettingsPage() {
     }
   }
 
+  // Brief du Matin
+  const [briefEnabled, setBriefEnabled] = useState(false);
+  const [briefWaNumber, setBriefWaNumber] = useState("");
+  const [briefSaving, setBriefSaving] = useState(false);
+
+  async function saveBrief() {
+    setBriefSaving(true);
+    try {
+      await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: briefEnabled, waNumber: briefWaNumber }) });
+    } finally { setBriefSaving(false); }
+  }
+
   // Pipedream accounts count
   const [pdCount, setPdCount] = useState(0);
 
@@ -573,6 +585,37 @@ export default function SettingsPage() {
                   <span className="text-sm text-slate-600">Plan actuel :</span>
                   <span className={`text-sm font-bold px-2.5 py-0.5 rounded-lg ${PLAN_COLORS[plan]}`}>{PLAN_LABELS[plan]}</span>
                 </div>
+                {/* Brief du Matin */}
+                <div className="border border-slate-200 rounded-2xl p-5">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">☀️ Brief du Matin</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Digest automatique chaque matin (lun–ven à 8h) par WhatsApp.</p>
+                    </div>
+                    <button
+                      onClick={() => setBriefEnabled(e => !e)}
+                      className={`relative w-11 h-6 rounded-full shrink-0 transition-all ${briefEnabled ? "bg-violet-500" : "bg-slate-300"}`}
+                    >
+                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${briefEnabled ? "left-5" : "left-0.5"}`} />
+                    </button>
+                  </div>
+                  {briefEnabled && (
+                    <div className="space-y-2">
+                      <input
+                        value={briefWaNumber}
+                        onChange={e => setBriefWaNumber(e.target.value)}
+                        placeholder="Numéro WhatsApp (ex: 33612345678)"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                      <button onClick={saveBrief} disabled={briefSaving}
+                        className="w-full text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-xl transition-all disabled:opacity-50">
+                        {briefSaving ? "Sauvegarde…" : "Sauvegarder"}
+                      </button>
+                      <p className="text-xs text-slate-400">Nécessite WhatsApp Token configuré sur le serveur. Numéro sans + ni espaces.</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid sm:grid-cols-3 gap-4">
                   {([
                     { id: "solo", name: "Solo", price: "9€/mois", features: ["3 intégrations", "50 actions/jour", "1 utilisateur"] },

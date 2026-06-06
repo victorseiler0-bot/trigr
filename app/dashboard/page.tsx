@@ -79,6 +79,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [brief, setBrief] = useState<string | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.replace("/login");
@@ -225,6 +227,41 @@ export default function DashboardPage() {
                   <div className="text-xs text-zinc-600">Gérer les connexions</div>
                 </div>
               </Link>
+            </div>
+
+            {/* Brief du Matin */}
+            <div className="mt-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">☀️</span>
+                  <h2 className="text-sm font-semibold text-zinc-300">Brief du Matin</h2>
+                </div>
+                <button
+                  onClick={async () => {
+                    setBriefLoading(true);
+                    try {
+                      const r = await fetch("/api/brief");
+                      const d = await r.json() as { brief?: string; error?: string };
+                      if (d.brief) setBrief(d.brief);
+                      else setBrief(d.error ?? "Erreur");
+                    } finally { setBriefLoading(false); }
+                  }}
+                  disabled={briefLoading}
+                  className="text-xs text-violet-400 hover:text-violet-300 border border-violet-500/30 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                >
+                  {briefLoading ? "Génération…" : "Générer maintenant"}
+                </button>
+              </div>
+              {brief ? (
+                <div className="bg-white/[0.03] rounded-xl p-3">
+                  <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{brief}</p>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600">
+                  Résumé automatique de tes emails, agenda et messages — chaque matin en semaine.
+                  {" "}<Link href="/settings" className="text-violet-400 hover:text-violet-300">Activer la livraison WA →</Link>
+                </p>
+              )}
             </div>
 
             {/* Upgrade CTA for free */}
