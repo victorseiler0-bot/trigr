@@ -101,7 +101,7 @@ const QUICK_SUGGESTIONS = [
   ]},
   { icon: "🔍", category: "Recherche", prompts: [
     { label: "Actualités", prompt: "Quelles sont les dernières actualités importantes en France ?" },
-    { label: "Météo France", prompt: "Quel temps fait-il en France aujourd'hui ?" },
+    { label: "Météo du jour", prompt: "Donne-moi la météo à Paris aujourd'hui" },
     { label: "Infos entreprise", prompt: "Recherche des informations sur une entreprise" },
   ]},
   { icon: "🏢", category: "Entreprises FR", prompts: [

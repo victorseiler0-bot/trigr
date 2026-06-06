@@ -102,7 +102,7 @@ ${profileBlock}${contactsBlock}
 - HubSpot : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
 - GitHub : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
 - Contacts : voir_mes_contacts, ajouter_contact, supprimer_contact
-- Web : recherche_web (actualités, infos, météo, cours, etc.)
+- Web : recherche_web (actualités, infos, cours, etc.) | meteo (météo temps réel)
 - Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
 
 ## Règles
@@ -758,6 +758,33 @@ async function executeTool(
     }
   }
 
+  if (name === "meteo") {
+    const { ville } = args as { ville: string };
+    try {
+      const loc = encodeURIComponent(ville || "Paris");
+      const r = await fetch(`https://wttr.in/${loc}?format=j1`, { headers: { "User-Agent": "Trigr/1.0", Accept: "application/json" } });
+      if (!r.ok) return `Météo indisponible pour "${ville}".`;
+      const data = await r.json() as Record<string, unknown>;
+      const current = (data.current_condition as Record<string, unknown>[])?.[0];
+      if (!current) return `Pas de données météo pour "${ville}".`;
+      const desc = (current.weatherDesc as { value: string }[])?.[0]?.value ?? "";
+      const temp = current.temp_C;
+      const feels = current.FeelsLikeC;
+      const humidity = current.humidity;
+      const wind = current.windspeedKmph;
+      const weather = (data.weather as Record<string, unknown>[])?.[0];
+      const maxTemp = weather?.maxtempC;
+      const minTemp = weather?.mintempC;
+      return `🌤️ **Météo à ${ville}**
+Température : ${temp}°C (ressenti ${feels}°C)
+Conditions : ${desc}
+Humidité : ${humidity}% | Vent : ${wind} km/h
+Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
+    } catch {
+      return `Erreur lors de la récupération de la météo.`;
+    }
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -866,6 +893,11 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // French company lookup — always available
   tools.push(
     { type: "function", function: { name: "rechercher_entreprise", description: "Rechercher des informations sur une entreprise française (SIREN, SIRET, adresse, activité, statut) via la base officielle de l'INSEE/gouvernement.", parameters: { type: "object" as const, properties: { query: { type: "string", description: "Nom de l'entreprise, SIREN (9 chiffres) ou SIRET (14 chiffres)" } }, required: ["query"] } } }
+  );
+
+  // Météo — always available
+  tools.push(
+    { type: "function", function: { name: "meteo", description: "Obtenir la météo actuelle pour une ville française ou mondiale.", parameters: { type: "object" as const, properties: { ville: { type: "string", description: "Nom de la ville (ex: Paris, Lyon, Marseille)" } }, required: ["ville"] } } }
   );
 
   return tools;
