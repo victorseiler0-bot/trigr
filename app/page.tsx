@@ -48,13 +48,15 @@ const PLANS = [
 ];
 
 const COMPARE = [
-  ["Langue", "🇫🇷 Français FR-first", "🇺🇸 100 % anglais"],
-  ["Prix d'entrée", "9 €/mois", "50 $/mois"],
-  ["WhatsApp", "✅ Natif", "❌ Non dispo"],
-  ["Intégrations", "✅ 20+ via OAuth", "✅ 5000+ (Pipedream)"],
-  ["RGPD", "✅ Données chez vous", "Stockées aux US"],
-  ["Self-hosted", "✅ Docker 1 commande", "❌ SaaS uniquement"],
-  ["Templates FR", "✅ Artisans, kinés…", "Templates US"],
+  ["", "Trigr 🇫🇷", "Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"],
+  ["Prix/mois", "9 €", "50 $", "10 €", "30 $"],
+  ["Langue française", "✅ Native", "❌", "❌", "❌"],
+  ["WhatsApp Business", "✅ Natif", "❌", "⚠️ via Twilio", "⚠️ payant"],
+  ["Conversation IA", "✅ Inclus", "✅ Inclus", "❌ Workflow", "❌ Workflow"],
+  ["Données RGPD EU", "✅ Hébergé France", "❌ US", "✅ EU", "❌ US"],
+  ["Self-hosted", "✅ Docker", "❌", "❌", "❌"],
+  ["Templates PME FR", "✅ Kinés, artisans…", "❌ Templates US", "❌", "❌"],
+  ["Support FR", "✅ Email + chat", "❌ Anglais", "⚠️", "⚠️"],
 ];
 
 const CHAT_MSGS = [
@@ -388,26 +390,161 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── COMPARE ─────────────────────────────────────────────────────────── */}
-        <section className="py-24 px-6 bg-slate-50 border-y border-slate-200">
-          <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Trigr vs Lindy</h2>
-            </div>
-            <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-              <div className="grid grid-cols-3 bg-slate-50 border-b border-slate-200">
-                <div className="p-4" />
-                <div className="p-4 text-center"><span className="text-sm font-bold text-slate-900">Trigr 🇫🇷</span></div>
-                <div className="p-4 text-center border-l border-slate-200"><span className="text-sm font-medium text-slate-500">Lindy 🇺🇸</span></div>
-              </div>
-              {COMPARE.map(([f, t, l], i) => (
-                <div key={f} className={`grid grid-cols-3 hover:bg-slate-50 transition-colors ${i < COMPARE.length - 1 ? "border-b border-slate-100" : ""}`}>
-                  <div className="p-4 text-sm text-slate-500 font-medium">{f}</div>
-                  <div className="p-4 text-sm text-center text-slate-900">{t}</div>
-                  <div className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{l}</div>
+        {/* ── RGPD TRUST ──────────────────────────────────────────────────────── */}
+        <section className="py-20 px-6 bg-white border-b border-slate-100">
+          <div className="max-w-5xl mx-auto">
+            <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-10 md:p-14 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "28px 28px" }} />
+              <div className="relative grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-semibold mb-6">
+                    🇪🇺 Conforme RGPD — Hébergé en France
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
+                    Vos données vous<br /><span className="text-blue-400">appartiennent.</span>
+                  </h2>
+                  <p className="text-slate-300 text-base leading-relaxed mb-6">
+                    Chez Lindy et Zapier, vos emails, agendas et contacts transitent par des serveurs américains soumis au Cloud Act. Avec Trigr, tout reste en Europe.
+                  </p>
+                  <div className="space-y-3">
+                    {[
+                      "Hébergement Vercel EU (Frankfurt) par défaut",
+                      "Option self-hosted : Docker sur vos propres serveurs",
+                      "Aucune revente ni analyse de vos données",
+                      "Suppression complète à la désinscription",
+                    ].map(item => (
+                      <div key={item} className="flex items-center gap-2.5 text-sm text-slate-300">
+                        <svg className="text-blue-400 shrink-0" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 8l4 4 8-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { icon: "🔒", title: "Chiffrement TLS", desc: "Toutes les communications chiffrées en transit" },
+                    { icon: "🇪🇺", title: "RGPD Art. 25", desc: "Privacy by design — données minimales collectées" },
+                    { icon: "🏠", title: "Self-hosted", desc: "Docker disponible — vos serveurs, vos règles" },
+                    { icon: "🗑️", title: "Droit à l'oubli", desc: "Suppression complète en 1 clic, immédiate" },
+                  ].map(card => (
+                    <div key={card.title} className="bg-white/[0.06] border border-white/10 rounded-2xl p-4">
+                      <span className="text-2xl mb-2 block">{card.icon}</span>
+                      <p className="text-sm font-semibold text-white mb-1">{card.title}</p>
+                      <p className="text-xs text-slate-400 leading-relaxed">{card.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+          </div>
+        </section>
+
+        {/* ── WA SHOWCASE ─────────────────────────────────────────────────────── */}
+        <section className="py-20 px-6 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold mb-6">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                  WhatsApp Business — fonctionnalité phare
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
+                  Ton assistant répond<br /><span className="gradient-text">24h/24 sur WhatsApp</span>
+                </h2>
+                <p className="text-slate-600 text-base leading-relaxed mb-6">
+                  Configure des règles en 30 secondes : &ldquo;Si le message contient <em>devis</em>, envoie le tarif automatiquement&rdquo;. Pour les autres questions, l&apos;IA répond intelligemment en ton nom.
+                </p>
+                <div className="space-y-3">
+                  {[
+                    { rule: "\"devis\" ou \"tarif\"", response: "→ Envoie ta grille tarifaire", color: "emerald" },
+                    { rule: "\"rdv\" ou \"disponible\"", response: "→ Partage le lien Calendly", color: "blue" },
+                    { rule: "Toute autre question", response: "→ Réponse IA contextuelle", color: "violet" },
+                  ].map(r => (
+                    <div key={r.rule} className={`flex items-center gap-3 px-4 py-3 rounded-xl bg-${r.color}-50 border border-${r.color}-100`}>
+                      <code className={`text-xs font-mono text-${r.color}-700 bg-${r.color}-100 px-2 py-0.5 rounded`}>{r.rule}</code>
+                      <span className={`text-xs text-${r.color}-700 font-medium`}>{r.response}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-emerald-200/30 rounded-3xl blur-2xl scale-110" />
+                  <div className="relative bg-[#111b21] rounded-2xl overflow-hidden w-[320px] shadow-2xl">
+                    <div className="px-4 py-3 bg-[#202c33] flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">Trigr Business</p>
+                        <p className="text-xs text-emerald-400">en ligne</p>
+                      </div>
+                    </div>
+                    <div className="px-4 py-5 space-y-3 min-h-[280px]">
+                      {[
+                        { from: "Sophie M.", msg: "Bonjour, vous avez des tarifs pour un devis peinture ?", me: false, time: "14:02" },
+                        { from: "Trigr", msg: "Bonjour Sophie ! Voici notre grille tarifaire 2024 :\n🎨 Peinture intérieure : 25–40 €/m²\n🏠 Ravalement façade : 35–60 €/m²\nSouhaitez-vous un devis personnalisé ?", me: true, time: "14:02", auto: true },
+                        { from: "Sophie M.", msg: "Oui s'il vous plaît ! Quand êtes-vous disponible ?", me: false, time: "14:03" },
+                        { from: "Trigr", msg: "Je vous envoie le lien pour choisir un créneau : calendly.com/artisan 📅", me: true, time: "14:03", auto: true },
+                      ].map((m, i) => (
+                        <div key={i} className={`flex ${m.me ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[220px] rounded-xl px-3 py-2 text-xs leading-relaxed relative ${m.me ? "bg-[#005c4b] text-white rounded-tr-sm" : "bg-[#202c33] text-slate-200 rounded-tl-sm"}`} style={{ whiteSpace: "pre-line" }}>
+                            {m.msg}
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span className="text-[10px] opacity-60">{m.time}</span>
+                              {m.me && m.auto && <span className="text-[10px] text-emerald-400 opacity-80">⚡ auto</span>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="absolute -right-4 top-6 bg-white border border-slate-200 shadow-lg rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-700 animate-float">
+                    ⚡ Réponse en 0.3s
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── COMPARE ─────────────────────────────────────────────────────────── */}
+        <section className="py-24 px-6 bg-white border-b border-slate-100">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Comparaison</p>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-3">Pourquoi Trigr ?</h2>
+              <p className="text-slate-500">Le seul assistant IA français conçu pour les PME et indépendants.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
+              <table className="w-full min-w-[560px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="p-4 text-left text-sm text-slate-400 font-medium w-[28%]" />
+                    <th className="p-4 text-center">
+                      <span className="text-sm font-bold text-violet-700 bg-violet-50 border border-violet-200 px-3 py-1 rounded-full">Trigr 🇫🇷</span>
+                    </th>
+                    {["Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"].map(c => (
+                      <th key={c} className="p-4 text-center border-l border-slate-100">
+                        <span className="text-xs text-slate-500 font-medium">{c}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {COMPARE.slice(1).map(([feature, trigr, lindy, make, zapier], i) => (
+                    <tr key={feature} className={`hover:bg-slate-50 transition-colors ${i < COMPARE.length - 2 ? "border-b border-slate-100" : ""}`}>
+                      <td className="p-4 text-sm text-slate-600 font-medium">{feature}</td>
+                      <td className="p-4 text-sm text-center font-semibold text-slate-900">{trigr}</td>
+                      <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{lindy}</td>
+                      <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{make}</td>
+                      <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{zapier}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-slate-400 text-center mt-4">Tarifs indicatifs constatés en juin 2026. ✅ = inclus · ⚠️ = partiel · ❌ = non disponible.</p>
           </div>
         </section>
 
