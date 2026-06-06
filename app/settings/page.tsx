@@ -93,6 +93,27 @@ export default function SettingsPage() {
     } finally { setBriefSaving(false); }
   }
 
+  // Contacts
+  type Contact = { id: string; name: string; phone?: string; email?: string; notes?: string };
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactForm, setContactForm] = useState({ name: "", phone: "", email: "" });
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactSaving, setContactSaving] = useState(false);
+
+  async function saveContact() {
+    setContactSaving(true);
+    try {
+      const r = await fetch("/api/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contact: contactForm }) });
+      const d = await r.json();
+      if (d.contacts) { setContacts(d.contacts); setContactOpen(false); setContactForm({ name: "", phone: "", email: "" }); }
+    } finally { setContactSaving(false); }
+  }
+
+  async function deleteContact(id: string) {
+    const r = await fetch("/api/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) });
+    if (r.ok) setContacts(prev => prev.filter(c => c.id !== id));
+  }
+
   // Pipedream accounts count
   const [pdCount, setPdCount] = useState(0);
 
@@ -120,6 +141,7 @@ export default function SettingsPage() {
     }).catch(() => {});
     fetch("/api/imap").then(r => r.json()).then(d => { if (d.email) setImapEmail(d.email); }).catch(() => {});
     fetch("/api/instagram").then(r => r.json()).then(d => { if (d.pageName) setIgPageName(d.pageName); }).catch(() => {});
+    fetch("/api/contacts").then(r => r.json()).then(d => { if (d.contacts) setContacts(d.contacts); }).catch(() => {});
   }, [isSignedIn]);
 
   async function saveImap() {
@@ -523,6 +545,49 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-400 mt-3 text-center">
                     Connexion OAuth sécurisée via Pipedream Connect — 20+ apps disponibles
                   </p>
+                </div>
+                {/* Contacts */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900">Mes contacts</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">L&apos;assistant résoudra les noms pour envoyer des messages (&ldquo;envoie à Marc&rdquo;)</p>
+                    </div>
+                    <button onClick={() => setContactOpen(o => !o)}
+                      className="text-xs text-violet-600 border border-violet-200 hover:bg-violet-50 px-2.5 py-1.5 rounded-lg transition-all">
+                      + Ajouter
+                    </button>
+                  </div>
+
+                  {contactOpen && (
+                    <div className="space-y-2 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom (ex: Marc)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                      <input value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="WhatsApp (ex: 33612345678)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                      <input value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="Email (optionnel)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                      <div className="flex gap-2">
+                        <button onClick={() => { setContactOpen(false); setContactForm({ name: "", phone: "", email: "" }); }} className="flex-1 text-xs text-slate-500 border border-slate-200 rounded-xl py-2 hover:bg-slate-100 transition-all">Annuler</button>
+                        <button onClick={saveContact} disabled={contactSaving || !contactForm.name} className="flex-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-2 font-semibold disabled:opacity-40 transition-all">
+                          {contactSaving ? "Sauvegarde…" : "Enregistrer"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {contacts.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4">Aucun contact enregistré</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {contacts.map(c => (
+                        <div key={c.id} className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-3 py-2.5">
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{c.name}</p>
+                            <p className="text-xs text-slate-500">{[c.phone && `WA: ${c.phone}`, c.email].filter(Boolean).join(" · ")}</p>
+                          </div>
+                          <button onClick={() => deleteContact(c.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
