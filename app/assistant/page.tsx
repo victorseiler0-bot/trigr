@@ -253,6 +253,25 @@ function loadSessions(): ConvSession[] {
 }
 
 
+function exportConversation(msgs: Msg[]) {
+  if (msgs.length === 0) return;
+  const date = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+  const lines: string[] = ["Conversation Trigr — " + date, "=".repeat(40), ""];
+  for (const m of msgs) {
+    lines.push(m.role === "user" ? "Vous :" : "Trigr :");
+    lines.push(m.content);
+    lines.push("");
+  }
+  const blob = new Blob([lines.join("
+")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "trigr-conversation-" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AssistantPage() {
   const { user } = useUser();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -495,13 +514,24 @@ export default function AssistantPage() {
               )}
             </div>
             {hasMessages && (
-              <button
-                onClick={() => { saveSession(messages); setMessages([]); try { localStorage.removeItem("trigr_history"); } catch { /* */ } }}
-                className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1.5 rounded-xl transition-all"
-                title="Nouvelle conversation"
-              >
-                + Nouveau
-              </button>
+              <>
+                <button
+                  onClick={() => exportConversation(messages)}
+                  className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 p-2 rounded-xl transition-all"
+                  title="Exporter la conversation (.txt)"
+                >
+                  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path d="M12 15l-3-3m3 3l3-3m-3 3V9M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => { saveSession(messages); setMessages([]); try { localStorage.removeItem("trigr_history"); } catch { /* */ } }}
+                  className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1.5 rounded-xl transition-all"
+                  title="Nouvelle conversation"
+                >
+                  + Nouveau
+                </button>
+              </>
             )}
             <Link href="/settings"
               className="shrink-0 flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-all shadow-sm">

@@ -706,8 +706,8 @@ async function executeTool(
   if (name === "recherche_web") {
     const { query } = args as { query: string };
     try {
-      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
-      const r = await fetch(url, { headers: { "User-Agent": "Trigr/1.0" } });
+      const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
+      const r = await fetch(ddgUrl, { headers: { "User-Agent": "Trigr/1.0" } });
       const data = await r.json() as Record<string, unknown>;
       const results: string[] = [];
       if (data.AbstractText) results.push(`**Résumé :** ${data.AbstractText}`);
@@ -720,9 +720,23 @@ async function executeTool(
         if (topics.length) results.push("**Résultats associés :**\n" + topics.join("\n"));
       }
       if (data.Answer) results.push(`**Réponse directe :** ${data.Answer}`);
+      // Fallback: Wikipedia FR when DuckDuckGo returns nothing
+      if (results.length === 0) {
+        try {
+          const wikiUrl = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+          const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Trigr/1.0" } });
+          if (wr.ok) {
+            const wd = await wr.json() as { extract?: string; title?: string; content_urls?: { desktop?: { page?: string } } };
+            if (wd.extract) {
+              results.push(`**${wd.title ?? query}** (Wikipedia)\n${wd.extract.slice(0, 600)}${wd.extract.length > 600 ? "..." : ""}`);
+              if (wd.content_urls?.desktop?.page) results.push(`Source : ${wd.content_urls.desktop.page}`);
+            }
+          }
+        } catch { /* ignore wiki fallback error */ }
+      }
       return results.length > 0
         ? results.join("\n\n")
-        : `Aucun résultat direct pour "${query}". Essaie une recherche plus précise.`;
+        : `Aucun résultat pour "${query}". Essaie une formulation différente.`;
     } catch {
       return `Erreur lors de la recherche web.`;
     }
