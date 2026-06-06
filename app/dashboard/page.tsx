@@ -7,6 +7,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
 type DayEntry = { date: string; count: number };
+type AutoResult = { id: string; name: string; result: string; date: string };
 type Analytics = {
   plan: string;
   todayCount: number;
@@ -16,6 +17,7 @@ type Analytics = {
   integrations: string[];
   history: DayEntry[];
   totalWeek: number;
+  automationResults?: AutoResult[];
 };
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
@@ -228,6 +230,29 @@ export default function DashboardPage() {
                 </div>
               </Link>
             </div>
+
+            {/* Automation results */}
+            {data.automationResults && data.automationResults.length > 0 && (
+              <div className="mt-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
+                    <span>⚡</span> Dernières automatisations
+                  </h2>
+                  <Link href="/settings?tab=automations" className="text-xs text-violet-400 hover:text-violet-300">Gérer →</Link>
+                </div>
+                <div className="space-y-3">
+                  {data.automationResults.map(ar => (
+                    <div key={ar.id} className="bg-white/[0.03] rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold text-zinc-300">{ar.name}</span>
+                        <span className="text-xs text-zinc-600">{new Date(ar.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">{ar.result}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Brief du Matin */}
             <div className="mt-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">

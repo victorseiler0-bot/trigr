@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 type Plan = "gratuit" | "pro" | "business";
-type Category = "Tous" | "Email" | "Agenda" | "WhatsApp" | "CRM" | "Productivité";
+type Category = "Tous" | "Email" | "Agenda" | "WhatsApp" | "CRM" | "Productivité" | "Artisans" | "Santé";
 
 interface Template {
   id: string;
@@ -163,9 +163,57 @@ const TEMPLATES: Template[] = [
     price: 39,
     activations: 43,
   },
+  {
+    id: "devis-artisan",
+    name: "Devis Artisan Instantané",
+    desc: "Client WhatsApp décrit sa demande → Trigr génère un devis PDF et l'envoie par email en 30s.",
+    category: "Artisans",
+    plan: "pro",
+    icon: "🔧",
+    accentColor: "orange",
+    checkoutId: "devis-artisan",
+    price: 49,
+    activations: 31,
+  },
+  {
+    id: "facturation-auto",
+    name: "Facturation Automatique",
+    desc: "Génère et envoie les factures mensuelles automatiquement à partir de tes données client.",
+    category: "Artisans",
+    plan: "pro",
+    icon: "🧾",
+    accentColor: "orange",
+    checkoutId: "facturation",
+    price: 39,
+    activations: 28,
+  },
+  {
+    id: "rdv-kine",
+    name: "Rappels RDV Santé",
+    desc: "Envoie automatiquement un rappel WhatsApp 24h avant chaque consultation. Zéro no-show.",
+    category: "Santé",
+    plan: "pro",
+    icon: "💆",
+    accentColor: "emerald",
+    checkoutId: "rdv-kine",
+    price: 29,
+    activations: 87,
+  },
+  {
+    id: "suivi-patient",
+    name: "Suivi Post-Consultation",
+    desc: "Message de suivi automatique 48h après chaque RDV pour vérifier l'évolution du patient.",
+    category: "Santé",
+    plan: "pro",
+    icon: "🏥",
+    accentColor: "emerald",
+    checkoutId: "suivi-patient",
+    price: 29,
+    activations: 52,
+  },
 ];
 
-const CATEGORIES: Category[] = ["Tous", "Email", "Agenda", "WhatsApp", "CRM", "Productivité"];
+const CATEGORIES: Category[] = ["Tous", "Email", "Agenda", "WhatsApp", "CRM", "Productivité", "Artisans", "Santé"];
 
 const planConfig = {
   gratuit: { label: "Gratuit", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },

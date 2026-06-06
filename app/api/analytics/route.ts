@@ -49,6 +49,18 @@ export async function GET() {
     if (pd.microsoft_outlook && !integrations.includes("microsoft")) integrations.push("microsoft");
   }
 
+  // Automation results (most recent per automation)
+  type Automation = { id: string; name: string };
+  const automations = (meta.automations as Automation[] | undefined) ?? [];
+  const automationResults = automations
+    .map(a => {
+      const result = meta[`autoResult_${a.id}`] as string | undefined;
+      const date = meta[`autoResultDate_${a.id}`] as string | undefined;
+      return result ? { id: a.id, name: a.name, result, date } : null;
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+
   return NextResponse.json({
     plan,
     todayCount,
@@ -58,5 +70,6 @@ export async function GET() {
     integrations,
     history: days,
     totalWeek: days.reduce((s, d) => s + d.count, 0),
+    automationResults,
   });
 }
