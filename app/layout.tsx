@@ -26,6 +26,17 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   alternates: { canonical: "https://trigr-eight.vercel.app" },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Trigr",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 async function detectLang(): Promise<string> {
@@ -44,6 +55,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <ClerkProvider localization={frFR}>
       <html lang={lang} className={inter.variable} suppressHydrationWarning>
+        <head>
+          <meta name="theme-color" content="#7c3aed" />
+          <meta name="mobile-web-app-capable" content="yes" />
+        </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
           {children}
           <CookieBanner />
