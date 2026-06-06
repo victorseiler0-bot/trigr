@@ -7,6 +7,76 @@ import Navbar from "@/components/Navbar";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+// ── Inline markdown renderer ───────────────────────────────────────────────────
+function renderInline(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  let last = 0, m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[2]) parts.push(<strong key={key++} className="font-semibold text-slate-900">{m[2]}</strong>);
+    else if (m[3]) parts.push(<em key={key++}>{m[3]}</em>);
+    else if (m[4]) parts.push(<code key={key++} className="bg-slate-100 text-violet-700 text-xs px-1 py-0.5 rounded font-mono">{m[4]}</code>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
+function MarkdownText({ content, streaming }: { content: string; streaming?: boolean }) {
+  const lines = content.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let listBuf: string[] = [];
+  let isOrdered = false;
+  let k = 0;
+
+  const flushList = () => {
+    if (!listBuf.length) return;
+    nodes.push(
+      isOrdered
+        ? <ol key={k++} className="list-decimal pl-5 space-y-0.5 my-1.5 text-sm">{listBuf.map((t, i) => <li key={i}>{renderInline(t)}</li>)}</ol>
+        : <ul key={k++} className="space-y-1 my-1.5">{listBuf.map((t, i) => <li key={i} className="flex gap-2 text-sm"><span className="text-slate-400 shrink-0 mt-0.5 select-none">•</span><span>{renderInline(t)}</span></li>)}</ul>
+    );
+    listBuf = [];
+  };
+
+  lines.forEach((line, i) => {
+    const isLast = i === lines.length - 1;
+    if (/^#{1,3} /.test(line)) {
+      flushList();
+      const level = (line.match(/^#+/) ?? [""])[0].length;
+      const txt = line.replace(/^#+\s*/, "");
+      const cls = level === 1 ? "text-base font-bold mt-2 mb-1" : "text-sm font-semibold mt-2 mb-0.5";
+      nodes.push(<p key={k++} className={cls}>{renderInline(txt)}{streaming && isLast && <span className="inline-block w-0.5 h-4 bg-violet-500 animate-pulse ml-0.5 align-middle" />}</p>);
+    } else if (/^[-*•]\s+/.test(line)) {
+      if (listBuf.length > 0 && isOrdered) flushList();
+      isOrdered = false;
+      listBuf.push(line.replace(/^[-*•]\s+/, ""));
+    } else if (/^\d+\.\s+/.test(line)) {
+      if (listBuf.length > 0 && !isOrdered) flushList();
+      isOrdered = true;
+      listBuf.push(line.replace(/^\d+\.\s+/, ""));
+    } else if (line.trim() === "---") {
+      flushList();
+      nodes.push(<hr key={k++} className="border-slate-200 my-2" />);
+    } else if (line.trim() === "") {
+      flushList();
+      if (nodes.length) nodes.push(<div key={k++} className="h-2" />);
+    } else {
+      flushList();
+      nodes.push(
+        <p key={k++} className="text-sm leading-relaxed">
+          {renderInline(line)}
+          {streaming && isLast && <span className="inline-block w-0.5 h-4 bg-violet-500 animate-pulse ml-0.5 align-middle" />}
+        </p>
+      );
+    }
+  });
+  flushList();
+  return <>{nodes}</>;
+}
+
 // ── Quick suggestions ──────────────────────────────────────────────────────────
 const QUICK_SUGGESTIONS = [
   { icon: "✉️", category: "Email", prompts: [
@@ -135,31 +205,38 @@ export default function AssistantPage() {
       // SSE streaming
       const reader = r.body!.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
+      let sseBuffer = "";
       let accumulated = "";
-      const streamMsg: Msg = { role: "assistant", content: "" };
-      setMessages([...next, streamMsg]);
+      let streamStarted = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
             const evt = JSON.parse(line.slice(6));
             if (evt.c) {
               accumulated += evt.c;
-              setMessages(prev => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { role: "assistant", content: accumulated };
-                return copy;
-              });
+              if (!streamStarted) {
+                streamStarted = true;
+                setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
+              } else {
+                setMessages(prev => {
+                  const copy = [...prev];
+                  copy[copy.length - 1] = { role: "assistant", content: accumulated };
+                  return copy;
+                });
+              }
             }
           } catch { /* ignore malformed chunks */ }
         }
+      }
+      if (!streamStarted) {
+        setMessages(prev => [...prev, { role: "assistant", content: "(réponse vide)" }]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
@@ -206,7 +283,7 @@ export default function AssistantPage() {
                 + Nouveau
               </button>
             )}
-            <Link href="/integrations"
+            <Link href="/settings"
               className="shrink-0 flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-all shadow-sm">
               <span className={`w-1.5 h-1.5 rounded-full ${connectedCount > 0 ? "status-connected" : "status-disconnected"}`} />
               {connectedCount} connectée{connectedCount !== 1 ? "s" : ""}
@@ -226,7 +303,7 @@ export default function AssistantPage() {
               <p className="text-sm font-semibold text-amber-900">Aucune intégration connectée</p>
               <p className="text-xs text-amber-700 mt-0.5">Connecte Gmail, Slack ou Notion pour que l&apos;assistant puisse vraiment t&apos;aider.</p>
             </div>
-            <Link href="/integrations" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all">
+            <Link href="/settings" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all">
               Connecter
             </Link>
           </div>
@@ -259,19 +336,25 @@ export default function AssistantPage() {
         {hasMessages && (
           <div ref={scrollRef}
             className="flex-1 min-h-[40vh] max-h-[60vh] overflow-y-auto space-y-5 mb-5 px-1">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-3 animate-fade-up ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-                {m.role === "user" ? <UserAvatar initials={initials} /> : <BotAvatar />}
-                <div className={`max-w-[78%] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap rounded-2xl ${
-                  m.role === "user"
-                    ? "bg-violet-600 text-white rounded-tr-md"
-                    : "bg-white border border-slate-200 text-slate-800 rounded-tl-md shadow-sm"
-                }`}>
-                  {m.content}
+            {messages.map((m, i) => {
+              const isStreamingMsg = loading && i === messages.length - 1 && m.role === "assistant";
+              return (
+                <div key={i} className={`flex gap-3 animate-fade-up ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+                  {m.role === "user" ? <UserAvatar initials={initials} /> : <BotAvatar />}
+                  <div className={`max-w-[78%] px-4 py-2.5 rounded-2xl ${
+                    m.role === "user"
+                      ? "bg-violet-600 text-white rounded-tr-md text-sm leading-relaxed"
+                      : "bg-white border border-slate-200 text-slate-800 rounded-tl-md shadow-sm"
+                  }`}>
+                    {m.role === "user"
+                      ? m.content
+                      : <MarkdownText content={m.content} streaming={isStreamingMsg} />
+                    }
+                  </div>
                 </div>
-              </div>
-            ))}
-            {loading && (
+              );
+            })}
+            {loading && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex gap-3 animate-fade-up">
                 <BotAvatar />
                 <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex gap-1.5">
