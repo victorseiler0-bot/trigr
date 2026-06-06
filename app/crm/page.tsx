@@ -45,6 +45,8 @@ export default function CrmPage() {
   const [deleting, setDeleting] = useState("");
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
   const sheetUrl = useRef<string>("");
 
   async function load() {
@@ -97,6 +99,28 @@ export default function CrmPage() {
       await load();
     } finally {
       setDeleting("");
+    }
+  }
+
+  async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingCsv(true);
+    setImportMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/crm/import-csv", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) { setImportMsg({ text: d.error ?? "Erreur import CSV", ok: false }); return; }
+      setImportMsg({ text: `${d.imported} contact(s) importé(s) depuis CSV`, ok: true });
+      await load();
+    } catch {
+      setImportMsg({ text: "Erreur réseau", ok: false });
+    } finally {
+      setImportingCsv(false);
+      if (csvInputRef.current) csvInputRef.current.value = "";
+      setTimeout(() => setImportMsg(null), 5000);
     }
   }
 
@@ -155,6 +179,16 @@ export default function CrmPage() {
                 Voir dans Sheets
               </a>
             )}
+            <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportCsv} />
+            <button onClick={() => csvInputRef.current?.click()} disabled={importingCsv}
+              className="text-sm px-3 py-2 rounded-xl border border-white/[0.08] text-zinc-300 hover:text-white hover:border-white/20 disabled:opacity-40 transition-all flex items-center gap-1.5">
+              {importingCsv ? (
+                <svg className="animate-spin" width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+              ) : (
+                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              )}
+              {importingCsv ? "Import…" : "CSV"}
+            </button>
             <button onClick={handleImportGoogle} disabled={importing}
               className="text-sm px-3 py-2 rounded-xl border border-white/[0.08] text-zinc-300 hover:text-white hover:border-white/20 disabled:opacity-40 transition-all flex items-center gap-1.5">
               {importing ? (
