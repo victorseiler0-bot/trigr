@@ -7,7 +7,7 @@ export default function SSOCallbackPage() {
       <div className="text-zinc-500 text-sm animate-pulse">Connexion en cours…</div>
       <AuthenticateWithRedirectCallback
         signInForceRedirectUrl="/assistant"
-        signUpForceRedirectUrl="/assistant"
+        signUpForceRedirectUrl="/onboarding"
       />
     </div>
   );

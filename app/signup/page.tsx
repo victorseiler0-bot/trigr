@@ -22,7 +22,7 @@ export default function SignupPage() {
       await clerk.client.signUp.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: "/assistant",
+        redirectUrlComplete: "/onboarding",
       });
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Erreur Google");
@@ -37,7 +37,7 @@ export default function SignupPage() {
       await clerk.client.signUp.authenticateWithRedirect({
         strategy: "oauth_microsoft",
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: "/assistant",
+        redirectUrlComplete: "/onboarding",
       });
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Erreur Microsoft");
