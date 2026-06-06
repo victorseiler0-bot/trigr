@@ -150,8 +150,12 @@ export default function AssistantPage() {
   const [error, setError] = useState<string | null>(null);
   const [connectedCount, setConnectedCount] = useState(0);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [listening, setListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   // Load history from localStorage on mount + read ?prefill= URL param
   useEffect(() => {
@@ -260,6 +264,8 @@ export default function AssistantPage() {
                   return copy;
                 });
               }
+            } else if (evt.done) {
+              if (typeof evt.remaining === "number") setRemaining(evt.remaining);
             }
           } catch { /* ignore malformed chunks */ }
         }
@@ -279,6 +285,37 @@ export default function AssistantPage() {
       e.preventDefault();
       send(input);
     }
+  }
+
+  function toggleVoice() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return; }
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SR();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (evt: any) => {
+      const transcript = evt.results[0][0].transcript as string;
+      setInput(prev => (prev ? prev + " " + transcript : transcript));
+      inputRef.current?.focus();
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
   }
 
   const hasMessages = messages.length > 0;
@@ -429,6 +466,17 @@ export default function AssistantPage() {
               rows={1}
               className="flex-1 resize-none bg-transparent border-0 focus:outline-none text-sm text-slate-900 placeholder:text-slate-400 py-1.5 px-2 max-h-[200px]"
             />
+            <button
+              type="button"
+              onClick={toggleVoice}
+              title={listening ? "Arrêter l'écoute" : "Dicter un message"}
+              className={`shrink-0 p-2.5 rounded-xl transition-all ${listening ? "bg-red-100 text-red-500 animate-pulse" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="9" y="2" width="6" height="11" rx="3"/>
+                <path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
             <button type="submit" disabled={loading || !input.trim()}
               className="shrink-0 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all">
               {loading
@@ -438,13 +486,20 @@ export default function AssistantPage() {
             </button>
           </div>
           <div className="px-4 pb-2 flex items-center justify-between text-xs text-slate-400">
-            <span>⏎ pour envoyer · ⇧⏎ pour aller à la ligne</span>
-            {hasMessages && (
-              <button type="button" onClick={() => { setMessages([]); setError(null); }}
-                className="text-slate-400 hover:text-slate-700 transition-colors">
-                Nouvelle conversation
-              </button>
-            )}
+            <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours… parlez maintenant</span> : "⏎ pour envoyer · ⇧⏎ pour aller à la ligne"}</span>
+            <div className="flex items-center gap-3">
+              {remaining !== null && remaining < 20 && (
+                <span className={remaining === 0 ? "text-red-500 font-medium" : "text-amber-500"}>
+                  {remaining} action{remaining > 1 ? "s" : ""} restante{remaining > 1 ? "s" : ""}
+                </span>
+              )}
+              {hasMessages && (
+                <button type="button" onClick={() => { setMessages([]); setError(null); }}
+                  className="text-slate-400 hover:text-slate-700 transition-colors">
+                  Nouvelle conversation
+                </button>
+              )}
+            </div>
           </div>
         </form>
 
