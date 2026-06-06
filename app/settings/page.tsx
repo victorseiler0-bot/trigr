@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
-type Tab = "account" | "workflows" | "subscription";
+type Tab = "account" | "workflows" | "automations" | "subscription";
 type WaStatus = "idle" | "checking" | "connected";
 type HealthResult = { ok: boolean; message: string };
 type HealthMap = Record<string, HealthResult & { loading?: boolean }>;
@@ -114,6 +114,60 @@ export default function SettingsPage() {
     if (r.ok) setContacts(prev => prev.filter(c => c.id !== id));
   }
 
+  // Automations
+  type Automation = { id: string; name: string; prompt: string; schedule: string; channel: "wa" | "dashboard"; enabled: boolean; lastRun?: string };
+  const [automations, setAutomations] = useState<Automation[]>([]);
+  const [autoForm, setAutoForm] = useState<Partial<Automation>>({ schedule: "daily_8am", channel: "dashboard", enabled: true });
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [autoRunning, setAutoRunning] = useState<string | null>(null);
+
+  const SCHEDULE_OPTS = [
+    { value: "daily_7am", label: "Tous les jours à 7h" },
+    { value: "daily_8am", label: "Tous les jours à 8h" },
+    { value: "daily_9am", label: "Tous les jours à 9h" },
+    { value: "daily_6pm", label: "Tous les jours à 18h" },
+    { value: "weekly_monday", label: "Chaque lundi matin" },
+    { value: "weekly_friday", label: "Chaque vendredi soir" },
+  ];
+
+  async function saveAutomation() {
+    if (!autoForm.name || !autoForm.prompt || !autoForm.schedule) return;
+    setAutoSaving(true);
+    const automation: Automation = {
+      id: autoForm.id ?? `auto_${Date.now()}`,
+      name: autoForm.name,
+      prompt: autoForm.prompt,
+      schedule: autoForm.schedule,
+      channel: autoForm.channel ?? "dashboard",
+      enabled: autoForm.enabled ?? true,
+    };
+    try {
+      const r = await fetch("/api/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ automation }) });
+      const d = await r.json();
+      if (d.automations) { setAutomations(d.automations); setAutoOpen(false); setAutoForm({ schedule: "daily_8am", channel: "dashboard", enabled: true }); }
+    } finally { setAutoSaving(false); }
+  }
+
+  async function toggleAutomation(id: string) {
+    const r = await fetch("/api/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle", id }) });
+    if (r.ok) { const d = await r.json(); setAutomations(d.automations); }
+  }
+
+  async function deleteAutomation(id: string) {
+    const r = await fetch("/api/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) });
+    if (r.ok) setAutomations(prev => prev.filter(a => a.id !== id));
+  }
+
+  async function runAutomation(id: string) {
+    setAutoRunning(id);
+    try {
+      const r = await fetch("/api/automations", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const d = await r.json();
+      if (d.result) alert(d.result);
+    } finally { setAutoRunning(null); }
+  }
+
   // Pipedream accounts count
   const [pdCount, setPdCount] = useState(0);
 
@@ -142,6 +196,7 @@ export default function SettingsPage() {
     fetch("/api/imap").then(r => r.json()).then(d => { if (d.email) setImapEmail(d.email); }).catch(() => {});
     fetch("/api/instagram").then(r => r.json()).then(d => { if (d.pageName) setIgPageName(d.pageName); }).catch(() => {});
     fetch("/api/contacts").then(r => r.json()).then(d => { if (d.contacts) setContacts(d.contacts); }).catch(() => {});
+    fetch("/api/automations").then(r => r.json()).then(d => { if (d.automations) setAutomations(d.automations); }).catch(() => {});
   }, [isSignedIn]);
 
   async function saveImap() {
@@ -236,6 +291,7 @@ export default function SettingsPage() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "account", label: "Compte" },
+    { id: "automations", label: "Automatisations" },
     { id: "workflows", label: "Workflows n8n" },
     { id: "subscription", label: "Abonnement" },
   ];
@@ -590,6 +646,132 @@ export default function SettingsPage() {
                   )}
                 </div>
               </>
+            )}
+
+            {/* ── AUTOMATISATIONS ─────────────────────────────────────────── */}
+            {activeTab === "automations" && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900 mb-1">Automatisations planifiées</h2>
+                    <p className="text-sm text-slate-500">Des prompts exécutés automatiquement selon un planning.</p>
+                  </div>
+                  <button
+                    onClick={() => { setAutoForm({ schedule: "daily_8am", channel: "dashboard", enabled: true }); setAutoOpen(true); }}
+                    className="text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl transition-all"
+                  >
+                    + Nouvelle
+                  </button>
+                </div>
+
+                {automations.length === 0 && !autoOpen && (
+                  <div className="rounded-2xl border-2 border-dashed border-slate-200 py-10 text-center">
+                    <p className="text-sm text-slate-400 mb-2">Aucune automatisation</p>
+                    <p className="text-xs text-slate-300">Exemple : &ldquo;Chaque matin, envoie-moi un résumé de mes emails&rdquo;</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {automations.map(auto => (
+                    <div key={auto.id} className={`rounded-2xl border p-4 flex items-start gap-3 ${auto.enabled ? "border-violet-200 bg-violet-50/50" : "border-slate-200 bg-white"}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-slate-900 truncate">{auto.name}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${auto.enabled ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"}`}>
+                            {auto.enabled ? "Actif" : "Inactif"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 truncate mb-1">{auto.prompt}</p>
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <span>🕐 {SCHEDULE_OPTS.find(s => s.value === auto.schedule)?.label ?? auto.schedule}</span>
+                          <span>{auto.channel === "wa" ? "📱 WhatsApp" : "💻 Dashboard"}</span>
+                          {auto.lastRun && <span>Dernier : {new Date(auto.lastRun).toLocaleDateString("fr-FR")}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => runAutomation(auto.id)}
+                          disabled={autoRunning === auto.id}
+                          className="text-xs text-violet-600 hover:text-violet-800 border border-violet-200 px-2.5 py-1.5 rounded-lg disabled:opacity-40 transition-all"
+                          title="Exécuter maintenant"
+                        >
+                          {autoRunning === auto.id ? "…" : "▶"}
+                        </button>
+                        <button
+                          onClick={() => toggleAutomation(auto.id)}
+                          className={`relative w-10 h-5 rounded-full shrink-0 transition-all ${auto.enabled ? "bg-violet-500" : "bg-slate-300"}`}
+                        >
+                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${auto.enabled ? "left-5" : "left-0.5"}`} />
+                        </button>
+                        <button
+                          onClick={() => deleteAutomation(auto.id)}
+                          className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                          title="Supprimer"
+                        >
+                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l8 8M11 3l-8 8" strokeLinecap="round"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {autoOpen && (
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50/30 p-5 space-y-3">
+                    <h3 className="text-sm font-semibold text-slate-900">Nouvelle automatisation</h3>
+                    <input
+                      value={autoForm.name ?? ""}
+                      onChange={e => setAutoForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="Nom (ex: Brief du matin)"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    />
+                    <textarea
+                      value={autoForm.prompt ?? ""}
+                      onChange={e => setAutoForm(f => ({ ...f, prompt: e.target.value }))}
+                      placeholder="Prompt (ex: Donne-moi un résumé de mes emails non lus et de mon agenda du jour)"
+                      rows={3}
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-slate-500 mb-1 block">Planning</label>
+                        <select
+                          value={autoForm.schedule ?? "daily_8am"}
+                          onChange={e => setAutoForm(f => ({ ...f, schedule: e.target.value }))}
+                          className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none bg-white"
+                        >
+                          {SCHEDULE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500 mb-1 block">Livraison</label>
+                        <select
+                          value={autoForm.channel ?? "dashboard"}
+                          onChange={e => setAutoForm(f => ({ ...f, channel: e.target.value as "wa" | "dashboard" }))}
+                          className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none bg-white"
+                        >
+                          <option value="dashboard">Dashboard</option>
+                          <option value="wa">WhatsApp</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveAutomation}
+                        disabled={autoSaving || !autoForm.name || !autoForm.prompt}
+                        className="flex-1 text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl disabled:opacity-40 transition-all"
+                      >
+                        {autoSaving ? "Sauvegarde…" : "Créer l'automatisation"}
+                      </button>
+                      <button
+                        onClick={() => setAutoOpen(false)}
+                        className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-xl border border-slate-200 transition-all"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* ── WORKFLOWS N8N ───────────────────────────────────────────── */}
