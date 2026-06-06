@@ -54,14 +54,19 @@ async function pdPost(
   }
 }
 
-function buildSystemPrompt(compact = false) {
+type SavedContact = { id: string; name: string; phone?: string; email?: string; notes?: string };
+
+function buildSystemPrompt(compact = false, contacts: SavedContact[] = []) {
   const date = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  const contactsBlock = contacts.length > 0
+    ? `\nContacts enregistrés de l'utilisateur :\n${contacts.map(c => `- ${c.name}${c.phone ? ` (WA: ${c.phone})` : ""}${c.email ? ` (email: ${c.email})` : ""}${c.notes ? ` — ${c.notes}` : ""}`).join("\n")}\n`
+    : "";
   if (compact) {
-    return `Tu es Trigr, assistant IA personnel. Réponds en français, concis. Date: ${date}. Utilise les outils disponibles pour aider l'utilisateur.`;
+    return `Tu es Trigr, assistant IA personnel. Réponds en français, concis. Date: ${date}.${contactsBlock}Utilise les outils disponibles pour aider l'utilisateur.`;
   }
   return `Tu es l'assistant IA personnel de l'utilisateur. Tu réponds toujours en français, de manière concise et utile.
 Date et heure actuelles : ${date}
-
+${contactsBlock}
 Outils disponibles selon les connexions :
 - Google : lire_emails, envoyer_email, voir_agenda, creer_evenement
 - Microsoft : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams
@@ -72,10 +77,11 @@ Outils disponibles selon les connexions :
 - Slack : voir_canaux_slack, lire_messages_slack, envoyer_slack
 - HubSpot : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
 - GitHub : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
+- Contacts : voir_mes_contacts, ajouter_contact, supprimer_contact
 
 RÈGLES :
 1. WhatsApp/Instagram : utilise TOUJOURS voir_chats d'abord pour avoir les IDs.
-2. Envoyer WA : numéro sans + ni espaces (ex: "336XXXXXXXX").
+2. Envoyer WA : numéro sans + ni espaces (ex: "336XXXXXXXX"). Si l'utilisateur dit "envoie à Marc", cherche Marc dans ses contacts enregistrés.
 3. Au 1er message sans historique : vérifie les messages non lus WA et Instagram.
 4. Si outil retourne "setup" : explique les étapes clairement une fois.`;
 }
@@ -633,6 +639,41 @@ async function executeTool(
     return JSON.stringify(result);
   }
 
+  // ─── Contacts ─────────────────────────────────────────────────────────────────
+  if (name === "voir_mes_contacts") {
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const contacts = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+    return JSON.stringify({ contacts: contacts.length > 0 ? contacts : [], message: contacts.length === 0 ? "Aucun contact enregistré. Utilisez ajouter_contact pour en créer." : undefined });
+  }
+
+  if (name === "ajouter_contact") {
+    const { name: cName, phone, email, notes } = args as { name: string; phone?: string; email?: string; notes?: string };
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const existing = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+    const idx = existing.findIndex(c => c.name.toLowerCase() === cName.toLowerCase());
+    let updated: SavedContact[];
+    if (idx >= 0) {
+      updated = existing.map((c, i) => i === idx ? { ...c, phone: phone ?? c.phone, email: email ?? c.email, notes: notes ?? c.notes } : c);
+    } else {
+      updated = [...existing, { id: Date.now().toString(), name: cName, phone, email, notes }];
+    }
+    await clerk.users.updateUserMetadata(userId, { privateMetadata: { userContacts: updated } });
+    return JSON.stringify({ success: true, message: idx >= 0 ? `Contact ${cName} mis à jour.` : `Contact ${cName} ajouté.` });
+  }
+
+  if (name === "supprimer_contact") {
+    const { name: cName } = args as { name: string };
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const existing = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+    const updated = existing.filter(c => c.name.toLowerCase() !== cName.toLowerCase());
+    if (updated.length === existing.length) return JSON.stringify({ error: `Contact "${cName}" non trouvé.` });
+    await clerk.users.updateUserMetadata(userId, { privateMetadata: { userContacts: updated } });
+    return JSON.stringify({ success: true, message: `Contact ${cName} supprimé.` });
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -726,6 +767,13 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     );
   }
 
+  // Contacts — always available
+  tools.push(
+    { type: "function", function: { name: "voir_mes_contacts", description: "Voir les contacts enregistrés par l'utilisateur (numéros WhatsApp, emails, notes).", parameters: { type: "object" as const, properties: {} } } },
+    { type: "function", function: { name: "ajouter_contact", description: "Ajouter ou mettre à jour un contact (nom, téléphone WhatsApp, email, notes).", parameters: { type: "object" as const, properties: { name: { type: "string" }, phone: { type: "string", description: "Numéro WhatsApp sans + ni espaces" }, email: { type: "string" }, notes: { type: "string" } }, required: ["name"] } } },
+    { type: "function", function: { name: "supprimer_contact", description: "Supprimer un contact enregistré par son nom.", parameters: { type: "object" as const, properties: { name: { type: "string" } }, required: ["name"] } } }
+  );
+
   return tools;
 }
 
@@ -765,6 +813,7 @@ export async function POST(req: NextRequest) {
     let waStoredMessages: WaMessage[] = [];
     let imapConfig: ImapConfig | null = null;
     let igMeta: { token: string; pageId: string } | null = null;
+    let userContacts: SavedContact[] = [];
     const waMetaToken = process.env.WHATSAPP_TOKEN;
     const waPhoneId   = process.env.WHATSAPP_PHONE_NUMBER_ID;
     try {
@@ -788,6 +837,7 @@ export async function POST(req: NextRequest) {
       waStoredMessages = (pm.waMessages as WaMessage[]) ?? [];
       if (pm.imap) imapConfig = pm.imap as ImapConfig;
       if (pm.igMeta) igMeta = pm.igMeta as { token: string; pageId: string };
+      userContacts = (pm.userContacts as SavedContact[]) ?? [];
 
       // Auto-subscribe WABA au webhook Meta si pas encore fait et token Meta dispo
       if (waMetaToken && waPhoneId && !pm.wabaSubscribed) {
@@ -808,7 +858,7 @@ export async function POST(req: NextRequest) {
 
     let compact = false; // passe en mode compact si contexte trop grand
     const buildMessages = (): OpenAI.Chat.ChatCompletionMessageParam[] => [
-      { role: "system", content: buildSystemPrompt(compact) },
+      { role: "system", content: buildSystemPrompt(compact, userContacts) },
       ...history.slice(compact ? -2 : -16).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: message },
     ];
