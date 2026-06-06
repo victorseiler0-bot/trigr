@@ -85,6 +85,7 @@ ${contactsBlock}
 - HubSpot : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
 - GitHub : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
 - Contacts : voir_mes_contacts, ajouter_contact, supprimer_contact
+- Web : recherche_web (actualités, infos, météo, cours, etc.)
 
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
@@ -682,6 +683,31 @@ async function executeTool(
     return JSON.stringify({ success: true, message: `Contact ${cName} supprimé.` });
   }
 
+  if (name === "recherche_web") {
+    const { query } = args as { query: string };
+    try {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
+      const r = await fetch(url, { headers: { "User-Agent": "Trigr/1.0" } });
+      const data = await r.json() as Record<string, unknown>;
+      const results: string[] = [];
+      if (data.AbstractText) results.push(`**Résumé :** ${data.AbstractText}`);
+      if (data.AbstractSource) results.push(`Source : ${data.AbstractSource}`);
+      if (Array.isArray(data.RelatedTopics)) {
+        const topics = (data.RelatedTopics as Array<Record<string, unknown>>)
+          .filter(t => t.Text)
+          .slice(0, 5)
+          .map(t => `- ${t.Text}`);
+        if (topics.length) results.push("**Résultats associés :**\n" + topics.join("\n"));
+      }
+      if (data.Answer) results.push(`**Réponse directe :** ${data.Answer}`);
+      return results.length > 0
+        ? results.join("\n\n")
+        : `Aucun résultat direct pour "${query}". Essaie une recherche plus précise.`;
+    } catch {
+      return `Erreur lors de la recherche web.`;
+    }
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -780,6 +806,11 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     { type: "function", function: { name: "voir_mes_contacts", description: "Voir les contacts enregistrés par l'utilisateur (numéros WhatsApp, emails, notes).", parameters: { type: "object" as const, properties: {} } } },
     { type: "function", function: { name: "ajouter_contact", description: "Ajouter ou mettre à jour un contact (nom, téléphone WhatsApp, email, notes).", parameters: { type: "object" as const, properties: { name: { type: "string" }, phone: { type: "string", description: "Numéro WhatsApp sans + ni espaces" }, email: { type: "string" }, notes: { type: "string" } }, required: ["name"] } } },
     { type: "function", function: { name: "supprimer_contact", description: "Supprimer un contact enregistré par son nom.", parameters: { type: "object" as const, properties: { name: { type: "string" } }, required: ["name"] } } }
+  );
+
+  // Web search — always available
+  tools.push(
+    { type: "function", function: { name: "recherche_web", description: "Rechercher des informations sur internet (actualités, infos entreprises, météo, cours bourse, etc.).", parameters: { type: "object" as const, properties: { query: { type: "string", description: "Requête de recherche en français ou anglais" } }, required: ["query"] } } }
   );
 
   return tools;

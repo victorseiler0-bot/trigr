@@ -99,6 +99,11 @@ const QUICK_SUGGESTIONS = [
     { label: "Résumé journée", prompt: "Fais-moi un résumé de ma journée et ce qui reste à faire" },
     { label: "Préparer demain", prompt: "Aide-moi à préparer ma journée de demain" },
   ]},
+  { icon: "🔍", category: "Recherche", prompts: [
+    { label: "Actualités", prompt: "Quelles sont les dernières actualités importantes en France ?" },
+    { label: "Météo France", prompt: "Quel temps fait-il en France aujourd'hui ?" },
+    { label: "Infos entreprise", prompt: "Recherche des informations sur une entreprise" },
+  ]},
 ];
 
 // ── Avatar AI ──────────────────────────────────────────────────────────────────
