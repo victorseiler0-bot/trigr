@@ -147,6 +147,89 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+// ── Smart action detection ─────────────────────────────────────────────────────
+type SmartActionType = { type: "email"; subject: string } | { type: "devis" } | { type: "document" } | null;
+
+function detectSmartAction(content: string): SmartActionType {
+  const subjectMatch = content.match(/Objet\s*:\s*([^\n]+)/i);
+  if (subjectMatch || /Cordialement[,\s]|Bien cordialement|Veuillez agréer/.test(content)) {
+    return { type: "email", subject: subjectMatch?.[1]?.trim() ?? "" };
+  }
+  if (/TOTAL TTC|sous-total HT|TVA 20%/.test(content)) {
+    return { type: "devis" };
+  }
+  if (/Article \d+|Clause \d+|CONTRAT|CONDITIONS GÉNÉRALES/i.test(content)) {
+    return { type: "document" };
+  }
+  return null;
+}
+
+function SmartActionBar({ content }: { content: string }) {
+  const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
+  const action = detectSmartAction(content);
+  if (!action) return null;
+
+  function copyWithLabel(label: string) {
+    navigator.clipboard.writeText(content);
+    setCopiedLabel(label);
+    setTimeout(() => setCopiedLabel(null), 2000);
+  }
+
+  function downloadTxt(filename: string) {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const greenBtn = "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100";
+  const blueBtn  = "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100";
+  const slateBtn = "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100";
+
+  if (action.type === "email") {
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(action.subject)}&body=${encodeURIComponent(content)}`;
+    return (
+      <div className="flex gap-2 mt-2 flex-wrap ml-0.5">
+        <button onClick={() => copyWithLabel("email")} className={greenBtn}>
+          {copiedLabel === "email" ? "✅ Copié !" : "📋 Copier l'email"}
+        </button>
+        <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className={blueBtn}>
+          ✉️ Ouvrir dans Gmail
+        </a>
+      </div>
+    );
+  }
+
+  if (action.type === "devis") {
+    return (
+      <div className="flex gap-2 mt-2 flex-wrap ml-0.5">
+        <button onClick={() => copyWithLabel("devis")} className={greenBtn}>
+          {copiedLabel === "devis" ? "✅ Copié !" : "📋 Copier le devis"}
+        </button>
+        <button onClick={() => downloadTxt("devis.txt")} className={slateBtn}>
+          ⬇️ Télécharger .txt
+        </button>
+      </div>
+    );
+  }
+
+  if (action.type === "document") {
+    return (
+      <div className="flex gap-2 mt-2 flex-wrap ml-0.5">
+        <button onClick={() => copyWithLabel("doc")} className={greenBtn}>
+          {copiedLabel === "doc" ? "✅ Copié !" : "📋 Copier le document"}
+        </button>
+        <button onClick={() => downloadTxt("document.txt")} className={slateBtn}>
+          ⬇️ Télécharger .txt
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function AssistantPage() {
   const { user } = useUser();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -427,6 +510,9 @@ export default function AssistantPage() {
                       <CopyButton text={m.content} />
                     )}
                   </div>
+                  {m.role === "assistant" && !isStreamingMsg && m.content && (
+                    <SmartActionBar content={m.content} />
+                  )}
                 </div>
               );
             })}
