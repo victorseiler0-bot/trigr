@@ -6,6 +6,8 @@ import { frFR } from "@clerk/localizations";
 import "./globals.css";
 import CookieBanner from "@/components/CookieBanner";
 import { ToastProvider } from "@/components/Toast";
+import StoreProvider from "@/components/StoreProvider";
+import CommandPalette from "@/components/CommandPalette";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -61,10 +63,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <meta name="mobile-web-app-capable" content="yes" />
         </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
-          <ToastProvider>
-            {children}
-            <CookieBanner />
-          </ToastProvider>
+          <StoreProvider>
+            <ToastProvider>
+              {children}
+              <CookieBanner />
+              <CommandPalette />
+            </ToastProvider>
+          </StoreProvider>
         </body>
       </html>
     </ClerkProvider>

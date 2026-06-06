@@ -166,6 +166,80 @@ Cordialement,
   },
 ];
 
+function TwentyCrmSection() {
+  const [url, setUrl]   = useState("");
+  const [key, setKey]   = useState("");
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [status, setStatus]   = useState<null | { ok: boolean; msg: string }>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("trigr_twenty");
+      if (stored) { const d = JSON.parse(stored); setUrl(d.url ?? ""); setKey(d.key ?? ""); }
+    } catch { /* ignore */ }
+  }, []);
+
+  function save() {
+    localStorage.setItem("trigr_twenty", JSON.stringify({ url, key }));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function testConnection() {
+    if (!url || !key) return;
+    setTesting(true);
+    setStatus(null);
+    try {
+      const base = url.replace(/\/$/, "");
+      const r = await fetch(`${base}/metadata`, { headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" } });
+      if (r.ok) setStatus({ ok: true, msg: "Connexion réussie ✓" });
+      else setStatus({ ok: false, msg: `Erreur ${r.status} — vérifie l'URL et le token.` });
+    } catch {
+      setStatus({ ok: false, msg: "Impossible de joindre l'instance Twenty." });
+    } finally { setTesting(false); }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white text-sm font-bold">20</div>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Twenty CRM <span className="text-xs text-slate-400 font-normal ml-1">(optionnel)</span></h2>
+          <p className="text-xs text-slate-400">Connecte ton instance Twenty open-source comme CRM alternatif.</p>
+        </div>
+        <a href="https://twenty.com" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-violet-600 hover:underline">twenty.com →</a>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-slate-500 mb-1 block">URL de l&apos;instance</label>
+          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://app.twenty.com ou https://ton-instance.com"
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 mb-1 block">API Token</label>
+          <input value={key} onChange={e => setKey(e.target.value)} type="password" placeholder="eyJhbGci…"
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+          <p className="text-xs text-slate-400 mt-1">Settings → API → Generate Token dans ton workspace Twenty.</p>
+        </div>
+        {status && (
+          <p className={`text-xs px-3 py-2 rounded-lg ${status.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{status.msg}</p>
+        )}
+        <div className="flex gap-2">
+          <button onClick={testConnection} disabled={testing || !url || !key}
+            className="text-sm px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all">
+            {testing ? "Test…" : "Tester"}
+          </button>
+          <button onClick={save} disabled={!url || !key}
+            className="text-sm px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-700 disabled:opacity-40 transition-all">
+            {saved ? "Enregistré ✓" : "Enregistrer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -902,6 +976,9 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
+
+            {/* ── TWENTY CRM ─────────────────────────────────────────────── */}
+            {activeTab === "account" && <TwentyCrmSection />}
 
             {/* ── MODÈLES D'EMAIL ────────────────────────────────────────── */}
             {activeTab === "templates" && (

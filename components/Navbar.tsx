@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useUser, SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { setWaUnread, setEmailUnread } from "@/lib/slices/notificationsSlice";
 
 const PUBLIC_NAV = [
   ["/#fonctions", "Fonctionnalités"],
@@ -23,12 +25,34 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { isSignedIn, user } = useUser();
+  const dispatch = useAppDispatch();
+  const waUnread    = useAppSelector(s => s.notifications.waUnreadCount);
+  const emailUnread = useAppSelector(s => s.notifications.emailUnreadCount);
+  const totalUnread = waUnread + emailUnread;
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch("/api/notifications")
+      .then(r => r.json())
+      .then(d => {
+        dispatch(setWaUnread(d.waUnread ?? 0));
+        dispatch(setEmailUnread(d.emailUnread ?? 0));
+      })
+      .catch(() => {});
+    const interval = setInterval(() => {
+      fetch("/api/notifications").then(r => r.json()).then(d => {
+        dispatch(setWaUnread(d.waUnread ?? 0));
+        dispatch(setEmailUnread(d.emailUnread ?? 0));
+      }).catch(() => {});
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [isSignedIn, dispatch]);
 
   const navLinks = isSignedIn ? APP_NAV : PUBLIC_NAV;
 
@@ -52,8 +76,13 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(([href, label]) => (
             <Link key={href} href={href}
-              className="text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-all font-medium">
+              className="relative text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-all font-medium flex items-center gap-1.5">
               {label}
+              {isSignedIn && href === "/assistant" && totalUnread > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-violet-600 text-white rounded-full leading-none">
+                  {totalUnread > 99 ? "99+" : totalUnread}
+                </span>
+              )}
             </Link>
           ))}
         </div>
