@@ -284,12 +284,16 @@ export default function AssistantPage() {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sessions, setSessions] = useState<ConvSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
-  // Load history from localStorage on mount + read ?prefill= URL param
+  // Load sessions + history on mount + ?prefill= URL param
   useEffect(() => {
     try {
       const saved = localStorage.getItem("autozen_history");
@@ -298,6 +302,7 @@ export default function AssistantPage() {
         if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
       }
     } catch { /* ignore */ }
+    setSessions(loadSessions());
     setHistoryLoaded(true);
 
     // Pre-fill input from URL param (e.g. from CRM "Contacter avec Autozen")
@@ -454,91 +459,166 @@ export default function AssistantPage() {
   const initials = (user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "");
   const displayName = user?.firstName || user?.primaryEmailAddress?.emailAddress?.split("@")[0];
 
+  // Helpers sidebar
+  function refreshSessions() { setSessions(loadSessions()); }
+
+  function handleNewConversation() {
+    if (messages.length > 0) {
+      saveSession(messages);
+      refreshSessions();
+    }
+    setMessages([]);
+    setActiveSessionId(null);
+    try { localStorage.removeItem("autozen_history"); } catch { /* */ }
+  }
+
+  function handleLoadSession(s: ConvSession) {
+    if (messages.length > 0) { saveSession(messages); refreshSessions(); }
+    setMessages(s.messages);
+    setActiveSessionId(s.id);
+    try { localStorage.setItem("autozen_history", JSON.stringify(s.messages)); } catch { /* */ }
+  }
+
+  function handleDeleteSession(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      const stored = localStorage.getItem("autozen_sessions");
+      const arr: ConvSession[] = stored ? JSON.parse(stored) : [];
+      const updated = arr.filter(s => s.id !== id);
+      localStorage.setItem("autozen_sessions", JSON.stringify(updated));
+      setSessions(updated);
+      if (activeSessionId === id) { setMessages([]); setActiveSessionId(null); }
+    } catch { /* */ }
+  }
+
+  const filteredSessions = sessions.filter(s =>
+    !searchQuery || s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Group sessions by date
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const yesterdayStr = new Date(now.getTime() - 86400_000).toDateString();
+  const groups: { label: string; items: ConvSession[] }[] = [];
+  const todayItems = filteredSessions.filter(s => new Date(s.ts).toDateString() === todayStr);
+  const yesterdayItems = filteredSessions.filter(s => new Date(s.ts).toDateString() === yesterdayStr);
+  const olderItems = filteredSessions.filter(s => new Date(s.ts).toDateString() !== todayStr && new Date(s.ts).toDateString() !== yesterdayStr);
+  if (todayItems.length) groups.push({ label: "Aujourd'hui", items: todayItems });
+  if (yesterdayItems.length) groups.push({ label: "Hier", items: yesterdayItems });
+  if (olderItems.length) groups.push({ label: "Plus ancien", items: olderItems });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-24 pb-6 flex flex-col">
+      <div className="flex flex-1 pt-16">
+
+        {/* ── SIDEBAR GAUCHE ──────────────────────────────────────────────────── */}
+        <aside className={`${sidebarOpen ? "w-64" : "w-0"} shrink-0 transition-all duration-300 overflow-hidden`}>
+          <div className="w-64 h-[calc(100vh-4rem)] sticky top-16 flex flex-col bg-white border-r border-slate-200 overflow-hidden">
+            {/* Header sidebar */}
+            <div className="p-3 border-b border-slate-100">
+              <button
+                onClick={handleNewConversation}
+                className="w-full flex items-center gap-2 px-3 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl transition-all shadow-sm"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 1v12M1 7h12" strokeLinecap="round"/></svg>
+                Nouvelle conversation
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="px-3 py-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5">
+                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400 shrink-0" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="flex-1 text-xs bg-transparent text-slate-700 placeholder:text-slate-400 focus:outline-none min-w-0"
+                />
+              </div>
+            </div>
+
+            {/* Sessions list */}
+            <div className="flex-1 overflow-y-auto py-2">
+              {groups.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center mt-8 px-4">Aucune conversation</p>
+              ) : groups.map(group => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">{group.label}</p>
+                  {group.items.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleLoadSession(s)}
+                      className={`w-full text-left px-3 py-2 group flex items-start gap-2 hover:bg-slate-50 transition-colors rounded-lg mx-1 ${activeSessionId === s.id ? "bg-blue-50 text-blue-700" : ""}`}
+                    >
+                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400 shrink-0 mt-0.5" viewBox="0 0 24 24">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium truncate ${activeSessionId === s.id ? "text-blue-700" : "text-slate-700"}`}>{s.title}</p>
+                        <p className="text-[10px] text-slate-400">{new Date(s.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                      </div>
+                      <button
+                        onClick={e => handleDeleteSession(s.id, e)}
+                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 p-0.5 rounded"
+                        title="Supprimer"
+                      >
+                        <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 2l7 7M9 2l-7 7" strokeLinecap="round"/></svg>
+                      </button>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer sidebar */}
+            <div className="p-3 border-t border-slate-100">
+              <Link href="/settings" className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                <span className={`w-2 h-2 rounded-full ${connectedCount > 0 ? "status-connected" : "status-disconnected"}`} />
+                {connectedCount} intégration{connectedCount !== 1 ? "s" : ""} connectée{connectedCount !== 1 ? "s" : ""}
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── MAIN CHAT ───────────────────────────────────────────────────────── */}
+      <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-8 pb-6 flex flex-col">
 
         {/* Header */}
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-1">Assistant IA</p>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
-              {hasMessages ? "Conversation" : `Bonjour ${displayName ?? ""} 👋`}
-            </h1>
-            {!hasMessages && (
-              <p className="text-sm text-slate-500 mt-1">Comment puis-je t&apos;aider aujourd&apos;hui ?</p>
-            )}
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              title={sidebarOpen ? "Masquer l'historique" : "Afficher l'historique"}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18" strokeLinecap="round"/>
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                {hasMessages ? (activeSessionId ? sessions.find(s => s.id === activeSessionId)?.title?.slice(0, 40) ?? "Conversation" : "Conversation") : `Bonjour ${displayName ?? ""} 👋`}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* History dropdown */}
-            <div className="relative">
+            {hasMessages && (
               <button
-                onClick={() => setShowHistory(h => !h)}
-                className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 p-2 rounded-xl transition-all"
-                title="Historique"
+                onClick={() => exportConversation(messages)}
+                className="text-xs text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-all"
+                title="Exporter (.txt)"
               >
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 15l-3-3m3 3l3-3m-3 3V9M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              {showHistory && (
-                <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-600">Historique</span>
-                    <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
-                  </div>
-                  {(() => {
-                    const sessions = loadSessions();
-                    if (sessions.length === 0) return (
-                      <p className="text-xs text-slate-400 px-3 py-4 text-center">Aucune conversation sauvegardée</p>
-                    );
-                    return (
-                      <div className="max-h-64 overflow-y-auto">
-                        {sessions.map(s => (
-                          <button key={s.id} onClick={() => {
-                            saveSession(messages);
-                            setMessages(s.messages);
-                            setShowHistory(false);
-                          }}
-                            className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
-                          >
-                            <div className="text-xs font-medium text-slate-700 truncate">{s.title}</div>
-                            <div className="text-[10px] text-slate-400 mt-0.5">{new Date(s.ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-            {hasMessages && (
-              <>
-                <button
-                  onClick={() => exportConversation(messages)}
-                  className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 p-2 rounded-xl transition-all"
-                  title="Exporter la conversation (.txt)"
-                >
-                  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path d="M12 15l-3-3m3 3l3-3m-3 3V9M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                <button
-                  onClick={() => { saveSession(messages); setMessages([]); try { localStorage.removeItem("autozen_history"); } catch { /* */ } }}
-                  className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1.5 rounded-xl transition-all"
-                  title="Nouvelle conversation"
-                >
-                  + Nouveau
-                </button>
-              </>
             )}
-            <Link href="/settings"
-              className="shrink-0 flex items-center gap-2 text-xs font-medium bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-all shadow-sm">
-              <span className={`w-1.5 h-1.5 rounded-full ${connectedCount > 0 ? "status-connected" : "status-disconnected"}`} />
-              {connectedCount} connectée{connectedCount !== 1 ? "s" : ""}
-            </Link>
           </div>
         </div>
 
@@ -680,7 +760,7 @@ export default function AssistantPage() {
                 </span>
               )}
               {hasMessages && (
-                <button type="button" onClick={() => { saveSession(messages); setMessages([]); setError(null); }}
+                <button type="button" onClick={handleNewConversation}
                   className="text-blue-500 hover:text-blue-700 transition-colors font-medium">
                   + Nouvelle
                 </button>
@@ -693,6 +773,7 @@ export default function AssistantPage() {
           Autozen peut faire des erreurs. Vérifie les infos importantes.
         </p>
       </main>
+      </div>
     </div>
   );
 }
