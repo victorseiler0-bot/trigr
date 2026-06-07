@@ -491,6 +491,7 @@ export default function CrmPage() {
             </div>
           </div>
         )}
+        </>}
       </div>
 
       {/* Modal formulaire */}
@@ -556,8 +557,6 @@ export default function CrmPage() {
           </div>
         </div>
       )}
-
-        </>}
 
       <Footer />
     </div>
