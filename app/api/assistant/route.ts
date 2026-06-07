@@ -121,7 +121,7 @@ Exemples de questions obligatoires :
 
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
-2. Numéros WA : format sans + ni espaces (ex: "336XXXXXXXX"). Si l'utilisateur dit "envoie à Marc", cherche Marc dans ses contacts via voir_mes_contacts.
+2. Si l'utilisateur mentionne un prénom/nom sans email/numéro (ex: "envoie à Marc", "WhatsApp à Sophie") → appelle TOUJOURS rechercher_contact_par_nom AVANT d'essayer d'envoyer. Présente les contacts trouvés et demande de confirmer.
 3. Premier message sans historique : appelle voir_taches_du_jour si c'est le matin (avant 12h).
 4. Outil retourne erreur de connexion : explique les étapes clairement une seule fois, renvoie vers /settings.
 5. Après action (email envoyé, événement créé, etc.) : confirme brièvement ce qui a été fait.
@@ -694,6 +694,86 @@ async function executeTool(
     return JSON.stringify(result);
   }
 
+  // ─── Recherche contact par nom ────────────────────────────────────────────────
+  if (name === "rechercher_contact_par_nom") {
+    const { prenom } = args as { prenom: string };
+    const q = prenom.toLowerCase().trim();
+    const results: { nom: string; email?: string; telephone?: string; source: string }[] = [];
+
+    // 1. Contacts Autozen (CRM local)
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const crmContacts = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+    for (const c of crmContacts) {
+      if (c.name.toLowerCase().includes(q)) {
+        results.push({ nom: c.name, email: c.email, telephone: c.phone, source: "CRM Autozen" });
+      }
+    }
+
+    // 2. Google Contacts (People API)
+    if (googleToken) {
+      try {
+        const r = await fetch(
+          `https://people.googleapis.com/v1/people:searchContacts?query=${encodeURIComponent(prenom)}&readMask=names,emailAddresses,phoneNumbers&pageSize=10`,
+          { headers: { Authorization: `Bearer ${googleToken}` } }
+        );
+        const data = await r.json() as { results?: { person?: { names?: { displayName: string }[]; emailAddresses?: { value: string }[]; phoneNumbers?: { value: string }[] } }[] };
+        for (const item of data.results ?? []) {
+          const p = item.person;
+          if (!p) continue;
+          const nom = p.names?.[0]?.displayName ?? "";
+          const email = p.emailAddresses?.[0]?.value;
+          const telephone = p.phoneNumbers?.[0]?.value;
+          if (nom.toLowerCase().includes(q) && !results.find(r => r.email === email)) {
+            results.push({ nom, email, telephone, source: "Google Contacts" });
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // 3. Gmail — chercher dans les échanges récents
+    if (googleToken && results.length < 3) {
+      try {
+        const r = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(prenom)}&maxResults=5`,
+          { headers: { Authorization: `Bearer ${googleToken}` } }
+        );
+        const data = await r.json() as { messages?: { id: string }[] };
+        for (const m of (data.messages ?? []).slice(0, 3)) {
+          const msg = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=To`,
+            { headers: { Authorization: `Bearer ${googleToken}` } }
+          );
+          const d = await msg.json() as { payload?: { headers?: { name: string; value: string }[] } };
+          const hdrs = d.payload?.headers ?? [];
+          for (const h of hdrs) {
+            if (h.name === "From" || h.name === "To") {
+              const match = h.value.match(/([^<]*)<([^>]+)>/);
+              if (match) {
+                const [, nom, email] = match;
+                if (nom.toLowerCase().includes(q) && email && !results.find(r => r.email === email)) {
+                  results.push({ nom: nom.trim(), email: email.trim(), source: "Gmail récent" });
+                }
+              }
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (!results.length) {
+      return `Aucun contact trouvé pour "${prenom}". Peux-tu me donner l'adresse email ou le numéro directement ?`;
+    }
+
+    if (results.length === 1) {
+      const c = results[0];
+      return `J'ai trouvé **${c.nom}**${c.email ? ` (${c.email})` : ""}${c.telephone ? ` — WA: ${c.telephone}` : ""} dans ${c.source}. C'est bien ce contact ?`;
+    }
+
+    const list = results.slice(0, 5).map((c, i) => `${i + 1}. **${c.nom}** — ${c.email ?? "pas d'email"}${c.telephone ? ` / ${c.telephone}` : ""} *(${c.source})*`).join("\n");
+    return `J'ai trouvé **${results.length} contacts** correspondant à "${prenom}" :\n${list}\n\nLequel veux-tu utiliser ? (réponds avec le numéro ou le nom exact)`;
+  }
+
   // ─── Contacts ─────────────────────────────────────────────────────────────────
   if (name === "voir_mes_contacts") {
     const clerk = await clerkClient();
@@ -1225,6 +1305,11 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // Météo — always available
   tools.push(
     { type: "function", function: { name: "meteo", description: "Obtenir la météo actuelle pour une ville française ou mondiale.", parameters: { type: "object" as const, properties: { ville: { type: "string", description: "Nom de la ville (ex: Paris, Lyon, Marseille)" } }, required: ["ville"] } } }
+  );
+
+  // Recherche contact par nom — always available
+  tools.push(
+    { type: "function", function: { name: "rechercher_contact_par_nom", description: "Chercher un contact par prénom ou nom dans le CRM Autozen, Google Contacts et les échanges Gmail récents. UTILISER OBLIGATOIREMENT quand l'utilisateur mentionne un prénom sans email ni numéro.", parameters: { type: "object" as const, properties: { prenom: { type: "string", description: "Le prénom ou nom à rechercher" } }, required: ["prenom"] } } }
   );
 
   // Notes — always available
