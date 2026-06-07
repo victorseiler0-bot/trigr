@@ -455,7 +455,7 @@ export default function AssistantPage() {
   const displayName = user?.firstName || user?.primaryEmailAddress?.emailAddress?.split("@")[0];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-white via-violet-50/30 to-cyan-50/20 flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-24 pb-6 flex flex-col">
@@ -562,21 +562,21 @@ export default function AssistantPage() {
 
         {/* Suggestions (sans messages) */}
         {!hasMessages && !loading && (
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {QUICK_SUGGESTIONS.map(cat => (
-              <div key={cat.category}
-                className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-lg">{cat.icon}</span>
-                  <span className="text-sm font-semibold text-slate-700">{cat.category}</span>
-                </div>
-                <div className="space-y-1.5">
-                  {cat.prompts.map(p => (
-                    <button key={p.label} onClick={() => send(p.prompt)}
-                      className="w-full text-left text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 px-2.5 py-2 rounded-lg transition-all">
-                      → {p.label}
-                    </button>
-                  ))}
+          <div className="mb-6 flex-1 flex flex-col items-center justify-center gap-6 py-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(139,92,246,0.3)]">
+                <span className="text-white font-black text-2xl">T</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Comment puis-je t&apos;aider ?</h2>
+              <p className="text-sm text-slate-500 mt-1">Pose-moi n&apos;importe quelle question ou demande-moi d&apos;agir pour toi.</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+              {QUICK_SUGGESTIONS.flatMap(cat => cat.prompts.slice(0, 2)).map(p => (
+                <button key={p.label} onClick={() => send(p.prompt)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-violet-200 bg-white text-xs font-medium text-slate-700 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-700 transition-all shadow-sm">
+                  {p.label}
+                </button>
+              ))}
                 </div>
               </div>
             ))}
@@ -640,10 +640,10 @@ export default function AssistantPage() {
           )
         )}
 
-        {/* Input */}
+        {/* Input — glassmorphism style */}
         <form onSubmit={e => { e.preventDefault(); send(input); }}
-          className="bg-white border border-slate-200 rounded-2xl shadow-sm focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-500/15 transition-all">
-          <div className="flex items-end gap-2 px-3 py-2.5">
+          className="relative bg-white/80 backdrop-blur-md border border-violet-200/60 rounded-2xl shadow-[0_4px_24px_rgba(139,92,246,0.12)] focus-within:border-violet-400 focus-within:shadow-[0_4px_32px_rgba(139,92,246,0.22)] transition-all">
+          <div className="flex items-end gap-2 px-4 py-3">
             <textarea
               ref={inputRef}
               value={input}
@@ -652,13 +652,13 @@ export default function AssistantPage() {
               placeholder={connectedCount > 0 ? "Demande-moi n'importe quoi…" : "Connecte un compte d'abord pour commencer…"}
               disabled={loading}
               rows={1}
-              className="flex-1 resize-none bg-transparent border-0 focus:outline-none text-sm text-slate-900 placeholder:text-slate-400 py-1.5 px-2 max-h-[200px]"
+              className="flex-1 resize-none bg-transparent border-0 focus:outline-none text-sm text-slate-900 placeholder:text-slate-400 py-1 max-h-[200px]"
             />
             <button
               type="button"
               onClick={toggleVoice}
               title={listening ? "Arrêter l'écoute" : "Dicter un message"}
-              className={`shrink-0 p-2.5 rounded-xl transition-all ${listening ? "bg-red-100 text-red-500 animate-pulse" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+              className={`shrink-0 p-2 rounded-xl transition-all ${listening ? "bg-red-100 text-red-500 animate-pulse" : "text-slate-400 hover:text-violet-500 hover:bg-violet-50"}`}
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <rect x="9" y="2" width="6" height="11" rx="3"/>
@@ -666,15 +666,15 @@ export default function AssistantPage() {
               </svg>
             </button>
             <button type="submit" disabled={loading || !input.trim()}
-              className="shrink-0 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all">
+              className="shrink-0 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-cyan-500 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-sm">
               {loading
                 ? <span className="block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12l14-7-7 14-2-5-5-2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
               }
             </button>
           </div>
-          <div className="px-4 pb-2 flex items-center justify-between text-xs text-slate-400">
-            <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours… parlez maintenant</span> : "⏎ pour envoyer · ⇧⏎ pour aller à la ligne"}</span>
+          <div className="px-4 pb-2.5 flex items-center justify-between text-xs text-slate-400">
+            <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours…</span> : "⏎ envoyer · ⇧⏎ nouvelle ligne"}</span>
             <div className="flex items-center gap-3">
               {remaining !== null && remaining < 20 && (
                 <span className={remaining === 0 ? "text-red-500 font-medium" : "text-amber-500"}>
@@ -683,8 +683,8 @@ export default function AssistantPage() {
               )}
               {hasMessages && (
                 <button type="button" onClick={() => { saveSession(messages); setMessages([]); setError(null); }}
-                  className="text-slate-400 hover:text-slate-700 transition-colors">
-                  Nouvelle conversation
+                  className="text-violet-500 hover:text-violet-700 transition-colors font-medium">
+                  + Nouvelle
                 </button>
               )}
             </div>

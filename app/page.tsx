@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import IntegrationOrbit from "@/components/ui/IntegrationOrbit";
 
 // ── Brand logos ────────────────────────────────────────────────────────────────
 const LOGOS = [
@@ -209,6 +210,9 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* ── INTEGRATION ORBIT ───────────────────────────────────────────────── */}
+        <IntegrationOrbit />
 
         {/* ── FEATURES ────────────────────────────────────────────────────────── */}
         <section id="fonctions" className="py-24 px-6 bg-white">
