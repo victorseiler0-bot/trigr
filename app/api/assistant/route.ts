@@ -107,7 +107,7 @@ ${profileBlock}${contactsBlock}
 - Rappels : creer_rappel (dans X jours) | voir_rappels — **Propose toujours un rappel après un devis ou une relance**
 - Tâches : voir_taches_du_jour — **utilise en début de journée automatiquement** | trouver_disponibilite (créneaux agenda libres)
 - CRM Autozen : voir_contacts_crm | creer_contact_crm | voir_pipeline_crm | creer_deal_crm
-- Finance : calculer_tva (HT → TTC auto) | generer_devis (devis complet légal FR)
+- Finance : calculer_tva | generer_devis | envoyer_devis_par_email (si Gmail connecté) | preparer_reunion
 
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
@@ -876,6 +876,29 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     return `✅ Deal **${titre}** créé dans le pipeline${amount ? ` (${amount.toLocaleString("fr-FR")} €)` : ""}. Étape : ${stage ?? "Prospection"}.`;
   }
 
+  // ── Sauvegarder une note ──
+  if (name === "sauvegarder_note") {
+    const { titre, contenu, tags } = args as { titre: string; contenu: string; tags?: string[] };
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const meta = (u.privateMetadata ?? {}) as Record<string, unknown>;
+    type Note = { id: string; titre: string; contenu: string; tags?: string[]; createdAt: string };
+    const notes = (meta.notes as Note[]) ?? [];
+    const note: Note = { id: `note_${Date.now()}`, titre, contenu, tags, createdAt: new Date().toISOString() };
+    await clerk.users.updateUserMetadata(userId, { privateMetadata: { ...meta, notes: [note, ...notes].slice(0, 50) } });
+    return `📝 Note **${titre}** sauvegardée${tags?.length ? ` [${tags.join(", ")}]` : ""}.`;
+  }
+
+  if (name === "voir_mes_notes") {
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const meta = (u.privateMetadata ?? {}) as Record<string, unknown>;
+    type Note = { id: string; titre: string; contenu: string; tags?: string[]; createdAt: string };
+    const notes = (meta.notes as Note[]) ?? [];
+    if (!notes.length) return "Aucune note sauvegardée.";
+    return `📝 **Mes notes (${notes.length}) :**\n${notes.slice(0, 10).map(n => `- **${n.titre}**${n.tags?.length ? ` [${n.tags.join(", ")}]` : ""} — ${new Date(n.createdAt).toLocaleDateString("fr-FR")}`).join("\n")}`;
+  }
+
   // ── Préparer une réunion ──
   if (name === "preparer_reunion") {
     const { sujet, participants, dureeMinutes, context } = args as {
@@ -962,6 +985,26 @@ Sois concis et actionnable. Maximum 200 mots.`;
     }).join("\n");
     if (overdue > 0) out += `\n\n⚠️ ${overdue} tâche${overdue > 1 ? "s" : ""} en retard.`;
     return out;
+  }
+
+  // ── Envoyer devis par email ──
+  if (name === "envoyer_devis_par_email") {
+    const { devis, emailDest, nomDest } = args as { devis: string; emailDest: string; nomDest?: string };
+    const googleToken = await clerkClient().then(c => c.users.getUserOauthAccessToken(userId, "google")).then(d => d.data[0]?.token ?? null);
+    if (!googleToken) return "Gmail non connecté. Va dans /settings pour connecter ton compte Google.";
+    try {
+      const subject = `Devis Autozen — ${new Date().toLocaleDateString("fr-FR")}`;
+      const body = `Bonjour${nomDest ? ` ${nomDest}` : ""},\n\nVeuillez trouver ci-joint notre devis.\n\n${devis}\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement`;
+      const email = [`To: ${emailDest}`, `Subject: ${subject}`, `Content-Type: text/plain; charset=utf-8`, ``, body].join("\n");
+      const encoded = btoa(unescape(encodeURIComponent(email))).replace(/\+/g, "-").replace(/\//g, "_");
+      const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${googleToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ raw: encoded }),
+      });
+      if (!r.ok) return "Erreur lors de l'envoi du devis par email.";
+      return `✅ Devis envoyé par email à **${emailDest}**.`;
+    } catch { return "Erreur lors de l'envoi du devis."; }
   }
 
   // ── Finance ──
@@ -1135,6 +1178,12 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     { type: "function", function: { name: "meteo", description: "Obtenir la météo actuelle pour une ville française ou mondiale.", parameters: { type: "object" as const, properties: { ville: { type: "string", description: "Nom de la ville (ex: Paris, Lyon, Marseille)" } }, required: ["ville"] } } }
   );
 
+  // Notes — always available
+  tools.push(
+    { type: "function", function: { name: "sauvegarder_note", description: "Sauvegarder une note, une idée, un résumé ou un document dans Autozen.", parameters: { type: "object" as const, properties: { titre: { type: "string" }, contenu: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "Ex: ['client', 'réunion', 'devis']" } }, required: ["titre", "contenu"] } } },
+    { type: "function", function: { name: "voir_mes_notes", description: "Voir les notes sauvegardées.", parameters: { type: "object" as const, properties: {} } } }
+  );
+
   // Tâches + productivité — always available
   tools.push(
     { type: "function", function: { name: "voir_taches_du_jour", description: "Voir toutes les tâches et rappels en attente pour aujourd'hui et demain. Utilise en début de conversation ou quand l'utilisateur demande 'qu'est-ce que j'ai à faire'.", parameters: { type: "object" as const, properties: {} } } },
@@ -1149,6 +1198,13 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     { type: "function", function: { name: "voir_pipeline_crm", description: "Voir tous les deals du pipeline commercial (prospection, devis, négociation, gagné, perdu).", parameters: { type: "object" as const, properties: {} } } },
     { type: "function", function: { name: "creer_deal_crm", description: "Créer un deal dans le pipeline commercial.", parameters: { type: "object" as const, properties: { titre: { type: "string" }, contactName: { type: "string" }, amount: { type: "number", description: "Montant en euros" }, stage: { type: "string", enum: ["prospection", "propose", "negociation", "gagne", "perdu"] }, notes: { type: "string" } }, required: ["titre"] } } }
   );
+
+  // Envoyer devis — available si Google connecté
+  if (hasGoogle) {
+    tools.push(
+      { type: "function", function: { name: "envoyer_devis_par_email", description: "Envoyer un devis généré par email via Gmail. Utilise après generer_devis si l'utilisateur veut l'envoyer.", parameters: { type: "object" as const, properties: { devis: { type: "string", description: "Contenu du devis (copier depuis generer_devis)" }, emailDest: { type: "string", description: "Email du destinataire" }, nomDest: { type: "string" } }, required: ["devis", "emailDest"] } } }
+    );
+  }
 
   // Finance FR — always available
   tools.push(
