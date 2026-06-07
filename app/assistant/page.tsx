@@ -788,7 +788,7 @@ export default function AssistantPage() {
           <div className="px-4 pb-2.5 flex items-center justify-between text-xs text-slate-400">
             <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours…</span> : "⏎ envoyer · ⇧⏎ nouvelle ligne"}</span>
             <div className="flex items-center gap-3">
-              {remaining !== null && remaining < 20 && (
+              {remaining !== null && remaining !== -1 && remaining < 20 && (
                 <span className={remaining === 0 ? "text-red-500 font-medium" : "text-amber-500"}>
                   {remaining} action{remaining > 1 ? "s" : ""} restante{remaining > 1 ? "s" : ""}
                 </span>

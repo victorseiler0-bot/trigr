@@ -6,8 +6,10 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const meta = user.privateMetadata as Record<string, unknown>;
-  if (meta.stripeStatus !== "active") return "free";
-  return (meta.stripePlan as Plan) ?? "free";
+  // Plan défini directement dans les metadata (admin ou Stripe)
+  if (meta.plan) return (meta.plan as Plan);
+  if (meta.stripeStatus === "active") return (meta.stripePlan as Plan) ?? "pro";
+  return "free";
 }
 
 export const PLAN_LIMITS: Record<Plan, { actionsPerDay: number; integrations: number; users: number }> = {

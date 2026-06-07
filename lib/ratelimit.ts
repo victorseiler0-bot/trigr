@@ -8,7 +8,14 @@ const ADMIN_IDS = (process.env.ADMIN_CLERK_USER_IDS ?? "").split(",").map(s => s
 type DayEntry = { date: string; count: number };
 
 export async function checkAndIncrementAction(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  if (ADMIN_IDS.includes(userId)) return { allowed: true, remaining: 999 };
+  // Admin ou flag unlimited → jamais bloqué, affiche ∞
+  if (ADMIN_IDS.includes(userId)) return { allowed: true, remaining: -1 };
+
+  // Vérification du flag unlimited dans les metadata Clerk
+  const clientCheck = await clerkClient();
+  const userCheck = await clientCheck.users.getUser(userId);
+  const metaCheck = userCheck.privateMetadata as Record<string, unknown>;
+  if (metaCheck.unlimited === true) return { allowed: true, remaining: -1 };
 
   const plan = await getUserPlan(userId);
   const limit = PLAN_LIMITS[plan].actionsPerDay;
