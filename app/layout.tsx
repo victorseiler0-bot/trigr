@@ -8,6 +8,7 @@ import CookieBanner from "@/components/CookieBanner";
 import { ToastProvider } from "@/components/Toast";
 import StoreProvider from "@/components/StoreProvider";
 import CommandPalette from "@/components/CommandPalette";
+import PushInit from "@/components/PushInit";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -68,6 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {children}
               <CookieBanner />
               <CommandPalette />
+              <PushInit />
             </ToastProvider>
           </StoreProvider>
         </body>

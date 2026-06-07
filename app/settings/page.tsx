@@ -467,6 +467,10 @@ export default function SettingsPage() {
     if (r.ok) setWaRules(prev => prev.filter(r => r.id !== id));
   }
 
+  // Push notifications
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
   // Pipedream accounts count
   const [pdCount, setPdCount] = useState(0);
 
@@ -485,6 +489,26 @@ export default function SettingsPage() {
   const [imapOpen, setImapOpen] = useState(false);
 
   useEffect(() => { if (isLoaded && !isSignedIn) router.replace("/login"); }, [isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    import("@/lib/push").then(m => m.isPushEnabled().then(e => setPushEnabled(e)));
+  }, []);
+
+  async function togglePush() {
+    setPushBusy(true);
+    try {
+      const { subscribePush, unsubscribePush } = await import("@/lib/push");
+      if (pushEnabled) {
+        await unsubscribePush();
+        setPushEnabled(false);
+      } else {
+        const ok = await subscribePush();
+        setPushEnabled(ok);
+        if (ok) toast("Notifications activées ✓", "success");
+        else toast("Permission refusée par le navigateur", "error");
+      }
+    } finally { setPushBusy(false); }
+  }
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -727,6 +751,26 @@ export default function SettingsPage() {
                   >
                     {profileSaved ? "✓ Sauvegardé !" : profileSaving ? "Sauvegarde…" : "Sauvegarder le profil"}
                   </button>
+                </div>
+
+                {/* Push notifications */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-lg">🔔</div>
+                      <div>
+                        <h2 className="text-sm font-semibold text-slate-900">Notifications push</h2>
+                        <p className="text-xs text-slate-400">Brief du matin, messages WA, alertes — sur mobile et desktop</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={togglePush}
+                      disabled={pushBusy}
+                      className={`relative w-12 h-6 rounded-full transition-all disabled:opacity-50 ${pushEnabled ? "bg-violet-600" : "bg-slate-300"}`}
+                    >
+                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${pushEnabled ? "left-6" : "left-0.5"}`} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Integration limit banner */}

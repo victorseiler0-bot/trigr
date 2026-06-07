@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { generateMorningBrief } from "@/lib/morning-brief";
+import webpush from "web-push";
+
+if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    "mailto:victorseiler0@gmail.com",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 export const maxDuration = 60;
 
@@ -55,11 +64,22 @@ export async function GET(req: NextRequest) {
         });
         results.push({ userId, status: "sent via WhatsApp" });
       } else {
-        // Store brief in Clerk metadata for dashboard display
         await clerk.users.updateUserMetadata(userId, {
           privateMetadata: { lastBrief: brief, lastBriefDate: new Date().toISOString() },
         });
         results.push({ userId, status: "stored in metadata" });
+      }
+
+      // Push notification
+      const subs = (meta.pushSubscriptions as webpush.PushSubscription[]) ?? [];
+      if (subs.length > 0) {
+        const payload = JSON.stringify({
+          title: "☀️ Ton Brief du Matin",
+          body: brief.slice(0, 120) + "…",
+          url: "/dashboard",
+          tag: "morning-brief",
+        });
+        await Promise.allSettled(subs.map(sub => webpush.sendNotification(sub, payload)));
       }
     } catch (err) {
       results.push({ userId, status: `error: ${(err as Error).message}` });
