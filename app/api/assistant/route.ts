@@ -105,7 +105,7 @@ ${profileBlock}${contactsBlock}
 - Web : recherche_web (actualités, infos, cours, etc.) | meteo (météo temps réel)
 - Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
 - Rappels : creer_rappel (dans X jours) | voir_rappels — **Propose toujours un rappel après un devis ou une relance**
-- Tâches : voir_taches_du_jour — **utilise en début de journée automatiquement**
+- Tâches : voir_taches_du_jour — **utilise en début de journée automatiquement** | trouver_disponibilite (créneaux agenda libres)
 - CRM Autozen : voir_contacts_crm | creer_contact_crm | voir_pipeline_crm | creer_deal_crm
 - Finance : calculer_tva (HT → TTC auto) | generer_devis (devis complet légal FR)
 
@@ -876,6 +876,43 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     return `✅ Deal **${titre}** créé dans le pipeline${amount ? ` (${amount.toLocaleString("fr-FR")} €)` : ""}. Étape : ${stage ?? "Prospection"}.`;
   }
 
+  // ── Disponibilités agenda ──
+  if (name === "trouver_disponibilite") {
+    const { dureeMinutes, dansJours } = args as { dureeMinutes?: number; dansJours?: number };
+    const duree = dureeMinutes ?? 60;
+    const horizon = dansJours ?? 5;
+    const token = await clerkClient().then(c => c.users.getUserOauthAccessToken(userId, "google")).then(d => d.data[0]?.token ?? null);
+    if (!token) return "Google Calendar non connecté. Va dans /settings pour connecter ton compte.";
+    try {
+      const slots: string[] = [];
+      for (let day = 0; day < horizon; day++) {
+        const d = new Date(); d.setDate(d.getDate() + day + 1);
+        d.setHours(0, 0, 0, 0);
+        const end = new Date(d); end.setHours(23, 59, 59, 999);
+        const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${d.toISOString()}&timeMax=${end.toISOString()}&maxResults=20&orderBy=startTime&singleEvents=true`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await r.json() as { items?: { start?: { dateTime?: string }; end?: { dateTime?: string } }[] };
+        const busy = (data.items ?? []).map(e => ({ start: new Date(e.start?.dateTime ?? ""), end: new Date(e.end?.dateTime ?? "") })).filter(e => e.start.getTime() > 0);
+        const dayStr = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+        const freeSlots: string[] = [];
+        const workStart = new Date(d); workStart.setHours(9, 0, 0, 0);
+        const workEnd = new Date(d); workEnd.setHours(18, 0, 0, 0);
+        let cursor = workStart;
+        for (const evt of [...busy].sort((a, b) => a.start.getTime() - b.start.getTime())) {
+          if (cursor.getTime() + duree * 60_000 <= evt.start.getTime()) {
+            freeSlots.push(`${cursor.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}–${new Date(cursor.getTime() + duree * 60_000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`);
+          }
+          cursor = evt.end.getTime() > cursor.getTime() ? evt.end : cursor;
+        }
+        if (cursor.getTime() + duree * 60_000 <= workEnd.getTime()) {
+          freeSlots.push(`${cursor.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}–${new Date(cursor.getTime() + duree * 60_000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`);
+        }
+        if (freeSlots.length) slots.push(`**${dayStr}** : ${freeSlots.slice(0, 3).join(", ")}`);
+      }
+      if (!slots.length) return `Aucun créneau libre de ${duree} minutes dans les ${horizon} prochains jours.`;
+      return `📅 **Créneaux disponibles (${duree} min) :**\n${slots.join("\n")}`;
+    } catch { return "Erreur lors de la vérification de l'agenda."; }
+  }
+
   // ── Tâches du jour ──
   if (name === "voir_taches_du_jour") {
     const clerk = await clerkClient();
@@ -1067,7 +1104,8 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
 
   // Tâches + productivité — always available
   tools.push(
-    { type: "function", function: { name: "voir_taches_du_jour", description: "Voir toutes les tâches et rappels en attente pour aujourd'hui et demain. Utilise en début de conversation ou quand l'utilisateur demande 'qu'est-ce que j'ai à faire'.", parameters: { type: "object" as const, properties: {} } } }
+    { type: "function", function: { name: "voir_taches_du_jour", description: "Voir toutes les tâches et rappels en attente pour aujourd'hui et demain. Utilise en début de conversation ou quand l'utilisateur demande 'qu'est-ce que j'ai à faire'.", parameters: { type: "object" as const, properties: {} } } },
+    { type: "function", function: { name: "trouver_disponibilite", description: "Trouver des créneaux libres dans l'agenda Google Calendar pour planifier une réunion ou un RDV.", parameters: { type: "object" as const, properties: { dureeMinutes: { type: "number", description: "Durée en minutes (défaut: 60)" }, dansJours: { type: "number", description: "Horizon de recherche en jours (défaut: 5)" } } } } }
   );
 
   // CRM Autozen — always available
