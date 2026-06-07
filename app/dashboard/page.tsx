@@ -13,12 +13,16 @@ type Analytics = {
   plan: string;
   todayCount: number;
   limit: number;
+  unlimited?: boolean;
   integrationsCount: number;
   integrationsLimit: number;
   integrations: string[];
   history: DayEntry[];
   totalWeek: number;
+  gainTempsMinutes?: number;
   automationResults?: AutoResult[];
+  crm?: { dealsActifs: number; dealsGagnes: number; caPotentiel: number; caGagne: number };
+  rappelsEnRetard?: number;
 };
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
@@ -144,8 +148,8 @@ export default function DashboardPage() {
             <div className="grid grid-cols-3 gap-3 mb-6">
               <StatCard
                 label="Actions aujourd'hui"
-                value={`${data.todayCount} / ${data.limit === 999 ? "∞" : data.limit}`}
-                sub={data.limit === 999 ? "illimitées" : `${Math.max(data.limit - data.todayCount, 0)} restantes`}
+                value={data.unlimited ? `${data.todayCount} / ∞` : `${data.todayCount} / ${data.limit === 999 ? "∞" : data.limit}`}
+                sub={data.unlimited ? "illimitées ✨" : data.limit === 999 ? "illimitées" : `${Math.max(data.limit - data.todayCount, 0)} restantes`}
                 accent
               />
               <StatCard
@@ -214,21 +218,37 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* Gain de temps estimé */}
-            <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-5 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-300 mb-1">⏱ Temps économisé cette semaine</h2>
-                  <p className="text-3xl font-black text-blue-400">{(data.totalWeek * 0.08).toFixed(1)}h</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">basé sur {data.totalWeek} actions × 5 min/action en moyenne</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-cyan-400">{Math.round(data.totalWeek * 0.08 * 60)} min</p>
-                  <p className="text-xs text-zinc-500">récupérées</p>
-                  <p className="text-xs text-zinc-600 mt-1">≈ {(data.totalWeek * 0.08 * 60 * 0.5).toFixed(0)} € économisés</p>
-                </div>
+            {/* Gain de temps + CRM stats */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-4">
+                <p className="text-xs text-zinc-500 mb-1">⏱ Temps économisé / semaine</p>
+                <p className="text-2xl font-black text-blue-400">{(data.gainTempsMinutes ?? data.totalWeek * 5) >= 60 ? `${((data.gainTempsMinutes ?? data.totalWeek * 5) / 60).toFixed(1)}h` : `${data.gainTempsMinutes ?? data.totalWeek * 5} min`}</p>
+                <p className="text-xs text-zinc-600 mt-0.5">≈ {Math.round((data.gainTempsMinutes ?? data.totalWeek * 5) * 0.5)} € économisés</p>
               </div>
+              {data.crm && data.crm.dealsActifs + data.crm.dealsGagnes > 0 ? (
+                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl p-4">
+                  <p className="text-xs text-zinc-500 mb-1">💼 Pipeline CRM</p>
+                  <p className="text-2xl font-black text-emerald-400">{data.crm.caGagne > 0 ? `${data.crm.caGagne.toLocaleString("fr-FR")} €` : `${data.crm.dealsActifs} deal${data.crm.dealsActifs > 1 ? "s" : ""}`}</p>
+                  <p className="text-xs text-zinc-600 mt-0.5">{data.crm.caGagne > 0 ? `${data.crm.dealsActifs} actifs` : "en cours"} · {data.crm.dealsGagnes} gagné{data.crm.dealsGagnes > 1 ? "s" : ""}</p>
+                </div>
+              ) : (
+                <Link href="/crm" className="bg-white/[0.02] border border-dashed border-white/[0.08] rounded-2xl p-4 flex flex-col items-center justify-center gap-1 hover:border-white/[0.15] transition-all group">
+                  <span className="text-2xl">💼</span>
+                  <p className="text-xs text-zinc-600 group-hover:text-zinc-400 transition-colors">Ouvrir le CRM →</p>
+                </Link>
+              )}
             </div>
+
+            {/* Rappels en retard */}
+            {(data.rappelsEnRetard ?? 0) > 0 && (
+              <div className="bg-red-500/[0.06] border border-red-500/20 rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400">🔴</span>
+                  <span className="text-sm font-medium text-red-300">{data.rappelsEnRetard} rappel{(data.rappelsEnRetard ?? 0) > 1 ? "s" : ""} en retard</span>
+                </div>
+                <Link href="/assistant?prefill=Montre-moi mes tâches en retard" className="text-xs text-red-400 hover:text-red-300">Voir →</Link>
+              </div>
+            )}
 
             {/* Connected integrations */}
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">

@@ -876,6 +876,39 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     return `✅ Deal **${titre}** créé dans le pipeline${amount ? ` (${amount.toLocaleString("fr-FR")} €)` : ""}. Étape : ${stage ?? "Prospection"}.`;
   }
 
+  // ── Préparer une réunion ──
+  if (name === "preparer_reunion") {
+    const { sujet, participants, dureeMinutes, context } = args as {
+      sujet: string;
+      participants?: string[];
+      dureeMinutes?: number;
+      context?: string;
+    };
+    const ai = getAI();
+    const model = USE_GEMINI ? "gemini-2.0-flash" : "llama-3.3-70b-versatile";
+    const prompt = `Tu prépares un brief de réunion professionnelle.
+Sujet : ${sujet}
+${participants?.length ? `Participants : ${participants.join(", ")}` : ""}
+${dureeMinutes ? `Durée prévue : ${dureeMinutes} min` : ""}
+${context ? `Contexte : ${context}` : ""}
+
+Génère un brief de réunion complet en français incluant :
+1. **Objectif principal** (1 phrase)
+2. **Ordre du jour** (3-5 points avec durée estimée)
+3. **Questions clés à aborder**
+4. **Documents/infos à préparer avant la réunion**
+5. **Prochaines étapes attendues**
+
+Sois concis et actionnable. Maximum 200 mots.`;
+    try {
+      const res = await ai.chat.completions.create({
+        model, messages: [{ role: "user", content: prompt }],
+        max_tokens: 500, temperature: 0.4,
+      });
+      return `📋 **Brief — ${sujet}**\n\n${res.choices[0]?.message?.content ?? ""}`;
+    } catch { return "Erreur lors de la génération du brief."; }
+  }
+
   // ── Disponibilités agenda ──
   if (name === "trouver_disponibilite") {
     const { dureeMinutes, dansJours } = args as { dureeMinutes?: number; dansJours?: number };
@@ -1105,6 +1138,7 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // Tâches + productivité — always available
   tools.push(
     { type: "function", function: { name: "voir_taches_du_jour", description: "Voir toutes les tâches et rappels en attente pour aujourd'hui et demain. Utilise en début de conversation ou quand l'utilisateur demande 'qu'est-ce que j'ai à faire'.", parameters: { type: "object" as const, properties: {} } } },
+    { type: "function", function: { name: "preparer_reunion", description: "Générer un brief de réunion complet avec ordre du jour, questions clés et prochaines étapes.", parameters: { type: "object" as const, properties: { sujet: { type: "string" }, participants: { type: "array", items: { type: "string" } }, dureeMinutes: { type: "number" }, context: { type: "string" } }, required: ["sujet"] } } },
     { type: "function", function: { name: "trouver_disponibilite", description: "Trouver des créneaux libres dans l'agenda Google Calendar pour planifier une réunion ou un RDV.", parameters: { type: "object" as const, properties: { dureeMinutes: { type: "number", description: "Durée en minutes (défaut: 60)" }, dansJours: { type: "number", description: "Horizon de recherche en jours (défaut: 5)" } } } } }
   );
 

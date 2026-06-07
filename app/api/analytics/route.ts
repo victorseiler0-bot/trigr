@@ -61,15 +61,38 @@ export async function GET() {
     .filter(Boolean)
     .slice(0, 3);
 
+  // Stats CRM
+  type Deal = { stage: string; amount?: number };
+  const deals = (meta.deals as Deal[]) ?? [];
+  const dealsActifs = deals.filter(d => d.stage !== "gagne" && d.stage !== "perdu").length;
+  const dealsGagnes = deals.filter(d => d.stage === "gagne").length;
+  const caPotentiel = deals.filter(d => d.stage !== "perdu").reduce((s, d) => s + (d.amount ?? 0), 0);
+  const caGagne = deals.filter(d => d.stage === "gagne").reduce((s, d) => s + (d.amount ?? 0), 0);
+
+  // Rappels en retard
+  type Reminder = { done?: boolean; dueAt: string };
+  const reminders = (meta.reminders as Reminder[]) ?? [];
+  const rappelsEnRetard = reminders.filter(r => !r.done && new Date(r.dueAt) < new Date()).length;
+
+  // Gain de temps (5 min par action en moyenne)
+  const totalWeek = days.reduce((s, d) => s + d.count, 0);
+  const gainTempsMinutes = totalWeek * 5;
+
+  const isUnlimited = meta.unlimited === true;
+
   return NextResponse.json({
     plan,
     todayCount,
-    limit: limits.actionsPerDay,
+    limit: isUnlimited ? 999 : limits.actionsPerDay,
+    unlimited: isUnlimited,
     integrationsCount: integrations.length,
-    integrationsLimit: limits.integrations,
+    integrationsLimit: isUnlimited ? 999 : limits.integrations,
     integrations,
     history: days,
-    totalWeek: days.reduce((s, d) => s + d.count, 0),
+    totalWeek,
+    gainTempsMinutes,
     automationResults,
+    crm: { dealsActifs, dealsGagnes, caPotentiel, caGagne },
+    rappelsEnRetard,
   });
 }
