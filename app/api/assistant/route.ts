@@ -105,6 +105,7 @@ ${profileBlock}${contactsBlock}
 - Web : recherche_web (actualités, infos, cours, etc.) | meteo (météo temps réel)
 - Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
 - Rappels : creer_rappel (dans X jours) | voir_rappels — **Propose toujours un rappel après un devis ou une relance**
+- Tâches : voir_taches_du_jour — **utilise en début de journée automatiquement**
 - CRM Autozen : voir_contacts_crm | creer_contact_crm | voir_pipeline_crm | creer_deal_crm
 - Finance : calculer_tva (HT → TTC auto) | generer_devis (devis complet légal FR)
 
@@ -831,52 +832,64 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     }
   }
 
-  // ── CRM Autozen ──
+  // ── CRM Autozen (Clerk direct) ──
   if (name === "voir_contacts_crm") {
-    try {
-      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm`, { headers: { "x-clerk-user-id": userId } });
-      const d = await r.json() as { contacts?: { nom: string; email?: string; telephone?: string; entreprise?: string; statut?: string }[] };
-      if (!d.contacts?.length) return "Aucun contact dans le CRM.";
-      return `📋 **Contacts CRM (${d.contacts.length}) :**\n${d.contacts.slice(0, 20).map(c => `- **${c.nom}**${c.entreprise ? ` (${c.entreprise})` : ""}${c.telephone ? ` — WA: ${c.telephone}` : ""}${c.email ? ` — ${c.email}` : ""} [${c.statut ?? "prospect"}]`).join("\n")}`;
-    } catch { return "Erreur accès CRM."; }
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const contacts = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+    if (!contacts.length) return "Aucun contact dans le CRM. Utilise creer_contact_crm pour en ajouter.";
+    return `📋 **Contacts CRM (${contacts.length}) :**\n${contacts.slice(0, 25).map(c => `- **${c.name}**${c.phone ? ` — WA: ${c.phone}` : ""}${c.email ? ` — ${c.email}` : ""}${c.notes ? ` (${c.notes})` : ""}`).join("\n")}`;
   }
 
   if (name === "creer_contact_crm") {
-    const { nom, email, telephone, entreprise, statut, notes } = args as { nom: string; email?: string; telephone?: string; entreprise?: string; statut?: string; notes?: string };
-    try {
-      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "add", nom, email: email ?? "", telephone: telephone ?? "", entreprise: entreprise ?? "", statut: statut ?? "prospect", notes: notes ?? "", tags: "" }),
-      });
-      if (!r.ok) return "Erreur lors de la création du contact.";
-      return `✅ Contact **${nom}** ajouté au CRM${entreprise ? ` (${entreprise})` : ""}.`;
-    } catch { return "Erreur accès CRM."; }
+    const { nom, email, telephone, entreprise, notes } = args as { nom: string; email?: string; telephone?: string; entreprise?: string; notes?: string };
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const existing = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+    const contact: SavedContact = { id: Date.now().toString(), name: nom + (entreprise ? ` (${entreprise})` : ""), phone: telephone, email, notes };
+    await clerk.users.updateUserMetadata(userId, { privateMetadata: { userContacts: [...existing, contact] } });
+    return `✅ Contact **${nom}** ajouté au CRM${entreprise ? ` (${entreprise})` : ""}.`;
   }
 
   if (name === "voir_pipeline_crm") {
-    try {
-      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm/deals`);
-      const d = await r.json() as { deals?: { title: string; stage: string; amount?: number; contactName?: string }[] };
-      if (!d.deals?.length) return "Aucun deal dans le pipeline.";
-      const stages: Record<string, string> = { prospection: "Prospection", propose: "Devis envoyé", negociation: "Négociation", gagne: "Gagné ✓", perdu: "Perdu" };
-      const total = d.deals.filter(d => d.stage === "gagne").reduce((s, d) => s + (d.amount ?? 0), 0);
-      return `💼 **Pipeline CRM (${d.deals.length} deals — ${total.toLocaleString("fr-FR")}€ signés) :**\n${d.deals.map(d => `- **${d.title}**${d.contactName ? ` (${d.contactName})` : ""}${d.amount ? ` — ${d.amount.toLocaleString("fr-FR")}€` : ""} → ${stages[d.stage] ?? d.stage}`).join("\n")}`;
-    } catch { return "Erreur accès pipeline."; }
+    type Deal = { id: string; title: string; stage: string; amount?: number; contactName?: string };
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const deals = ((u.privateMetadata as Record<string, unknown>).deals as Deal[]) ?? [];
+    if (!deals.length) return "Aucun deal dans le pipeline. Utilise creer_deal_crm pour commencer.";
+    const stages: Record<string, string> = { prospection: "Prospection", propose: "Devis envoyé", negociation: "Négociation", gagne: "Gagné ✓", perdu: "Perdu" };
+    const total = deals.filter(d => d.stage === "gagne").reduce((s, d) => s + (d.amount ?? 0), 0);
+    return `💼 **Pipeline (${deals.length} deals — ${total.toLocaleString("fr-FR")} € signés) :**\n${deals.map(d => `- **${d.title}**${d.contactName ? ` (${d.contactName})` : ""}${d.amount ? ` — ${d.amount.toLocaleString("fr-FR")} €` : ""} → ${stages[d.stage] ?? d.stage}`).join("\n")}`;
   }
 
   if (name === "creer_deal_crm") {
+    type Deal = { id: string; title: string; stage: string; amount?: number; contactName?: string; createdAt: string; updatedAt: string };
     const { titre, contactName, amount, stage, notes } = args as { titre: string; contactName?: string; amount?: number; stage?: string; notes?: string };
-    try {
-      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm/deals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deal: { title: titre, contactName, amount, stage: stage ?? "prospection", notes } }),
-      });
-      const d = await r.json() as { deal?: { id: string } };
-      if (!d.deal) return "Erreur création deal.";
-      return `✅ Deal **${titre}** créé dans le pipeline${amount ? ` (${amount.toLocaleString("fr-FR")}€)` : ""}.`;
-    } catch { return "Erreur accès pipeline."; }
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const existing = ((u.privateMetadata as Record<string, unknown>).deals as Deal[]) ?? [];
+    const deal: Deal = { id: `deal_${Date.now()}`, title: titre, contactName, amount, stage: stage ?? "prospection", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    if (notes) (deal as Deal & { notes?: string }).notes = notes;
+    await clerk.users.updateUserMetadata(userId, { privateMetadata: { deals: [...existing, deal] } });
+    return `✅ Deal **${titre}** créé dans le pipeline${amount ? ` (${amount.toLocaleString("fr-FR")} €)` : ""}. Étape : ${stage ?? "Prospection"}.`;
+  }
+
+  // ── Tâches du jour ──
+  if (name === "voir_taches_du_jour") {
+    const clerk = await clerkClient();
+    const u = await clerk.users.getUser(userId);
+    const meta = (u.privateMetadata ?? {}) as Record<string, unknown>;
+    type Reminder = { id: string; title: string; dueAt: string; note?: string; done?: boolean };
+    const reminders = ((meta.reminders as Reminder[]) ?? []).filter(r => !r.done && new Date(r.dueAt) <= new Date(Date.now() + 86400_000));
+    const overdue = reminders.filter(r => new Date(r.dueAt) < new Date()).length;
+    let out = `📋 **Tâches du jour :**\n`;
+    if (!reminders.length) out += "Aucune tâche en attente — bonne journée ! 🎉\n";
+    else out += reminders.map(r => {
+      const isLate = new Date(r.dueAt) < new Date();
+      return `- ${isLate ? "🔴" : "⏳"} **${r.title}**${r.note ? ` — ${r.note}` : ""} (${new Date(r.dueAt).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })})`;
+    }).join("\n");
+    if (overdue > 0) out += `\n\n⚠️ ${overdue} tâche${overdue > 1 ? "s" : ""} en retard.`;
+    return out;
   }
 
   // ── Finance ──
@@ -1048,6 +1061,11 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // Météo — always available
   tools.push(
     { type: "function", function: { name: "meteo", description: "Obtenir la météo actuelle pour une ville française ou mondiale.", parameters: { type: "object" as const, properties: { ville: { type: "string", description: "Nom de la ville (ex: Paris, Lyon, Marseille)" } }, required: ["ville"] } } }
+  );
+
+  // Tâches + productivité — always available
+  tools.push(
+    { type: "function", function: { name: "voir_taches_du_jour", description: "Voir toutes les tâches et rappels en attente pour aujourd'hui et demain. Utilise en début de conversation ou quand l'utilisateur demande 'qu'est-ce que j'ai à faire'.", parameters: { type: "object" as const, properties: {} } } }
   );
 
   // CRM Autozen — always available
