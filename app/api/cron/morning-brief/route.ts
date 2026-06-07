@@ -3,12 +3,10 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { generateMorningBrief } from "@/lib/morning-brief";
 import webpush from "web-push";
 
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    "mailto:victorseiler0@gmail.com",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
+function initVapid() {
+  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (pub && priv) webpush.setVapidDetails("mailto:victorseiler0@gmail.com", pub, priv);
 }
 
 export const maxDuration = 60;
@@ -71,6 +69,7 @@ export async function GET(req: NextRequest) {
       }
 
       // Push notification
+      initVapid();
       const subs = (meta.pushSubscriptions as webpush.PushSubscription[]) ?? [];
       if (subs.length > 0) {
         const payload = JSON.stringify({

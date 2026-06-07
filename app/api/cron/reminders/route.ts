@@ -5,12 +5,10 @@ import type { Reminder } from "@/app/api/reminders/route";
 
 export const maxDuration = 60;
 
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    "mailto:victorseiler0@gmail.com",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
+function initVapid() {
+  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (pub && priv) webpush.setVapidDetails("mailto:victorseiler0@gmail.com", pub, priv);
 }
 
 export async function GET(req: NextRequest) {
@@ -30,6 +28,7 @@ export async function GET(req: NextRequest) {
     const due = reminders.filter(r => !r.done && new Date(r.dueAt) <= now);
     if (!due.length) continue;
 
+    initVapid();
     for (const r of due) {
       if (r.channel === "push") {
         const subs = (meta.pushSubscriptions as webpush.PushSubscription[]) ?? [];
