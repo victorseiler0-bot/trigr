@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 
 interface BuyButtonProps {
@@ -29,7 +29,7 @@ export default function BuyButton({ productId, withInstall = false, label = "Obt
     <button
       onClick={handleClick}
       disabled={loading}
-      className="text-sm font-semibold px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-violet-600 text-zinc-300 hover:text-white border border-white/[0.08] hover:border-violet-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      className="text-sm font-semibold px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-blue-600 text-zinc-300 hover:text-white border border-white/[0.08] hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {loading ? (
         <span className="flex items-center gap-2">

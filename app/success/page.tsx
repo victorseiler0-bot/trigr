@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -21,24 +21,24 @@ function SuccessContent() {
     return (
       <div className="min-h-screen bg-[#09090b] flex items-center justify-center px-6">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-violet-600/[0.06] rounded-full blur-[120px]" />
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-blue-600/[0.06] rounded-full blur-[120px]" />
         </div>
         <div className="relative z-10 max-w-md w-full text-center">
-          <div className="w-20 h-20 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center mx-auto mb-6">
-            <svg width="36" height="36" fill="none" stroke="#a78bfa" strokeWidth="2.5">
+          <div className="w-20 h-20 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-6">
+            <svg width="36" height="36" fill="none" stroke="#93c5fd" strokeWidth="2.5">
               <path d="M6 18l9 9L30 9" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-white mb-3">Plan activé !</h1>
           <p className="text-zinc-400 mb-2">
-            Bienvenue sur <span className="text-violet-300 font-medium">{planLabel}</span>.
+            Bienvenue sur <span className="text-blue-300 font-medium">{planLabel}</span>.
           </p>
           <p className="text-zinc-500 text-sm mb-8">
             Ton compte est maintenant actif. L&apos;assistant est prêt à te faire gagner du temps.
           </p>
           <Link
             href="/assistant"
-            className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-[0_0_30px_rgba(139,92,246,0.4)] text-base w-full mb-4"
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-[0_0_30px_rgba(59,130,246,0.4)] text-base w-full mb-4"
           >
             Ouvrir l&apos;assistant
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -54,7 +54,7 @@ function SuccessContent() {
   // Marketplace one-time purchase
   const productName = product ?? "ton automatisation";
   const whatsappMsg = encodeURIComponent(
-    `Bonjour, je viens d'acheter "${productName}" sur Trigr. Pouvez-vous me livrer le fichier ?`
+    `Bonjour, je viens d'acheter "${productName}" sur Autozen. Pouvez-vous me livrer le fichier ?`
   );
 
   return (
@@ -70,7 +70,7 @@ function SuccessContent() {
         </div>
         <h1 className="text-3xl font-bold text-white mb-3">Paiement réussi !</h1>
         <p className="text-zinc-400 mb-2">
-          Merci pour ton achat de <span className="text-violet-300 font-medium">{productName}</span>.
+          Merci pour ton achat de <span className="text-blue-300 font-medium">{productName}</span>.
         </p>
         <p className="text-zinc-500 text-sm mb-8">
           Contacte-nous sur WhatsApp pour recevoir ton fichier workflow et ton guide d&apos;installation.
@@ -88,7 +88,7 @@ function SuccessContent() {
           Recevoir mon workflow sur WhatsApp
         </a>
         <p className="text-zinc-600 text-xs mb-8">Livraison en moins de 2h · Support inclus 30 jours</p>
-        <Link href="/" className="text-violet-400 hover:text-violet-300 text-sm transition-colors">
+        <Link href="/" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
           ← Retour à l&apos;accueil
         </Link>
       </div>

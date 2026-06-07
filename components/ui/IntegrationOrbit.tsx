@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef } from "react";
 
@@ -37,19 +37,19 @@ export default function IntegrationOrbit() {
 
         {/* Left — texte */}
         <div className="flex-1 z-10">
-          <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
             20+ intégrations natives
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
             Connecte tous tes outils<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-400">en un seul endroit</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">en un seul endroit</span>
           </h2>
           <p className="text-zinc-400 text-base mb-8 max-w-md">
-            Gmail, WhatsApp, Notion, Slack, GitHub, Stripe — Trigr unifie ton stack et automatise à ta place. RGPD-friendly, hébergé en Europe.
+            Gmail, WhatsApp, Notion, Slack, GitHub, Stripe — Autozen unifie ton stack et automatise à ta place. RGPD-friendly, hébergé en Europe.
           </p>
           <div className="flex flex-wrap gap-3">
-            <a href="/assistant" className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-all text-sm shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+            <a href="/assistant" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-all text-sm shadow-[0_0_20px_rgba(59,130,246,0.3)]">
               Essayer gratuitement →
             </a>
             <a href="/integrations" className="border border-white/[0.10] text-zinc-300 hover:text-white hover:border-white/20 font-medium px-5 py-2.5 rounded-xl transition-all text-sm">
@@ -71,8 +71,8 @@ export default function IntegrationOrbit() {
         {/* Right — orbites */}
         <div ref={containerRef} className="relative flex-shrink-0 w-[480px] h-[480px] flex items-center justify-center">
           {/* Centre */}
-          <div className="absolute w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(139,92,246,0.6)] z-10">
-            <span className="text-white font-black text-2xl">T</span>
+          <div className="absolute w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.6)] z-10">
+            <span className="text-white font-black text-2xl">A</span>
           </div>
 
           {ORBITS.map(({ icons, size, speed }, oi) => (

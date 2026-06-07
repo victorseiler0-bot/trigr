@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import webpush from "web-push";
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   if (!subs.length) return NextResponse.json({ sent: 0 });
 
-  const payload = JSON.stringify({ title: title ?? "Trigr", body: body ?? "", url: url ?? "/dashboard", tag });
+  const payload = JSON.stringify({ title: title ?? "Autozen", body: body ?? "", url: url ?? "/dashboard", tag });
 
   const results = await Promise.allSettled(
     subs.map(sub => webpush.sendNotification(sub, payload))

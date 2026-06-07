@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -29,11 +29,11 @@ export default function CookieBanner() {
         <div className="flex-1 min-w-0">
           <p className="text-sm text-zinc-300 leading-relaxed">
             Nous utilisons des cookies pour améliorer votre expérience et analyser le trafic.{" "}
-            <Link href="/privacy" className="text-violet-400 hover:text-violet-300 underline underline-offset-2">
+            <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">
               Politique de confidentialité
             </Link>{" "}
             ·{" "}
-            <Link href="/terms" className="text-violet-400 hover:text-violet-300 underline underline-offset-2">
+            <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">
               CGU
             </Link>
           </p>
@@ -47,7 +47,7 @@ export default function CookieBanner() {
           </button>
           <button
             onClick={accept}
-            className="text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-all shadow-[0_0_16px_rgba(139,92,246,0.4)]"
+            className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-all shadow-[0_0_16px_rgba(59,130,246,0.4)]"
           >
             Tout accepter
           </button>

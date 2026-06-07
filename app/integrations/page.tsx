@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -49,7 +49,7 @@ const L = {
 const APPS: AppDef[] = [
   // Google = natif (traité séparément)
   { slug: "instagram_business", name: "Instagram", description: "DMs Instagram. Prérequis : compte Instagram Business ou Créateur relié à une Page Facebook.", category: "Communication", color: "#E1306C", logo: <L.Instagram />, popular: true },
-  { slug: "microsoft_outlook", name: "Microsoft Outlook", description: "Emails et calendrier Microsoft (compte personnel recommandé).", category: "Communication", color: "#0078D4", logo: <L.Outlook />, popular: true, footerNote: <a href="/settings" className="text-xs text-violet-600 hover:underline">Compte école/entreprise ? → Connecter via IMAP dans Paramètres</a> },
+  { slug: "microsoft_outlook", name: "Microsoft Outlook", description: "Emails et calendrier Microsoft (compte personnel recommandé).", category: "Communication", color: "#0078D4", logo: <L.Outlook />, popular: true, footerNote: <a href="/settings" className="text-xs text-blue-600 hover:underline">Compte école/entreprise ? → Connecter via IMAP dans Paramètres</a> },
   { slug: "whatsapp_business", name: "WhatsApp Business", description: "Connexion via clé API Meta — pas OAuth iframe.", category: "Communication", color: "#25D366", logo: <L.WhatsApp />, popular: true },
   { slug: "slack", name: "Slack", description: "Canaux, messages directs et notifications dans ton espace de travail.", category: "Communication", color: "#E01E5A", logo: <L.Slack />, popular: true },
   { slug: "discord", name: "Discord", description: "Serveurs, canaux vocaux et messages Discord.", category: "Communication", color: "#5865F2", logo: <L.Discord /> },
@@ -225,7 +225,7 @@ export default function IntegrationsPage() {
 
   if (!isLoaded || !isSignedIn) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="w-6 h-6 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+      <div className="w-6 h-6 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
     </div>
   );
 
@@ -241,12 +241,12 @@ export default function IntegrationsPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-2">Intégrations</p>
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-2">Intégrations</p>
               <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-2">
                 Connectez vos outils
               </h1>
               <p className="text-slate-500 text-base">
-                Connexion OAuth sécurisée — vos identifiants ne transitent jamais par Trigr.
+                Connexion OAuth sécurisée — vos identifiants ne transitent jamais par Autozen.
               </p>
             </div>
             {/* Stats */}
@@ -279,7 +279,7 @@ export default function IntegrationsPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Chercher une app…"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
               />
               {search && (
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -292,7 +292,7 @@ export default function IntegrationsPage() {
                 <button key={cat} onClick={() => setActiveCategory(cat)}
                   className={`px-3.5 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
                     activeCategory === cat
-                      ? "bg-violet-600 text-white shadow-sm"
+                      ? "bg-blue-600 text-white shadow-sm"
                       : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                   }`}>
                   {cat}
@@ -308,7 +308,7 @@ export default function IntegrationsPage() {
 
         {loading && (
           <div className="flex items-center gap-3 text-slate-500 text-sm">
-            <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-violet-600 animate-spin" />
+            <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
             Chargement de vos connexions…
           </div>
         )}
@@ -404,16 +404,16 @@ export default function IntegrationsPage() {
 
         {/* ── Info sécurité ─────────────────────────────────────────────────── */}
         <div className="flex items-start gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
-            <svg width="18" height="18" fill="none" stroke="#7c3aed" strokeWidth="1.5" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+            <svg width="18" height="18" fill="none" stroke="#3b82f6" strokeWidth="1.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
             </svg>
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-900 mb-1">Connexions 100 % sécurisées</p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Chaque connexion passe par OAuth 2.0 officiel — vous vous authentifiez directement sur le service (Google, Slack, etc.), jamais sur Trigr.
-              Les tokens sont chiffrés par Pipedream Connect et stockés sous votre identifiant anonymisé. Trigr ne voit jamais vos mots de passe.
+              Chaque connexion passe par OAuth 2.0 officiel — vous vous authentifiez directement sur le service (Google, Slack, etc.), jamais sur Autozen.
+              Les tokens sont chiffrés par Pipedream Connect et stockés sous votre identifiant anonymisé. Autozen ne voit jamais vos mots de passe.
             </p>
           </div>
         </div>

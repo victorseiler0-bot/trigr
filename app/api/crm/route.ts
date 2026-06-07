@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
-const SHEET_TITLE = "Trigr CRM";
+const SHEET_TITLE = "Autozen CRM";
 const COLUMNS = ["ID", "Nom", "Email", "Entreprise", "Téléphone", "Statut", "Tags", "Dernière interaction", "Notes", "Créé le"];
 
 async function gFetch(url: string, token: string, init: RequestInit = {}) {

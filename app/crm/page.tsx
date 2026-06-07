@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ type Deal = { id: string; title: string; contactName?: string; amount?: number; 
 const STAGE_CONFIG: Record<DealStage, { label: string; color: string; bg: string }> = {
   prospection: { label: "Prospection", color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
   propose:     { label: "Devis envoyé", color: "text-amber-400",  bg: "bg-amber-500/10 border-amber-500/20" },
-  negociation: { label: "Négociation",  color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+  negociation: { label: "Négociation",  color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
   gagne:       { label: "Gagné ✓",      color: "text-emerald-400",bg: "bg-emerald-500/10 border-emerald-500/20" },
   perdu:       { label: "Perdu",        color: "text-red-400",    bg: "bg-red-500/10 border-red-500/20" },
 };
@@ -34,7 +34,7 @@ const STATUT_CONFIG: Record<Statut, { label: string; dot: string; badge: string 
   prospect:   { label: "Prospect",   dot: "bg-amber-400",   badge: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
   client:     { label: "Client",     dot: "bg-emerald-400", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   inactif:    { label: "Inactif",    dot: "bg-zinc-500",    badge: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20" },
-  partenaire: { label: "Partenaire", dot: "bg-violet-400",  badge: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
+  partenaire: { label: "Partenaire", dot: "bg-blue-400",  badge: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
 };
 
 const EMPTY_FORM: Omit<Contact, "id" | "derniereInteraction" | "creeLe"> = {
@@ -207,16 +207,16 @@ export default function CrmPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">CRM <span className="text-violet-400">Trigr</span></h1>
+            <h1 className="text-3xl font-bold tracking-tight">CRM <span className="text-blue-400">Autozen</span></h1>
             <p className="text-zinc-400 mt-1 text-sm">Tes contacts, stockés dans ton Google Drive.</p>
           </div>
           <div className="flex items-center gap-3">
             {/* View toggle */}
             <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl p-0.5">
-              <button onClick={() => setViewMode("contacts")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "contacts" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
+              <button onClick={() => setViewMode("contacts")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "contacts" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
                 Contacts
               </button>
-              <button onClick={() => setViewMode("pipeline")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "pipeline" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
+              <button onClick={() => setViewMode("pipeline")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "pipeline" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
                 Pipeline
               </button>
             </div>
@@ -247,7 +247,7 @@ export default function CrmPage() {
               {importing ? "Import…" : "Google Contacts"}
             </button>
             <button onClick={openNew}
-              className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)] flex items-center gap-2">
+              className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] flex items-center gap-2">
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 1v12M1 7h12" strokeLinecap="round"/></svg>
               Ajouter
             </button>
@@ -266,7 +266,7 @@ export default function CrmPage() {
           <div>
             <div className="flex items-center justify-between mb-5">
               <p className="text-sm text-zinc-400">{deals.filter(d => d.stage !== "gagne" && d.stage !== "perdu").length} deal(s) actifs · {deals.filter(d => d.stage === "gagne").reduce((s, d) => s + (d.amount ?? 0), 0).toLocaleString("fr-FR")} € signés</p>
-              <button onClick={() => setDealOpen(true)} className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5">
+              <button onClick={() => setDealOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5">
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
                 Nouveau deal
               </button>
@@ -287,7 +287,7 @@ export default function CrmPage() {
                         <div key={deal.id} className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3 hover:border-white/[0.12] transition-all group">
                           <p className="text-sm font-medium text-white mb-1 leading-snug">{deal.title}</p>
                           {deal.contactName && <p className="text-xs text-zinc-500 mb-1">{deal.contactName}</p>}
-                          {deal.amount && <p className="text-xs text-violet-400 font-semibold">{deal.amount.toLocaleString("fr-FR")} €</p>}
+                          {deal.amount && <p className="text-xs text-blue-400 font-semibold">{deal.amount.toLocaleString("fr-FR")} €</p>}
                           <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             {(["prospection", "propose", "negociation", "gagne", "perdu"] as DealStage[]).filter(s => s !== stage).map(s => (
                               <button key={s} onClick={() => moveDeal(deal.id, s)} title={STAGE_CONFIG[s].label}
@@ -310,16 +310,16 @@ export default function CrmPage() {
                 <div className="bg-[#111113] border border-white/[0.08] rounded-2xl p-6 w-full max-w-md">
                   <h3 className="text-lg font-semibold text-white mb-4">Nouveau deal</h3>
                   <div className="space-y-3">
-                    <input value={dealForm.title ?? ""} onChange={e => setDealForm(f => ({ ...f, title: e.target.value }))} placeholder="Titre du deal *" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40" />
-                    <input value={dealForm.contactName ?? ""} onChange={e => setDealForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Client / contact" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40" />
-                    <input type="number" value={dealForm.amount ?? ""} onChange={e => setDealForm(f => ({ ...f, amount: Number(e.target.value) || undefined }))} placeholder="Montant (€)" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40" />
+                    <input value={dealForm.title ?? ""} onChange={e => setDealForm(f => ({ ...f, title: e.target.value }))} placeholder="Titre du deal *" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500/40" />
+                    <input value={dealForm.contactName ?? ""} onChange={e => setDealForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Client / contact" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500/40" />
+                    <input type="number" value={dealForm.amount ?? ""} onChange={e => setDealForm(f => ({ ...f, amount: Number(e.target.value) || undefined }))} placeholder="Montant (€)" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500/40" />
                     <select value={dealForm.stage ?? "prospection"} onChange={e => setDealForm(f => ({ ...f, stage: e.target.value as DealStage }))} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
                       {(Object.keys(STAGE_CONFIG) as DealStage[]).map(s => <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>)}
                     </select>
                   </div>
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setDealOpen(false)} className="flex-1 border border-white/[0.08] text-zinc-300 py-2.5 rounded-xl text-sm hover:border-white/20 transition-all">Annuler</button>
-                    <button onClick={saveDeal} disabled={dealSaving || !dealForm.title} className="flex-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-all">
+                    <button onClick={saveDeal} disabled={dealSaving || !dealForm.title} className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-all">
                       {dealSaving ? "Enregistrement…" : "Créer le deal"}
                     </button>
                   </div>
@@ -350,13 +350,13 @@ export default function CrmPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un contact…"
-            className="flex-1 min-w-[200px] bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40"
+            className="flex-1 min-w-[200px] bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500/40"
           />
           <div className="flex gap-2 flex-wrap">
             {(["tous", "prospect", "client", "partenaire", "inactif"] as const).map((s) => (
               <button key={s} onClick={() => setFilterStatut(s)}
                 className={`text-sm px-3 py-2 rounded-xl border transition-all capitalize ${
-                  filterStatut === s ? "bg-violet-600 border-violet-500 text-white" : "border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20"
+                  filterStatut === s ? "bg-blue-600 border-blue-500 text-white" : "border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20"
                 }`}>
                 {s === "tous" ? "Tous" : STATUT_CONFIG[s].label}
               </button>
@@ -377,7 +377,7 @@ export default function CrmPage() {
             <div className="text-5xl mb-4">👥</div>
             <div className="text-zinc-400 mb-2">{contacts.length === 0 ? "Aucun contact pour l'instant" : "Aucun résultat"}</div>
             {contacts.length === 0 && (
-              <button onClick={openNew} className="mt-4 text-sm text-violet-400 hover:text-violet-300 underline underline-offset-4">
+              <button onClick={openNew} className="mt-4 text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4">
                 Ajouter ton premier contact →
               </button>
             )}
@@ -446,7 +446,7 @@ export default function CrmPage() {
               </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-4">
-              {selected.email && <div><div className="text-xs text-zinc-500 mb-1">Email</div><a href={`mailto:${selected.email}`} className="text-violet-400 hover:underline">{selected.email}</a></div>}
+              {selected.email && <div><div className="text-xs text-zinc-500 mb-1">Email</div><a href={`mailto:${selected.email}`} className="text-blue-400 hover:underline">{selected.email}</a></div>}
               {selected.telephone && <div><div className="text-xs text-zinc-500 mb-1">Téléphone</div><span>{selected.telephone}</span></div>}
               {selected.tags && <div><div className="text-xs text-zinc-500 mb-1">Tags</div><span className="text-zinc-300">{selected.tags}</span></div>}
               {selected.derniereInteraction && <div><div className="text-xs text-zinc-500 mb-1">Dernière interaction</div><span>{selected.derniereInteraction}</span></div>}
@@ -470,10 +470,10 @@ export default function CrmPage() {
                   const prefill = parts.join(" ");
                   router.push(`/assistant?prefill=${encodeURIComponent(prefill)}`);
                 }}
-                className="text-sm px-3 py-1.5 bg-violet-600/20 border border-violet-500/30 rounded-xl text-violet-400 hover:bg-violet-600/30 transition-all flex items-center gap-1.5"
+                className="text-sm px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-blue-400 hover:bg-blue-600/30 transition-all flex items-center gap-1.5"
               >
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Contacter avec Trigr
+                Contacter avec Autozen
               </button>
               {selected.telephone && (
                 <button
@@ -512,7 +512,7 @@ export default function CrmPage() {
                   <input
                     value={form[f]}
                     onChange={(e) => setForm((p) => ({ ...p, [f]: e.target.value }))}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/40"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500/40"
                     type={f === "email" ? "email" : "text"}
                     placeholder={f === "nom" ? "Jean Dupont" : f === "email" ? "jean@exemple.fr" : ""}
                   />
@@ -522,7 +522,7 @@ export default function CrmPage() {
               <div>
                 <label className="text-xs text-zinc-400 mb-1 block">Statut</label>
                 <select value={form.statut} onChange={(e) => setForm((p) => ({ ...p, statut: e.target.value as Statut }))}
-                  className="w-full bg-[#09090b] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                  className="w-full bg-[#09090b] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/40">
                   {(Object.keys(STATUT_CONFIG) as Statut[]).map((s) => (
                     <option key={s} value={s}>{STATUT_CONFIG[s].label}</option>
                   ))}
@@ -532,14 +532,14 @@ export default function CrmPage() {
               <div>
                 <label className="text-xs text-zinc-400 mb-1 block">Tags <span className="text-zinc-600">(séparés par virgule)</span></label>
                 <input value={form.tags} onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/40"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500/40"
                   placeholder="design, inbound, 2026" />
               </div>
 
               <div>
                 <label className="text-xs text-zinc-400 mb-1 block">Notes</label>
                 <textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                  rows={3} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/40 resize-none"
+                  rows={3} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500/40 resize-none"
                   placeholder="Rencontré au salon, intéressé par le plan Pro…" />
               </div>
 
@@ -549,7 +549,7 @@ export default function CrmPage() {
                   Annuler
                 </button>
                 <button onClick={handleSave} disabled={saving || !form.nom}
-                  className="flex-1 py-2.5 text-sm bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl transition-all disabled:opacity-40">
+                  className="flex-1 py-2.5 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all disabled:opacity-40">
                   {saving ? "Enregistrement…" : selected ? "Modifier" : "Ajouter"}
                 </button>
               </div>

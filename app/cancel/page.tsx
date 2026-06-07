@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function CancelPage() {
   return (
@@ -18,7 +18,7 @@ export default function CancelPage() {
         </p>
         <Link
           href="/#automations"
-          className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold px-6 py-3 rounded-xl transition-all"
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition-all"
         >
           Retour aux automatisations
         </Link>

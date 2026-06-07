@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { getPipedreamBrowserClient } from "@/lib/pipedream-browser";
@@ -201,7 +201,7 @@ export function PipedreamConnectButton({
                 return (
                   <div key={s} className="flex items-center gap-1.5 flex-1">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                      isDone ? "bg-emerald-500" : isActive ? "bg-violet-600" : "bg-slate-200"
+                      isDone ? "bg-emerald-500" : isActive ? "bg-blue-600" : "bg-slate-200"
                     }`}>
                       {isDone
                         ? <svg width="9" height="9" fill="none" stroke="white" strokeWidth="2.5"><path d="M1.5 4.5l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/></svg>

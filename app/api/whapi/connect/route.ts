@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { whapiChannel, getUserWhapiMeta, setUserWhapiMeta, clearUserWhapiMeta } from "@/lib/whapi";
 
-// Whapi : Trigr gère tous les channels — l'utilisateur scanne juste un QR
+// Whapi : Autozen gère tous les channels — l'utilisateur scanne juste un QR
 // WHAPI_MANAGER_KEY = Manager API Key (Whapi dashboard → Settings → Manager API)
 
 const WHAPI_MGR = "https://manager.whapi.cloud";
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     if (!managerConfigured) {
       return NextResponse.json({ configured: false, error: "WHAPI_MANAGER_KEY manquant" });
     }
-    const channel = await createChannel(`trigr-user-${userId.slice(-8)}`);
+    const channel = await createChannel(`Autozen-user-${userId.slice(-8)}`);
     if (!channel) return NextResponse.json({ configured: false, error: "Impossible de créer le channel Whapi" });
     token = channel.token;
     channelId = channel.id;

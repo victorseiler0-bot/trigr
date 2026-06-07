@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, createContext, useContext, useCallback, useRef } from "react";
 
@@ -37,7 +37,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const styles: Record<ToastType, string> = {
     success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
     error:   "border-red-500/30 bg-red-500/10 text-red-300",
-    info:    "border-violet-500/30 bg-violet-500/10 text-violet-200",
+    info:    "border-blue-500/30 bg-blue-500/10 text-blue-200",
   };
 
   return (

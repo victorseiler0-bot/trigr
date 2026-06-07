@@ -1,4 +1,4 @@
-const CACHE = "trigr-v1";
+﻿const CACHE = "Autozen-v1";
 const OFFLINE = ["/", "/assistant", "/dashboard"];
 
 self.addEventListener("install", e => {
@@ -16,12 +16,12 @@ self.addEventListener("fetch", e => {
 
 self.addEventListener("push", e => {
   const data = e.data?.json() ?? {};
-  const title = data.title ?? "Trigr";
+  const title = data.title ?? "Autozen";
   const options = {
     body: data.body ?? "",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: data.tag ?? "trigr-notif",
+    tag: data.tag ?? "Autozen-notif",
     renotify: true,
     data: { url: data.url ?? "/dashboard" },
   };

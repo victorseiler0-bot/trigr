@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
 // Abonne automatiquement le WABA au webhook Meta
@@ -10,7 +10,7 @@ export async function POST() {
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "https://trigr-eight.vercel.app";
+    : "https://Autozen-eight.vercel.app";
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (!token || !phoneId) {

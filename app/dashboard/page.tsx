@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -23,7 +23,7 @@ type Analytics = {
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:   { label: "Gratuit",  color: "text-zinc-400" },
   solo:   { label: "Solo",     color: "text-blue-400" },
-  pro:    { label: "Pro",      color: "text-violet-400" },
+  pro:    { label: "Pro",      color: "text-blue-400" },
   equipe: { label: "Équipe",   color: "text-emerald-400" },
 };
 
@@ -32,7 +32,7 @@ const INTEGRATION_ICONS: Record<string, { icon: string; label: string; color: st
   microsoft: { icon: "M", label: "Microsoft", color: "bg-blue-500/20 text-blue-300" },
   whatsapp:  { icon: "W", label: "WhatsApp",  color: "bg-green-500/20 text-green-300" },
   notion:    { icon: "N", label: "Notion",    color: "bg-zinc-500/20 text-zinc-300" },
-  slack:     { icon: "S", label: "Slack",     color: "bg-violet-500/20 text-violet-300" },
+  slack:     { icon: "S", label: "Slack",     color: "bg-blue-500/20 text-blue-300" },
   instagram: { icon: "I", label: "Instagram", color: "bg-pink-500/20 text-pink-300" },
   apple:     { icon: "A", label: "Apple",     color: "bg-zinc-400/20 text-zinc-200" },
   imap:      { icon: "E", label: "Email Pro", color: "bg-amber-500/20 text-amber-300" },
@@ -53,12 +53,12 @@ function SparkBar({ days, max }: { days: DayEntry[]; max: number }) {
           <div key={d.date} className="flex flex-col items-center gap-1 flex-1">
             <div className="w-full flex flex-col justify-end" style={{ height: 44 }}>
               <div
-                className={`w-full rounded-sm transition-all ${isToday ? "bg-violet-500" : "bg-zinc-700"}`}
+                className={`w-full rounded-sm transition-all ${isToday ? "bg-blue-500" : "bg-zinc-700"}`}
                 style={{ height: `${Math.max(pct, d.count > 0 ? 8 : 2)}%` }}
                 title={`${d.count} action${d.count > 1 ? "s" : ""}`}
               />
             </div>
-            <span className={`text-[9px] ${isToday ? "text-violet-400" : "text-zinc-700"}`}>{dayLabel}</span>
+            <span className={`text-[9px] ${isToday ? "text-blue-400" : "text-zinc-700"}`}>{dayLabel}</span>
           </div>
         );
       })}
@@ -68,9 +68,9 @@ function SparkBar({ days, max }: { days: DayEntry[]; max: number }) {
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${accent ? "border-violet-500/30 bg-violet-500/[0.06]" : "border-white/[0.08] bg-white/[0.02]"}`}>
+    <div className={`rounded-2xl border p-4 ${accent ? "border-blue-500/30 bg-blue-500/[0.06]" : "border-white/[0.08] bg-white/[0.02]"}`}>
       <div className="text-xs text-zinc-500 mb-1">{label}</div>
-      <div className={`text-2xl font-bold ${accent ? "text-violet-300" : "text-white"}`}>{value}</div>
+      <div className={`text-2xl font-bold ${accent ? "text-blue-300" : "text-white"}`}>{value}</div>
       {sub && <div className="text-xs text-zinc-600 mt-0.5">{sub}</div>}
     </div>
   );
@@ -104,7 +104,7 @@ export default function DashboardPage() {
 
   if (!isLoaded || !isSignedIn) return (
     <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-      <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
     </div>
   );
 
@@ -127,7 +127,7 @@ export default function DashboardPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
               Plan {planInfo.label}
               {data?.plan === "free" && (
-                <Link href="/pricing" className="ml-1 text-violet-400 hover:text-violet-300">↑ Upgrade</Link>
+                <Link href="/pricing" className="ml-1 text-blue-400 hover:text-blue-300">↑ Upgrade</Link>
               )}
             </div>
           )}
@@ -135,7 +135,7 @@ export default function DashboardPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <div className="w-6 h-6 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+            <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
           </div>
         ) : data ? (
           <>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${usagePct >= 90 ? "bg-red-500" : usagePct >= 70 ? "bg-amber-500" : "bg-violet-500"}`}
+                    className={`h-full rounded-full transition-all ${usagePct >= 90 ? "bg-red-500" : usagePct >= 70 ? "bg-amber-500" : "bg-blue-500"}`}
                     style={{ width: `${usagePct}%` }}
                   />
                 </div>
@@ -188,12 +188,12 @@ export default function DashboardPage() {
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-zinc-300">Intégrations connectées</h2>
-                <Link href="/settings" className="text-xs text-violet-400 hover:text-violet-300">Gérer →</Link>
+                <Link href="/settings" className="text-xs text-blue-400 hover:text-blue-300">Gérer →</Link>
               </div>
               {data.integrations.length === 0 ? (
                 <div className="text-center py-6">
                   <p className="text-sm text-zinc-600 mb-3">Aucune app connectée</p>
-                  <Link href="/settings" className="text-xs text-violet-400 hover:text-violet-300">Connecter mes apps →</Link>
+                  <Link href="/settings" className="text-xs text-blue-400 hover:text-blue-300">Connecter mes apps →</Link>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
@@ -215,7 +215,7 @@ export default function DashboardPage() {
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-zinc-300">Accès rapide</h2>
-                <Link href="/assistant" className="text-xs text-violet-400 hover:text-violet-300">Assistant →</Link>
+                <Link href="/assistant" className="text-xs text-blue-400 hover:text-blue-300">Assistant →</Link>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {([
@@ -227,12 +227,12 @@ export default function DashboardPage() {
                   { icon: "👥", label: "Mes contacts", prompt: "/crm" },
                 ] as { icon: string; label: string; prompt: string }[]).map((item, i) => (
                   item.prompt.startsWith("/")
-                    ? <Link key={i} href={item.prompt} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/20 transition-all">
+                    ? <Link key={i} href={item.prompt} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-blue-500/20 transition-all">
                         <span className="text-base">{item.icon}</span>
                         <span className="text-xs text-zinc-300">{item.label}</span>
                       </Link>
                     : <Link key={i} href={"/assistant?prefill=" + encodeURIComponent(item.prompt)}
-                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/20 transition-all">
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-blue-500/20 transition-all">
                         <span className="text-base">{item.icon}</span>
                         <span className="text-xs text-zinc-300">{item.label}</span>
                       </Link>
@@ -242,14 +242,14 @@ export default function DashboardPage() {
 
             {/* Nav links */}
             <div className="grid grid-cols-2 gap-3">
-              <Link href="/assistant" className="flex items-center gap-3 p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] hover:border-violet-500/30 transition-all group">
-                <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 flex items-center justify-center">
+              <Link href="/assistant" className="flex items-center gap-3 p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] hover:border-blue-500/30 transition-all group">
+                <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/20 flex items-center justify-center">
                   <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
-                    <path d="M2 7h4l2-5 2 10 2-5h2" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 7h4l2-5 2 10 2-5h2" stroke="#93c5fd" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">Assistant IA</div>
+                  <div className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors">Assistant IA</div>
                   <div className="text-xs text-zinc-600">Nouvelle conversation</div>
                 </div>
               </Link>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                   <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                     <span>⚡</span> Dernières automatisations
                   </h2>
-                  <Link href="/settings?tab=automations" className="text-xs text-violet-400 hover:text-violet-300">Gérer →</Link>
+                  <Link href="/settings?tab=automations" className="text-xs text-blue-400 hover:text-blue-300">Gérer →</Link>
                 </div>
                 <div className="space-y-3">
                   {data.automationResults.map(ar => (
@@ -296,7 +296,7 @@ export default function DashboardPage() {
                   <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                     <span>⏰</span> Rappels en attente
                   </h2>
-                  <Link href="/assistant" className="text-xs text-violet-400 hover:text-violet-300">Gérer →</Link>
+                  <Link href="/assistant" className="text-xs text-blue-400 hover:text-blue-300">Gérer →</Link>
                 </div>
                 <div className="space-y-2">
                   {reminders.slice(0, 5).map(r => {
@@ -345,7 +345,7 @@ export default function DashboardPage() {
                     } finally { setBriefLoading(false); }
                   }}
                   disabled={briefLoading}
-                  className="text-xs text-violet-400 hover:text-violet-300 border border-violet-500/30 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                  className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
                 >
                   {briefLoading ? "Génération…" : "Générer maintenant"}
                 </button>
@@ -357,19 +357,19 @@ export default function DashboardPage() {
               ) : (
                 <p className="text-xs text-zinc-600">
                   Résumé automatique de tes emails, agenda et messages — chaque matin en semaine.
-                  {" "}<Link href="/settings" className="text-violet-400 hover:text-violet-300">Activer la livraison WA →</Link>
+                  {" "}<Link href="/settings" className="text-blue-400 hover:text-blue-300">Activer la livraison WA →</Link>
                 </p>
               )}
             </div>
 
             {/* Upgrade CTA for free */}
             {data.plan === "free" && (
-              <div className="mt-4 border border-violet-500/20 bg-violet-500/[0.05] rounded-2xl p-4 flex items-center gap-4">
+              <div className="mt-4 border border-blue-500/20 bg-blue-500/[0.05] rounded-2xl p-4 flex items-center gap-4">
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-zinc-200">Passez au plan Pro</p>
                   <p className="text-xs text-zinc-500">Actions illimitées + toutes les intégrations pour 19€/mois</p>
                 </div>
-                <Link href="/pricing" className="shrink-0 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
+                <Link href="/pricing" className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
                   Voir les plans
                 </Link>
               </div>

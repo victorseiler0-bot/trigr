@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useUser, SignOutButton } from "@clerk/nextjs";
@@ -64,12 +64,10 @@ export default function Navbar() {
       <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center shadow-[0_2px_8px_rgba(124,58,237,0.35)]">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-[0_2px_8px_rgba(59,130,246,0.35)]">
+            <span className="text-white font-black text-sm leading-none">A</span>
           </div>
-          <span className="font-bold text-slate-900 text-base tracking-tight">Trig<span className="text-violet-600">r</span></span>
+          <span className="font-bold text-slate-900 text-base tracking-tight">Auto<span className="text-blue-500">zen</span></span>
         </Link>
 
         {/* Desktop nav */}
@@ -79,7 +77,7 @@ export default function Navbar() {
               className="relative text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-all font-medium flex items-center gap-1.5">
               {label}
               {isSignedIn && href === "/assistant" && totalUnread > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-violet-600 text-white rounded-full leading-none">
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-blue-600 text-white rounded-full leading-none">
                   {totalUnread > 99 ? "99+" : totalUnread}
                 </span>
               )}
@@ -105,7 +103,7 @@ export default function Navbar() {
                 Se connecter
               </Link>
               <Link href="/signup"
-                className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_2px_8px_rgba(124,58,237,0.3)] hover:shadow-[0_4px_16px_rgba(124,58,237,0.4)]">
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-[0_2px_8px_rgba(59,130,246,0.3)] hover:shadow-[0_4px_16px_rgba(59,130,246,0.4)]">
                 Essai gratuit
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6h8M7 3l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </Link>
@@ -146,7 +144,7 @@ export default function Navbar() {
                 <Link href="/login" className="flex-1 text-center text-sm text-slate-600 border border-slate-200 py-2.5 rounded-xl" onClick={() => setOpen(false)}>
                   Se connecter
                 </Link>
-                <Link href="/signup" className="flex-1 text-center bg-violet-600 text-white text-sm font-semibold py-2.5 rounded-xl" onClick={() => setOpen(false)}>
+                <Link href="/signup" className="flex-1 text-center bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-xl" onClick={() => setOpen(false)}>
                   Essai gratuit
                 </Link>
               </>

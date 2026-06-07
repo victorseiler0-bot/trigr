@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -98,7 +98,7 @@ export default function CommandPalette() {
             <button key={cmd.id} onClick={() => run(cmd)}
               onMouseEnter={() => setCursor(i)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                i === cursor ? "bg-violet-600/20 text-white" : "text-zinc-300 hover:bg-white/[0.04]"
+                i === cursor ? "bg-blue-600/20 text-white" : "text-zinc-300 hover:bg-white/[0.04]"
               }`}>
               <span className="text-lg w-6 text-center shrink-0">{cmd.icon}</span>
               <div className="min-w-0">

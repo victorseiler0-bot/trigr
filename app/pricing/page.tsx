@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,7 +32,7 @@ const PLANS = [
     name: "Gratuit",
     price: "0€",
     period: "",
-    description: "Pour tester Trigr",
+    description: "Pour tester Autozen",
     features: [
       "2 intégrations",
       "10 actions par jour",
@@ -130,7 +130,7 @@ export default function PricingPage() {
         <div className="text-center mb-14">
           <h1 className="text-4xl font-bold tracking-tight mb-4">
             Un prix simple,{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
               sans surprise
             </span>
           </h1>
@@ -145,12 +145,12 @@ export default function PricingPage() {
               key={plan.id}
               className={`relative flex flex-col rounded-2xl border p-6 transition-all ${
                 plan.highlight
-                  ? "border-violet-500/50 bg-violet-500/[0.06] shadow-[0_0_30px_rgba(139,92,246,0.1)]"
+                  ? "border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_30px_rgba(59,130,246,0.1)]"
                   : "border-white/[0.08] bg-white/[0.02]"
               }`}
             >
               {plan.badge && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full bg-violet-600 text-white whitespace-nowrap">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white whitespace-nowrap">
                   {plan.badge}
                 </span>
               )}
@@ -179,7 +179,7 @@ export default function PricingPage() {
                 disabled={!!busy}
                 className={`w-full text-sm font-semibold py-2.5 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 ${
                   plan.highlight
-                    ? "bg-violet-600 hover:bg-violet-500 text-white"
+                    ? "bg-blue-600 hover:bg-blue-500 text-white"
                     : "bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.1]"
                 }`}
               >
@@ -216,7 +216,7 @@ export default function PricingPage() {
             {[
               {
                 q: "C'est quoi la différence avec Lindy ou Zapier ?",
-                a: "Lindy coûte 50$/mois (minimum), est 100% en anglais et stocke vos données aux États-Unis. Trigr démarre à 9€, est conçu pour les pros francophones et vous permet de self-hoster (vos données restent chez vous). Zapier est un outil d'automatisation sans IA native — Trigr combine IA conversationnelle + automatisations en une seule interface.",
+                a: "Lindy coûte 50$/mois (minimum), est 100% en anglais et stocke vos données aux États-Unis. Autozen démarre à 9€, est conçu pour les pros francophones et vous permet de self-hoster (vos données restent chez vous). Zapier est un outil d'automatisation sans IA native — Autozen combine IA conversationnelle + automatisations en une seule interface.",
               },
               {
                 q: "Mes données sont-elles en sécurité ?",
@@ -227,7 +227,7 @@ export default function PricingPage() {
                 a: "Oui, sans préavis ni pénalité. Vous accédez à votre espace Stripe directement depuis les paramètres et annulez en 1 clic. Votre accès reste actif jusqu'à la fin de la période payée.",
               },
               {
-                q: "Trigr fonctionne-t-il avec mon iPhone / Mac ?",
+                q: "Autozen fonctionne-t-il avec mon iPhone / Mac ?",
                 a: "Oui. L'assistant est accessible depuis n'importe quel navigateur, et WhatsApp est disponible sur mobile. Le plan Solo inclut Apple iCloud (Calendrier + Contacts) via CalDAV.",
               },
               {
@@ -245,7 +245,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-xs text-zinc-700 mt-12">
-          Une question ? <a href="mailto:hello@trigr.app" className="text-violet-400 hover:underline">hello@trigr.app</a>
+          Une question ? <a href="mailto:hello@Autozen.app" className="text-blue-400 hover:underline">hello@Autozen.app</a>
         </p>
       </main>
       <Footer />

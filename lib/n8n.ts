@@ -1,4 +1,4 @@
-const N8N_URL = process.env.N8N_URL || "http://localhost:5678";
+﻿const N8N_URL = process.env.N8N_URL || "http://localhost:5678";
 const N8N_KEY = process.env.N8N_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDE5NDQwZi01NmYxLTQ3YjUtODU5Zi1mZGI5MjQwZDM1NTkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiYzdiNmIwOTctOTA1NS00OGQ5LWJhZTktYTE5ZDQ1YWE0YmY0IiwiaWF0IjoxNzc3MzIxMDAyfQ.I4iU0LARlXJVezzrWRbYx4hHoXtxgxEaJCkLxkX2_QY";
 
 export async function n8n(path: string, method = "GET", body?: unknown) {
@@ -84,13 +84,13 @@ export async function upsertN8nWorkflow(workflowDef: {
 // Build WhatsApp Send workflow (via Whapi)
 export function buildWaSendWorkflow() {
   return {
-    name: "Trigr — WA Send (Whapi)",
+    name: "Autozen — WA Send (Whapi)",
     nodes: [
       {
         id: "ws-1", name: "Webhook", type: "n8n-nodes-base.webhook",
         typeVersion: 2.1, position: [0, 0],
-        webhookId: "trigr-wa-send",
-        parameters: { httpMethod: "POST", path: "trigr-wa-send", responseMode: "lastNode", options: {} },
+        webhookId: "Autozen-wa-send",
+        parameters: { httpMethod: "POST", path: "Autozen-wa-send", responseMode: "lastNode", options: {} },
       },
       {
         id: "ws-2", name: "Envoyer via Whapi", type: "n8n-nodes-base.httpRequest",
@@ -121,13 +121,13 @@ export function buildWaSendWorkflow() {
 // Build WhatsApp Read workflow (via Whapi)
 export function buildWaReadWorkflow() {
   return {
-    name: "Trigr — WA Read (Whapi)",
+    name: "Autozen — WA Read (Whapi)",
     nodes: [
       {
         id: "wr-1", name: "Webhook", type: "n8n-nodes-base.webhook",
         typeVersion: 2.1, position: [0, 0],
-        webhookId: "trigr-wa-read",
-        parameters: { httpMethod: "POST", path: "trigr-wa-read", responseMode: "lastNode", options: {} },
+        webhookId: "Autozen-wa-read",
+        parameters: { httpMethod: "POST", path: "Autozen-wa-read", responseMode: "lastNode", options: {} },
       },
       {
         id: "wr-2", name: "Lire Chats Whapi", type: "n8n-nodes-base.httpRequest",
@@ -158,13 +158,13 @@ export function buildWaReadWorkflow() {
 // Build Instagram DM workflow (Meta Graph API)
 export function buildInstagramWorkflow() {
   return {
-    name: "Trigr — Instagram DMs",
+    name: "Autozen — Instagram DMs",
     nodes: [
       {
         id: "ig-1", name: "Webhook", type: "n8n-nodes-base.webhook",
         typeVersion: 2.1, position: [0, 0],
-        webhookId: "trigr-ig",
-        parameters: { httpMethod: "POST", path: "trigr-ig", responseMode: "lastNode", options: {} },
+        webhookId: "Autozen-ig",
+        parameters: { httpMethod: "POST", path: "Autozen-ig", responseMode: "lastNode", options: {} },
       },
       {
         id: "ig-2", name: "Router action", type: "n8n-nodes-base.switch",

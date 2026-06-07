@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -18,7 +18,7 @@ function renderInline(text: string): ReactNode[] {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[2]) parts.push(<strong key={key++} className="font-semibold text-slate-900">{m[2]}</strong>);
     else if (m[3]) parts.push(<em key={key++}>{m[3]}</em>);
-    else if (m[4]) parts.push(<code key={key++} className="bg-slate-100 text-violet-700 text-xs px-1 py-0.5 rounded font-mono">{m[4]}</code>);
+    else if (m[4]) parts.push(<code key={key++} className="bg-slate-100 text-blue-700 text-xs px-1 py-0.5 rounded font-mono">{m[4]}</code>);
     last = m.index + m[0].length;
   }
   if (last < text.length) parts.push(text.slice(last));
@@ -49,7 +49,7 @@ function MarkdownText({ content, streaming }: { content: string; streaming?: boo
       const level = (line.match(/^#+/) ?? [""])[0].length;
       const txt = line.replace(/^#+\s*/, "");
       const cls = level === 1 ? "text-base font-bold mt-2 mb-1" : "text-sm font-semibold mt-2 mb-0.5";
-      nodes.push(<p key={k++} className={cls}>{renderInline(txt)}{streaming && isLast && <span className="inline-block w-0.5 h-4 bg-violet-500 animate-pulse ml-0.5 align-middle" />}</p>);
+      nodes.push(<p key={k++} className={cls}>{renderInline(txt)}{streaming && isLast && <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-0.5 align-middle" />}</p>);
     } else if (/^[-*•]\s+/.test(line)) {
       if (listBuf.length > 0 && isOrdered) flushList();
       isOrdered = false;
@@ -69,7 +69,7 @@ function MarkdownText({ content, streaming }: { content: string; streaming?: boo
       nodes.push(
         <p key={k++} className="text-sm leading-relaxed">
           {renderInline(line)}
-          {streaming && isLast && <span className="inline-block w-0.5 h-4 bg-violet-500 animate-pulse ml-0.5 align-middle" />}
+          {streaming && isLast && <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-0.5 align-middle" />}
         </p>
       );
     }
@@ -115,7 +115,7 @@ const QUICK_SUGGESTIONS = [
 // ── Avatar AI ──────────────────────────────────────────────────────────────────
 function BotAvatar() {
   return (
-    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shrink-0 shadow-sm">
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0 shadow-sm">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
         <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
@@ -239,16 +239,16 @@ function saveSession(msgs: Msg[]) {
   const title = msgs.find(m => m.role === "user")?.content.slice(0, 55) ?? "Conversation";
   const session: ConvSession = { id: Date.now().toString(), title, messages: msgs.slice(-30), ts: Date.now() };
   try {
-    const stored = localStorage.getItem("trigr_sessions");
+    const stored = localStorage.getItem("autozen_sessions");
     const sessions: ConvSession[] = stored ? JSON.parse(stored) : [];
     sessions.unshift(session);
-    localStorage.setItem("trigr_sessions", JSON.stringify(sessions.slice(0, 15)));
+    localStorage.setItem("autozen_sessions", JSON.stringify(sessions.slice(0, 15)));
   } catch { /* ignore */ }
 }
 
 function loadSessions(): ConvSession[] {
   try {
-    const stored = localStorage.getItem("trigr_sessions");
+    const stored = localStorage.getItem("autozen_sessions");
     return stored ? JSON.parse(stored) : [];
   } catch { return []; }
 }
@@ -257,9 +257,9 @@ function loadSessions(): ConvSession[] {
 function exportConversation(msgs: Msg[]) {
   if (msgs.length === 0) return;
   const date = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
-  const lines: string[] = ["Conversation Trigr — " + date, "=".repeat(40), ""];
+  const lines: string[] = ["Conversation Autozen — " + date, "=".repeat(40), ""];
   for (const m of msgs) {
-    lines.push(m.role === "user" ? "Vous :" : "Trigr :");
+    lines.push(m.role === "user" ? "Vous :" : "Autozen :");
     lines.push(m.content);
     lines.push("");
   }
@@ -267,7 +267,7 @@ function exportConversation(msgs: Msg[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "trigr-conversation-" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.download = "Autozen-conversation-" + new Date().toISOString().slice(0, 10) + ".txt";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -292,7 +292,7 @@ export default function AssistantPage() {
   // Load history from localStorage on mount + read ?prefill= URL param
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("trigr_history");
+      const saved = localStorage.getItem("autozen_history");
       if (saved) {
         const parsed = JSON.parse(saved) as Msg[];
         if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
@@ -300,7 +300,7 @@ export default function AssistantPage() {
     } catch { /* ignore */ }
     setHistoryLoaded(true);
 
-    // Pre-fill input from URL param (e.g. from CRM "Contacter avec Trigr")
+    // Pre-fill input from URL param (e.g. from CRM "Contacter avec Autozen")
     const params = new URLSearchParams(window.location.search);
     const prefill = params.get("prefill");
     if (prefill) {
@@ -312,7 +312,7 @@ export default function AssistantPage() {
   // Save history to localStorage on change
   useEffect(() => {
     if (!historyLoaded) return;
-    try { localStorage.setItem("trigr_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
+    try { localStorage.setItem("autozen_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
   }, [messages, historyLoaded]);
 
   // Detect connected integrations
@@ -455,7 +455,7 @@ export default function AssistantPage() {
   const displayName = user?.firstName || user?.primaryEmailAddress?.emailAddress?.split("@")[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-violet-50/30 to-cyan-50/20 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-24 pb-6 flex flex-col">
@@ -463,7 +463,7 @@ export default function AssistantPage() {
         {/* Header */}
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Assistant IA</p>
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-1">Assistant IA</p>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
               {hasMessages ? "Conversation" : `Bonjour ${displayName ?? ""} 👋`}
             </h1>
@@ -526,7 +526,7 @@ export default function AssistantPage() {
                   </svg>
                 </button>
                 <button
-                  onClick={() => { saveSession(messages); setMessages([]); try { localStorage.removeItem("trigr_history"); } catch { /* */ } }}
+                  onClick={() => { saveSession(messages); setMessages([]); try { localStorage.removeItem("autozen_history"); } catch { /* */ } }}
                   className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1.5 rounded-xl transition-all"
                   title="Nouvelle conversation"
                 >
@@ -564,8 +564,8 @@ export default function AssistantPage() {
         {!hasMessages && !loading && (
           <div className="mb-6 flex-1 flex flex-col items-center justify-center gap-6 py-8">
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(139,92,246,0.3)]">
-                <span className="text-white font-black text-2xl">T</span>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                <span className="text-white font-black text-2xl">A</span>
               </div>
               <h2 className="text-2xl font-bold text-slate-900">Comment puis-je t&apos;aider ?</h2>
               <p className="text-sm text-slate-500 mt-1">Pose-moi n&apos;importe quelle question ou demande-moi d&apos;agir pour toi.</p>
@@ -573,13 +573,11 @@ export default function AssistantPage() {
             <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
               {QUICK_SUGGESTIONS.flatMap(cat => cat.prompts.slice(0, 2)).map(p => (
                 <button key={p.label} onClick={() => send(p.prompt)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-violet-200 bg-white text-xs font-medium text-slate-700 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-700 transition-all shadow-sm">
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-blue-200 bg-white text-xs font-medium text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all shadow-sm">
                   {p.label}
                 </button>
               ))}
-                </div>
-              </div>
-            ))}
+            </div>
           </div>
         )}
 
@@ -595,7 +593,7 @@ export default function AssistantPage() {
                   <div className={`group relative max-w-[78%] flex items-start gap-0 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
                     <div className={`px-4 py-2.5 rounded-2xl ${
                       m.role === "user"
-                        ? "bg-violet-600 text-white rounded-tr-md text-sm leading-relaxed"
+                        ? "bg-blue-600 text-white rounded-tr-md text-sm leading-relaxed"
                         : "bg-white border border-slate-200 text-slate-800 rounded-tl-md shadow-sm"
                     }`}>
                       {m.role === "user"
@@ -629,9 +627,9 @@ export default function AssistantPage() {
         {/* Errors */}
         {error && (
           error.includes("<upgrade>") ? (
-            <div className="mb-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-violet-700 font-medium">{error.replace(" → <upgrade>", "")}</p>
-              <Link href="/pricing" className="shrink-0 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg transition-all">
+            <div className="mb-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-blue-700 font-medium">{error.replace(" → <upgrade>", "")}</p>
+              <Link href="/pricing" className="shrink-0 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-all">
                 Passer Pro →
               </Link>
             </div>
@@ -642,7 +640,7 @@ export default function AssistantPage() {
 
         {/* Input — glassmorphism style */}
         <form onSubmit={e => { e.preventDefault(); send(input); }}
-          className="relative bg-white/80 backdrop-blur-md border border-violet-200/60 rounded-2xl shadow-[0_4px_24px_rgba(139,92,246,0.12)] focus-within:border-violet-400 focus-within:shadow-[0_4px_32px_rgba(139,92,246,0.22)] transition-all">
+          className="relative bg-white/80 backdrop-blur-md border border-blue-200/60 rounded-2xl shadow-[0_4px_24px_rgba(59,130,246,0.12)] focus-within:border-blue-400 focus-within:shadow-[0_4px_32px_rgba(59,130,246,0.22)] transition-all">
           <div className="flex items-end gap-2 px-4 py-3">
             <textarea
               ref={inputRef}
@@ -658,7 +656,7 @@ export default function AssistantPage() {
               type="button"
               onClick={toggleVoice}
               title={listening ? "Arrêter l'écoute" : "Dicter un message"}
-              className={`shrink-0 p-2 rounded-xl transition-all ${listening ? "bg-red-100 text-red-500 animate-pulse" : "text-slate-400 hover:text-violet-500 hover:bg-violet-50"}`}
+              className={`shrink-0 p-2 rounded-xl transition-all ${listening ? "bg-red-100 text-red-500 animate-pulse" : "text-slate-400 hover:text-blue-500 hover:bg-blue-50"}`}
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <rect x="9" y="2" width="6" height="11" rx="3"/>
@@ -666,7 +664,7 @@ export default function AssistantPage() {
               </svg>
             </button>
             <button type="submit" disabled={loading || !input.trim()}
-              className="shrink-0 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-cyan-500 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-sm">
+              className="shrink-0 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-sm">
               {loading
                 ? <span className="block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12l14-7-7 14-2-5-5-2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -683,7 +681,7 @@ export default function AssistantPage() {
               )}
               {hasMessages && (
                 <button type="button" onClick={() => { saveSession(messages); setMessages([]); setError(null); }}
-                  className="text-violet-500 hover:text-violet-700 transition-colors font-medium">
+                  className="text-blue-500 hover:text-blue-700 transition-colors font-medium">
                   + Nouvelle
                 </button>
               )}
@@ -692,7 +690,7 @@ export default function AssistantPage() {
         </form>
 
         <p className="text-xs text-slate-400 text-center mt-3">
-          Trigr peut faire des erreurs. Vérifie les infos importantes.
+          Autozen peut faire des erreurs. Vérifie les infos importantes.
         </p>
       </main>
     </div>

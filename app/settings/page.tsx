@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -31,7 +31,7 @@ function WorkflowToggle({ wf, onToggle, toggling }: { wf: N8nWorkflow; onToggle:
       <div className="flex items-center gap-3 min-w-0">
         <span className={`w-2 h-2 rounded-full shrink-0 ${wf.active ? "status-connected" : "status-disconnected"}`} />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-900 truncate">{wf.name.replace("Trigr — ", "")}</p>
+          <p className="text-sm font-medium text-slate-900 truncate">{wf.name.replace("Autozen — ", "")}</p>
           <p className="text-xs text-slate-400">{wf.id}</p>
         </div>
       </div>
@@ -175,13 +175,13 @@ function TwentyCrmSection() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("trigr_twenty");
+      const stored = localStorage.getItem("autozen_twenty");
       if (stored) { const d = JSON.parse(stored); setUrl(d.url ?? ""); setKey(d.key ?? ""); }
     } catch { /* ignore */ }
   }, []);
 
   function save() {
-    localStorage.setItem("trigr_twenty", JSON.stringify({ url, key }));
+    localStorage.setItem("autozen_twenty", JSON.stringify({ url, key }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -208,18 +208,18 @@ function TwentyCrmSection() {
           <h2 className="text-sm font-semibold text-slate-900">Twenty CRM <span className="text-xs text-slate-400 font-normal ml-1">(optionnel)</span></h2>
           <p className="text-xs text-slate-400">Connecte ton instance Twenty open-source comme CRM alternatif.</p>
         </div>
-        <a href="https://twenty.com" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-violet-600 hover:underline">twenty.com →</a>
+        <a href="https://twenty.com" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-blue-600 hover:underline">twenty.com →</a>
       </div>
       <div className="space-y-3">
         <div>
           <label className="text-xs text-slate-500 mb-1 block">URL de l&apos;instance</label>
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://app.twenty.com ou https://ton-instance.com"
-            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
         </div>
         <div>
           <label className="text-xs text-slate-500 mb-1 block">API Token</label>
           <input value={key} onChange={e => setKey(e.target.value)} type="password" placeholder="eyJhbGci…"
-            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
           <p className="text-xs text-slate-400 mt-1">Settings → API → Generate Token dans ton workspace Twenty.</p>
         </div>
         {status && (
@@ -257,7 +257,7 @@ function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {EMAIL_TEMPLATES.map(tpl => (
-            <div key={tpl.id} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 hover:border-violet-200 hover:bg-violet-50/30 transition-all group">
+            <div key={tpl.id} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 hover:border-blue-200 hover:bg-blue-50/30 transition-all group">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{tpl.icon}</span>
@@ -277,9 +277,9 @@ function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
                     const prefill = `Aide-moi à rédiger un email de type "${tpl.name}". Voici le modèle de base :\n\nObjet : ${tpl.subject}\n\n${tpl.body.slice(0, 300)}…\n\nAdapte-le à ma situation.`;
                     router.push(`/assistant?prefill=${encodeURIComponent(prefill)}`);
                   }}
-                  className="flex-1 text-xs bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-xl transition-all font-medium"
+                  className="flex-1 text-xs bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl transition-all font-medium"
                 >
-                  Utiliser avec Trigr
+                  Utiliser avec Autozen
                 </button>
               </div>
             </div>
@@ -289,7 +289,7 @@ function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
       <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-5 text-center">
         <p className="text-sm text-slate-500 mb-1">💡 Conseil</p>
-        <p className="text-xs text-slate-400">Dans l&apos;assistant, vous pouvez demander <span className="text-violet-600 font-medium">&ldquo;Rédige-moi un devis pour [client]&rdquo;</span> et Trigr adaptera automatiquement le modèle à votre contexte.</p>
+        <p className="text-xs text-slate-400">Dans l&apos;assistant, vous pouvez demander <span className="text-blue-600 font-medium">&ldquo;Rédige-moi un devis pour [client]&rdquo;</span> et Autozen adaptera automatiquement le modèle à votre contexte.</p>
       </div>
     </div>
   );
@@ -602,7 +602,7 @@ export default function SettingsPage() {
 
   if (!isLoaded || !isSignedIn || !user) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="w-6 h-6 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+      <div className="w-6 h-6 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
     </div>
   );
 
@@ -624,7 +624,7 @@ export default function SettingsPage() {
 
   const PLAN_COLORS = {
     free: "bg-slate-100 text-slate-600",
-    solo: "bg-violet-100 text-violet-700",
+    solo: "bg-blue-100 text-blue-700",
     pro: "bg-cyan-100 text-cyan-700",
     equipe: "bg-amber-100 text-amber-700",
   };
@@ -646,7 +646,7 @@ export default function SettingsPage() {
           <aside className="w-48 shrink-0">
             {/* Avatar */}
             <div className="flex items-center gap-3 mb-6 px-2">
-              <div className="w-10 h-10 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-bold text-sm shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
                 {initials || "?"}
               </div>
               <div className="min-w-0">
@@ -661,7 +661,7 @@ export default function SettingsPage() {
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   className={`w-full text-left flex items-center px-3 py-2.5 rounded-xl text-sm transition-all font-medium ${
                     activeTab === tab.id
-                      ? "bg-violet-600 text-white shadow-sm"
+                      ? "bg-blue-600 text-white shadow-sm"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}>
                   {tab.label}
@@ -680,7 +680,7 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                   <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-5">Profil</h2>
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-bold text-xl shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xl shrink-0">
                       {initials || "?"}
                     </div>
                     <div>
@@ -693,7 +693,7 @@ export default function SettingsPage() {
                 {/* Profil business */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                   <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Personnalisation de l&apos;assistant</h2>
-                  <p className="text-xs text-slate-400 mb-5">Ces informations permettent à Trigr de vous répondre de façon plus pertinente.</p>
+                  <p className="text-xs text-slate-400 mb-5">Ces informations permettent à Autozen de vous répondre de façon plus pertinente.</p>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="text-xs font-medium text-slate-600 mb-1 block">Votre métier / poste</label>
@@ -701,7 +701,7 @@ export default function SettingsPage() {
                         value={profile.profession ?? ""}
                         onChange={e => setProfile(p => ({ ...p, profession: e.target.value }))}
                         placeholder="Consultant, Kiné, Artisan…"
-                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     </div>
                     <div>
@@ -710,7 +710,7 @@ export default function SettingsPage() {
                         value={profile.businessName ?? ""}
                         onChange={e => setProfile(p => ({ ...p, businessName: e.target.value }))}
                         placeholder="Nom de votre entreprise"
-                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     </div>
                     <div>
@@ -719,7 +719,7 @@ export default function SettingsPage() {
                         value={profile.city ?? ""}
                         onChange={e => setProfile(p => ({ ...p, city: e.target.value }))}
                         placeholder="Paris, Lyon…"
-                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     </div>
                     <div>
@@ -741,13 +741,13 @@ export default function SettingsPage() {
                       onChange={e => setProfile(p => ({ ...p, context: e.target.value }))}
                       rows={2}
                       placeholder="Ex : Je travaille principalement avec des PME dans le BTP, mes clients sont souvent peu à l'aise avec les outils numériques."
-                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                     />
                   </div>
                   <button
                     onClick={saveProfile}
                     disabled={profileSaving}
-                    className="text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl disabled:opacity-40 transition-all"
+                    className="text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl disabled:opacity-40 transition-all"
                   >
                     {profileSaved ? "✓ Sauvegardé !" : profileSaving ? "Sauvegarde…" : "Sauvegarder le profil"}
                   </button>
@@ -757,7 +757,7 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-lg">🔔</div>
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg">🔔</div>
                       <div>
                         <h2 className="text-sm font-semibold text-slate-900">Notifications push</h2>
                         <p className="text-xs text-slate-400">Brief du matin, messages WA, alertes — sur mobile et desktop</p>
@@ -766,7 +766,7 @@ export default function SettingsPage() {
                     <button
                       onClick={togglePush}
                       disabled={pushBusy}
-                      className={`relative w-12 h-6 rounded-full transition-all disabled:opacity-50 ${pushEnabled ? "bg-violet-600" : "bg-slate-300"}`}
+                      className={`relative w-12 h-6 rounded-full transition-all disabled:opacity-50 ${pushEnabled ? "bg-blue-600" : "bg-slate-300"}`}
                     >
                       <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${pushEnabled ? "left-6" : "left-0.5"}`} />
                     </button>
@@ -809,7 +809,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => testIntegration("google")} disabled={health.google?.loading}
-                            className="text-xs text-violet-600 hover:text-violet-700 border border-violet-200 hover:border-violet-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
+                            className="text-xs text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
                             {health.google?.loading ? "Test…" : "Tester"}
                           </button>
                           <button onClick={() => disconnectGoogle(googleAccount.id)} disabled={googleBusy}
@@ -859,7 +859,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => testIntegration("imap")} disabled={health.imap?.loading}
-                            className="text-xs text-violet-600 hover:text-violet-700 border border-violet-200 hover:border-violet-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
+                            className="text-xs text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
                             {health.imap?.loading ? "Test…" : "Tester"}
                           </button>
                           <button onClick={disconnectImap} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
@@ -880,7 +880,7 @@ export default function SettingsPage() {
                           </Link>
                         ) : (
                           <button onClick={() => setImapOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
+                            className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-blue-400 text-slate-500 hover:text-blue-600 text-sm py-3 rounded-xl transition-all">
                             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
                             Connecter un email IMAP
                           </button>
@@ -896,21 +896,21 @@ export default function SettingsPage() {
                             };
                             const p = presets[e.target.value];
                             if (p) setImapForm(f => ({ ...f, ...p }));
-                          }} className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20">
+                          }} className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             <option value="">Choisir un preset…</option>
                             <option value="esme">ESME / Outlook / Office365</option>
                             <option value="gmail">Gmail (mot de passe app)</option>
                             <option value="yahoo">Yahoo Mail</option>
                           </select>
                           <div className="grid grid-cols-2 gap-2">
-                            <input value={imapForm.host} onChange={e => setImapForm(f => ({ ...f, host: e.target.value }))} placeholder="Serveur IMAP" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 col-span-2" />
-                            <input value={imapForm.user} onChange={e => setImapForm(f => ({ ...f, user: e.target.value }))} placeholder="Email (ex: victor@esme.fr)" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 col-span-2" />
-                            <input value={imapForm.password} type="password" onChange={e => setImapForm(f => ({ ...f, password: e.target.value }))} placeholder="Mot de passe" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 col-span-2" />
+                            <input value={imapForm.host} onChange={e => setImapForm(f => ({ ...f, host: e.target.value }))} placeholder="Serveur IMAP" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 col-span-2" />
+                            <input value={imapForm.user} onChange={e => setImapForm(f => ({ ...f, user: e.target.value }))} placeholder="Email (ex: victor@esme.fr)" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 col-span-2" />
+                            <input value={imapForm.password} type="password" onChange={e => setImapForm(f => ({ ...f, password: e.target.value }))} placeholder="Mot de passe" className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 col-span-2" />
                           </div>
                           {imapError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{imapError}</p>}
                           <div className="flex gap-2">
                             <button onClick={() => { setImapOpen(false); setImapError(""); }} className="flex-1 text-sm text-slate-500 border border-slate-200 rounded-xl py-2.5 hover:bg-slate-50 transition-all">Annuler</button>
-                            <button onClick={saveImap} disabled={imapBusy} className="flex-1 text-sm bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-2.5 font-semibold transition-all disabled:opacity-50">
+                            <button onClick={saveImap} disabled={imapBusy} className="flex-1 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-2.5 font-semibold transition-all disabled:opacity-50">
                               {imapBusy ? "Test…" : "Tester et sauvegarder"}
                             </button>
                           </div>
@@ -940,7 +940,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => testIntegration("instagram")} disabled={health.instagram?.loading}
-                            className="text-xs text-violet-600 hover:text-violet-700 border border-violet-200 hover:border-violet-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
+                            className="text-xs text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
                             {health.instagram?.loading ? "Test…" : "Tester"}
                           </button>
                           <button onClick={disconnectIg} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Déconnecter</button>
@@ -961,19 +961,19 @@ export default function SettingsPage() {
                           </Link>
                         ) : (
                           <button onClick={() => setIgOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-violet-400 text-slate-500 hover:text-violet-600 text-sm py-3 rounded-xl transition-all">
+                            className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-blue-400 text-slate-500 hover:text-blue-600 text-sm py-3 rounded-xl transition-all">
                             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
                             Connecter Instagram avec token Meta
                           </button>
                         )
                       ) : (
                         <div className="space-y-3">
-                          <input value={igForm.pageId} onChange={e => setIgForm(f => ({ ...f, pageId: e.target.value }))} placeholder="Page ID Facebook (ex: 123456789)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
-                          <input value={igForm.token} onChange={e => setIgForm(f => ({ ...f, token: e.target.value }))} placeholder="Page Access Token (de developers.facebook.com)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                          <input value={igForm.pageId} onChange={e => setIgForm(f => ({ ...f, pageId: e.target.value }))} placeholder="Page ID Facebook (ex: 123456789)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                          <input value={igForm.token} onChange={e => setIgForm(f => ({ ...f, token: e.target.value }))} placeholder="Page Access Token (de developers.facebook.com)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                           {igError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{igError}</p>}
                           <div className="flex gap-2">
                             <button onClick={() => { setIgOpen(false); setIgError(""); }} className="flex-1 text-sm text-slate-500 border border-slate-200 rounded-xl py-2.5 hover:bg-slate-50 transition-all">Annuler</button>
-                            <button onClick={saveIgMeta} disabled={igBusy} className="flex-1 text-sm bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-2.5 font-semibold transition-all disabled:opacity-50">
+                            <button onClick={saveIgMeta} disabled={igBusy} className="flex-1 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-2.5 font-semibold transition-all disabled:opacity-50">
                               {igBusy ? "Vérification…" : "Sauvegarder"}
                             </button>
                           </div>
@@ -998,7 +998,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <Link href="/integrations"
-                    className="flex items-center justify-between gap-4 w-full bg-violet-600 hover:bg-violet-700 text-white px-5 py-3.5 rounded-xl transition-all shadow-sm hover:shadow-md font-semibold text-sm">
+                    className="flex items-center justify-between gap-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-5 py-3.5 rounded-xl transition-all shadow-sm hover:shadow-md font-semibold text-sm">
                     <div className="flex items-center gap-2.5">
                       <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -1019,19 +1019,19 @@ export default function SettingsPage() {
                       <p className="text-xs text-slate-400 mt-0.5">L&apos;assistant résoudra les noms pour envoyer des messages (&ldquo;envoie à Marc&rdquo;)</p>
                     </div>
                     <button onClick={() => setContactOpen(o => !o)}
-                      className="text-xs text-violet-600 border border-violet-200 hover:bg-violet-50 px-2.5 py-1.5 rounded-lg transition-all">
+                      className="text-xs text-blue-600 border border-blue-200 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-all">
                       + Ajouter
                     </button>
                   </div>
 
                   {contactOpen && (
                     <div className="space-y-2 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom (ex: Marc)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
-                      <input value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="WhatsApp (ex: 33612345678)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
-                      <input value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="Email (optionnel)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20" />
+                      <input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom (ex: Marc)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      <input value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="WhatsApp (ex: 33612345678)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      <input value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="Email (optionnel)" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                       <div className="flex gap-2">
                         <button onClick={() => { setContactOpen(false); setContactForm({ name: "", phone: "", email: "" }); }} className="flex-1 text-xs text-slate-500 border border-slate-200 rounded-xl py-2 hover:bg-slate-100 transition-all">Annuler</button>
-                        <button onClick={saveContact} disabled={contactSaving || !contactForm.name} className="flex-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-2 font-semibold disabled:opacity-40 transition-all">
+                        <button onClick={saveContact} disabled={contactSaving || !contactForm.name} className="flex-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-2 font-semibold disabled:opacity-40 transition-all">
                           {contactSaving ? "Sauvegarde…" : "Enregistrer"}
                         </button>
                       </div>
@@ -1075,7 +1075,7 @@ export default function SettingsPage() {
                   </div>
                   <button
                     onClick={() => { setAutoForm({ schedule: "daily_8am", channel: "dashboard", enabled: true }); setAutoOpen(true); }}
-                    className="text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl transition-all"
+                    className="text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl transition-all"
                   >
                     + Nouvelle
                   </button>
@@ -1090,11 +1090,11 @@ export default function SettingsPage() {
 
                 <div className="space-y-3">
                   {automations.map(auto => (
-                    <div key={auto.id} className={`rounded-2xl border p-4 flex items-start gap-3 ${auto.enabled ? "border-violet-200 bg-violet-50/50" : "border-slate-200 bg-white"}`}>
+                    <div key={auto.id} className={`rounded-2xl border p-4 flex items-start gap-3 ${auto.enabled ? "border-blue-200 bg-blue-50/50" : "border-slate-200 bg-white"}`}>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-semibold text-slate-900 truncate">{auto.name}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${auto.enabled ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"}`}>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${auto.enabled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
                             {auto.enabled ? "Actif" : "Inactif"}
                           </span>
                         </div>
@@ -1109,14 +1109,14 @@ export default function SettingsPage() {
                         <button
                           onClick={() => runAutomation(auto.id)}
                           disabled={autoRunning === auto.id}
-                          className="text-xs text-violet-600 hover:text-violet-800 border border-violet-200 px-2.5 py-1.5 rounded-lg disabled:opacity-40 transition-all"
+                          className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 px-2.5 py-1.5 rounded-lg disabled:opacity-40 transition-all"
                           title="Exécuter maintenant"
                         >
                           {autoRunning === auto.id ? "…" : "▶"}
                         </button>
                         <button
                           onClick={() => toggleAutomation(auto.id)}
-                          className={`relative w-10 h-5 rounded-full shrink-0 transition-all ${auto.enabled ? "bg-violet-500" : "bg-slate-300"}`}
+                          className={`relative w-10 h-5 rounded-full shrink-0 transition-all ${auto.enabled ? "bg-blue-500" : "bg-slate-300"}`}
                         >
                           <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${auto.enabled ? "left-5" : "left-0.5"}`} />
                         </button>
@@ -1133,20 +1133,20 @@ export default function SettingsPage() {
                 </div>
 
                 {autoOpen && (
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50/30 p-5 space-y-3">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-5 space-y-3">
                     <h3 className="text-sm font-semibold text-slate-900">Nouvelle automatisation</h3>
                     <input
                       value={autoForm.name ?? ""}
                       onChange={e => setAutoForm(f => ({ ...f, name: e.target.value }))}
                       placeholder="Nom (ex: Brief du matin)"
-                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
                     <textarea
                       value={autoForm.prompt ?? ""}
                       onChange={e => setAutoForm(f => ({ ...f, prompt: e.target.value }))}
                       placeholder="Prompt (ex: Donne-moi un résumé de mes emails non lus et de mon agenda du jour)"
                       rows={3}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1175,7 +1175,7 @@ export default function SettingsPage() {
                       <button
                         onClick={saveAutomation}
                         disabled={autoSaving || !autoForm.name || !autoForm.prompt}
-                        className="flex-1 text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl disabled:opacity-40 transition-all"
+                        className="flex-1 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl disabled:opacity-40 transition-all"
                       >
                         {autoSaving ? "Sauvegarde…" : "Créer l'automatisation"}
                       </button>
@@ -1304,7 +1304,7 @@ export default function SettingsPage() {
 
                 {wfLoading && (
                   <div className="flex items-center gap-2 text-slate-500 text-sm">
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-violet-600 animate-spin" />
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
                     Chargement…
                   </div>
                 )}
@@ -1356,7 +1356,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={() => setBriefEnabled(e => !e)}
-                      className={`relative w-11 h-6 rounded-full shrink-0 transition-all ${briefEnabled ? "bg-violet-500" : "bg-slate-300"}`}
+                      className={`relative w-11 h-6 rounded-full shrink-0 transition-all ${briefEnabled ? "bg-blue-500" : "bg-slate-300"}`}
                     >
                       <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${briefEnabled ? "left-5" : "left-0.5"}`} />
                     </button>
@@ -1367,10 +1367,10 @@ export default function SettingsPage() {
                         value={briefWaNumber}
                         onChange={e => setBriefWaNumber(e.target.value)}
                         placeholder="Numéro WhatsApp (ex: 33612345678)"
-                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                       <button onClick={saveBrief} disabled={briefSaving}
-                        className="w-full text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-xl transition-all disabled:opacity-50">
+                        className="w-full text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl transition-all disabled:opacity-50">
                         {briefSaving ? "Sauvegarde…" : "Sauvegarder"}
                       </button>
                       <p className="text-xs text-slate-400">Nécessite WhatsApp Token configuré sur le serveur. Numéro sans + ni espaces.</p>
@@ -1385,11 +1385,11 @@ export default function SettingsPage() {
                     { id: "equipe", name: "Équipe", price: "49€/mois", features: ["Toutes intégrations", "Illimité", "5 utilisateurs"] },
                   ] as const).map(p => (
                     <div key={p.id} className={`relative rounded-2xl border p-5 flex flex-col gap-4 ${
-                      "highlight" in p && p.highlight ? "border-violet-200 bg-violet-50" : "border-slate-200 bg-white"
-                    } ${plan === p.id ? "ring-2 ring-violet-400" : ""}`}>
+                      "highlight" in p && p.highlight ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"
+                    } ${plan === p.id ? "ring-2 ring-blue-400" : ""}`}>
                       {"highlight" in p && p.highlight && (
                         <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                          <span className="text-xs font-bold text-white bg-violet-600 px-2.5 py-0.5 rounded-full">Populaire</span>
+                          <span className="text-xs font-bold text-white bg-blue-600 px-2.5 py-0.5 rounded-full">Populaire</span>
                         </div>
                       )}
                       <div className="flex justify-between items-baseline">
@@ -1404,10 +1404,10 @@ export default function SettingsPage() {
                         ))}
                       </ul>
                       {plan === p.id ? (
-                        <span className="text-xs text-center text-violet-600 font-semibold py-2">Plan actuel</span>
+                        <span className="text-xs text-center text-blue-600 font-semibold py-2">Plan actuel</span>
                       ) : (
                         <button onClick={() => upgradePlan(p.id)} disabled={!!subBusy}
-                          className={`text-xs font-semibold py-2.5 px-4 rounded-xl transition-all disabled:opacity-40 ${"highlight" in p && p.highlight ? "bg-violet-600 hover:bg-violet-700 text-white" : "bg-slate-900 hover:bg-slate-800 text-white"}`}>
+                          className={`text-xs font-semibold py-2.5 px-4 rounded-xl transition-all disabled:opacity-40 ${"highlight" in p && p.highlight ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-slate-900 hover:bg-slate-800 text-white"}`}>
                           {subBusy === p.id
                             ? <span className="flex items-center justify-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />Redirection…</span>
                             : "Choisir"}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { getPipedreamClient } from "@/lib/pipedream";
 
@@ -12,7 +12,7 @@ export async function POST() {
       externalUserId: user.id,
       expiresIn: 3600, // 1 heure
       allowedOrigins: [
-        process.env.NEXT_PUBLIC_SITE_URL ?? "https://trigr-eight.vercel.app",
+        process.env.NEXT_PUBLIC_SITE_URL ?? "https://Autozen-eight.vercel.app",
         "http://localhost:3000",
       ],
     });

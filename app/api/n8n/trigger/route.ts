@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { triggerN8nWebhook } from "@/lib/n8n";
 
 // Workflow slug → n8n webhook path
 const WEBHOOKS: Record<string, string> = {
-  wa_read: "trigr-wa-read",
-  wa_send: "trigr-wa-send",
-  ig: "trigr-ig",
+  wa_read: "Autozen-wa-read",
+  wa_send: "Autozen-wa-send",
+  ig: "Autozen-ig",
 };
 
 export async function POST(req: NextRequest) {

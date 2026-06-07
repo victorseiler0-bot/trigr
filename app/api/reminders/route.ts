@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
 export type Reminder = {
@@ -28,7 +28,7 @@ async function setReminders(userId: string, reminders: Reminder[]) {
 
 export async function GET(req: NextRequest) {
   // Internal call from assistant (server-side)
-  const internal = req.headers.get("x-trigr-internal");
+  const internal = req.headers.get("x-Autozen-internal");
   if (internal && internal === process.env.CRON_SECRET) {
     // Return all non-done reminders across all users — not applicable for GET per user
     // Fall through to normal auth

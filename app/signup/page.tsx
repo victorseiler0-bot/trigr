@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -81,25 +81,25 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-violet-600/[0.07] rounded-full blur-[140px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-blue-600/[0.07] rounded-full blur-[140px]" />
         <div className="absolute bottom-1/4 right-1/3 w-[400px] h-[300px] bg-cyan-500/[0.03] rounded-full blur-[100px]" />
       </div>
 
       <div className="relative w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.5)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-[0_0_24px_rgba(59,130,246,0.5)]">
               <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
                 <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="font-bold text-white text-xl tracking-tight">Trig<span className="text-violet-400">r</span></span>
+            <span className="font-bold text-white text-xl tracking-tight">Auto<span className="text-blue-400">zen</span></span>
           </Link>
         </div>
 
         <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-500/20 bg-violet-500/[0.06] text-violet-300 text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/[0.06] text-blue-300 text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
             Essai gratuit · Aucune carte requise
           </div>
         </div>
@@ -154,14 +154,14 @@ export default function SignupPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendCode()}
                   placeholder="vous@exemple.fr"
-                  className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 focus:bg-white/[0.06] transition-all"
+                  className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.06] transition-all"
                 />
                 <p className="text-xs text-zinc-600 mt-1.5">N'importe quelle adresse email fonctionne (Gmail, Outlook, Yahoo…)</p>
               </div>
               <button
                 onClick={sendCode}
                 disabled={!email || isBusy}
-                className="w-full bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_28px_rgba(139,92,246,0.45)] disabled:opacity-40"
+                className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_28px_rgba(59,130,246,0.45)] disabled:opacity-40"
               >
                 {isBusy ? "Envoi du code…" : "Créer mon compte →"}
               </button>
@@ -181,13 +181,13 @@ export default function SignupPage() {
                   inputMode="numeric"
                   maxLength={6}
                   autoFocus
-                  className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 transition-all text-center tracking-[0.3em] font-mono text-base"
+                  className="w-full bg-white/[0.04] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-all text-center tracking-[0.3em] font-mono text-base"
                 />
               </div>
               <button
                 onClick={verifyCode}
                 disabled={code.length < 6 || isBusy}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)] disabled:opacity-40"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] disabled:opacity-40"
               >
                 {isBusy ? "Vérification…" : "Valider le code →"}
               </button>
@@ -218,7 +218,7 @@ export default function SignupPage() {
 
         <p className="text-center text-xs text-zinc-600 mt-5">
           Déjà un compte ?{" "}
-          <Link href="/login" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">Se connecter →</Link>
+          <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">Se connecter →</Link>
         </p>
         <p className="text-center text-xs text-zinc-700 mt-2">
           En créant un compte, vous acceptez nos{" "}

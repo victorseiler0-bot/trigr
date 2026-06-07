@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 const SOCIAL = [
   { label: "X / Twitter", href: "https://x.com", icon: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" },
@@ -12,10 +12,10 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1 flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-2 w-fit">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
-              <span className="font-bold text-slate-900 text-sm">Trig<span className="text-violet-600">r</span></span>
+              <span className="font-bold text-slate-900 text-sm">Auto<span className="text-blue-500">zen</span></span>
             </Link>
             <p className="text-slate-500 text-xs max-w-[180px] leading-relaxed">L&apos;assistant IA pour indépendants et PME. RGPD-friendly, auto-hébergeable.</p>
             <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-100">
-          <p className="text-slate-400 text-xs">© 2026 Trigr — Fait en France 🇫🇷</p>
+          <p className="text-slate-400 text-xs">© 2026 Autozen — Fait en France 🇫🇷</p>
           <p className="text-slate-400 text-xs">Données hébergées chez vous · Conforme RGPD</p>
         </div>
       </div>

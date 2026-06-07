@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import webpush from "web-push";
 import type { Reminder } from "@/app/api/reminders/route";
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
               messaging_product: "whatsapp",
               to: waNumber,
               type: "text",
-              text: { body: `⏰ *Rappel Trigr*\n${r.title}${r.note ? `\n${r.note}` : ""}` },
+              text: { body: `⏰ *Rappel Autozen*\n${r.title}${r.note ? `\n${r.note}` : ""}` },
             }),
           });
         }

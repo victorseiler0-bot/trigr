@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f8fafc;
+  --bg: #f0f7ff;
   --bg-card: #ffffff;
-  --border: #e2e8f0;
-  --violet: #7c3aed;
-  --violet-light: #f5f3ff;
+  --border: #bfdbfe;
+  --blue: #3b82f6;
+  --blue-light: #eff6ff;
   --text: #0f172a;
   --text-muted: #64748b;
   --text-faint: #94a3b8;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(59,130,246,0.1), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 40px rgba(59,130,246,0.15), 0 4px 8px rgba(0,0,0,0.05);
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +20,7 @@ body { background: var(--bg); color: var(--text); overflow-x: hidden; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::selection { background: rgba(124,58,237,0.15); color: #4c1d95; }
+::selection { background: rgba(59,130,246,0.15); color: #1e40af; }
 
 /* Cards */
 .card { background: #fff; border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm); }
@@ -31,10 +31,10 @@ body { background: var(--bg); color: var(--text); overflow-x: hidden; }
 .glass { background: rgba(255,255,255,0.8); backdrop-filter: blur(16px); border: 1px solid var(--border); }
 
 /* Glow */
-.glow { box-shadow: 0 0 40px rgba(124,58,237,0.15), 0 0 80px rgba(124,58,237,0.05); }
+.glow { box-shadow: 0 0 40px rgba(59,130,246,0.2), 0 0 80px rgba(59,130,246,0.08); }
 
 /* Gradient text */
-.gradient-text { background: linear-gradient(135deg, #7c3aed 0%, #9333ea 50%, #0ea5e9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 60%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
 /* Status dots */
 .status-connected { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.4); }

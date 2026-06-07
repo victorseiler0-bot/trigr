@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 import { whapiChannel, getUserWhapiMeta } from "@/lib/whapi";
@@ -72,9 +72,9 @@ function buildSystemPrompt(compact = false, contacts: SavedContact[] = [], profi
       ].filter(Boolean).join(" | ")}\n`
     : "";
   if (compact) {
-    return `Tu es Trigr, assistant IA personnel. Réponds en français, concis. Date: ${date}.${profileBlock}${contactsBlock}Utilise les outils disponibles pour aider l'utilisateur.`;
+    return `Tu es Autozen, assistant IA personnel. Réponds en français, concis. Date: ${date}.${profileBlock}${contactsBlock}Utilise les outils disponibles pour aider l'utilisateur.`;
   }
-  return `Tu es Trigr, l'assistant IA personnel de l'utilisateur. Tu réponds TOUJOURS en français.
+  return `Tu es Autozen, l'assistant IA personnel de l'utilisateur. Tu réponds TOUJOURS en français.
 Date et heure : ${date}
 ${profileBlock}${contactsBlock}
 ## Mise en forme des réponses
@@ -634,7 +634,7 @@ async function executeTool(
       return JSON.stringify({ conversations: threads });
     }
     // Fallback n8n + token direct Meta
-    const result = await triggerN8nWebhook("trigr-ig", { action: "read", token: igMeta!.token, pageId: igMeta!.pageId });
+    const result = await triggerN8nWebhook("Autozen-ig", { action: "read", token: igMeta!.token, pageId: igMeta!.pageId });
     return JSON.stringify(result);
   }
 
@@ -665,7 +665,7 @@ async function executeTool(
       return r?.message_id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
     }
     // Fallback n8n
-    const result = await triggerN8nWebhook("trigr-ig", { action: "send", token: igMeta!.token, pageId: igMeta!.pageId, recipientId, message: text });
+    const result = await triggerN8nWebhook("Autozen-ig", { action: "send", token: igMeta!.token, pageId: igMeta!.pageId, recipientId, message: text });
     return JSON.stringify(result);
   }
 
@@ -708,7 +708,7 @@ async function executeTool(
     const { query } = args as { query: string };
     try {
       const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
-      const r = await fetch(ddgUrl, { headers: { "User-Agent": "Trigr/1.0" } });
+      const r = await fetch(ddgUrl, { headers: { "User-Agent": "Autozen/1.0" } });
       const data = await r.json() as Record<string, unknown>;
       const results: string[] = [];
       if (data.AbstractText) results.push(`**Résumé :** ${data.AbstractText}`);
@@ -725,7 +725,7 @@ async function executeTool(
       if (results.length === 0) {
         try {
           const wikiUrl = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-          const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Trigr/1.0" } });
+          const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Autozen/1.0" } });
           if (wr.ok) {
             const wd = await wr.json() as { extract?: string; title?: string; content_urls?: { desktop?: { page?: string } } };
             if (wd.extract) {
@@ -747,7 +747,7 @@ async function executeTool(
     const { query } = args as { query: string };
     try {
       const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=3`;
-      const r = await fetch(url, { headers: { "User-Agent": "Trigr/1.0", Accept: "application/json" } });
+      const r = await fetch(url, { headers: { "User-Agent": "Autozen/1.0", Accept: "application/json" } });
       if (!r.ok) return JSON.stringify({ error: "API entreprise indisponible." });
       const data = await r.json() as Record<string, unknown>;
       const results = (data.results as Array<Record<string, unknown>>) ?? [];
@@ -777,7 +777,7 @@ async function executeTool(
     const { ville } = args as { ville: string };
     try {
       const loc = encodeURIComponent(ville || "Paris");
-      const r = await fetch(`https://wttr.in/${loc}?format=j1`, { headers: { "User-Agent": "Trigr/1.0", Accept: "application/json" } });
+      const r = await fetch(`https://wttr.in/${loc}?format=j1`, { headers: { "User-Agent": "Autozen/1.0", Accept: "application/json" } });
       if (!r.ok) return `Météo indisponible pour "${ville}".`;
       const data = await r.json() as Record<string, unknown>;
       const current = (data.current_condition as Record<string, unknown>[])?.[0];
@@ -806,7 +806,7 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     try {
       const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/reminders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-trigr-internal": process.env.CRON_SECRET ?? "" },
+        headers: { "Content-Type": "application/json", "x-Autozen-internal": process.env.CRON_SECRET ?? "" },
         body: JSON.stringify({ title: titre, note, dueAt, channel: canal ?? "push" }),
       });
       if (!r.ok) throw new Error(await r.text());
@@ -819,7 +819,7 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
   if (name === "voir_rappels") {
     try {
       const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/reminders`, {
-        headers: { "x-trigr-internal": process.env.CRON_SECRET ?? "" },
+        headers: { "x-Autozen-internal": process.env.CRON_SECRET ?? "" },
       });
       const d = await r.json() as { reminders: { title: string; dueAt: string; note?: string }[] };
       if (!d.reminders?.length) return "Aucun rappel en attente.";
@@ -909,7 +909,7 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   if (hasGitHub) {
     tools.push(
       { type: "function", function: { name: "voir_repos_github", description: "Lister les repos GitHub de l'utilisateur (triés par dernière mise à jour).", parameters: { type: "object" as const, properties: {} } } },
-      { type: "function", function: { name: "lire_issues_github", description: "Lister les issues GitHub. Sans repo = toutes les issues assignées à l'utilisateur.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo, ex: victorseiler0-bot/trigr" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } } } } },
+      { type: "function", function: { name: "lire_issues_github", description: "Lister les issues GitHub. Sans repo = toutes les issues assignées à l'utilisateur.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo, ex: victorseiler0-bot/Autozen" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } } } } },
       { type: "function", function: { name: "creer_issue_github", description: "Créer une issue dans un repo GitHub.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo" }, title: { type: "string" }, body: { type: "string" }, labels: { type: "array", items: { type: "string" } } }, required: ["repo", "title"] } } },
       { type: "function", function: { name: "voir_prs_github", description: "Lister les pull requests d'un repo GitHub.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } }, required: ["repo"] } } }
     );

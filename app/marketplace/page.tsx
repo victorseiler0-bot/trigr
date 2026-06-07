@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -167,7 +167,7 @@ const TEMPLATES: Template[] = [
   {
     id: "devis-artisan",
     name: "Devis Artisan Instantané",
-    desc: "Client WhatsApp décrit sa demande → Trigr génère un devis PDF et l'envoie par email en 30s.",
+    desc: "Client WhatsApp décrit sa demande → Autozen génère un devis PDF et l'envoie par email en 30s.",
     category: "Artisans",
     plan: "pro",
     icon: "🔧",
@@ -218,12 +218,12 @@ const CATEGORIES: Category[] = ["Tous", "Email", "Agenda", "WhatsApp", "CRM", "P
 
 const planConfig = {
   gratuit: { label: "Gratuit", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  pro: { label: "Pro", bg: "bg-violet-50 text-violet-700 border-violet-200" },
+  pro: { label: "Pro", bg: "bg-blue-50 text-blue-700 border-blue-200" },
   business: { label: "Business", bg: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
 const accentBorder: Record<string, string> = {
-  violet: "hover:border-violet-400 hover:shadow-md",
+  violet: "hover:border-blue-400 hover:shadow-md",
   cyan: "hover:border-cyan-400 hover:shadow-md",
   emerald: "hover:border-emerald-400 hover:shadow-md",
   amber: "hover:border-amber-400 hover:shadow-md",
@@ -302,12 +302,12 @@ export default function MarketplacePage() {
       {/* Hero */}
       <section className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center relative">
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-200 bg-violet-50 text-violet-600 text-xs font-medium mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-xs font-medium mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             {TEMPLATES.length} automatisations disponibles
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Marketplace <span className="text-violet-600">Trigr</span>
+            Marketplace <span className="text-blue-600">Autozen</span>
           </h1>
           <p className="text-lg text-slate-500 max-w-2xl mx-auto">
             Automatisations prêtes à l'emploi pour freelancers et PMEs. Active en 1 clic, fonctionne immédiatement.
@@ -338,7 +338,7 @@ export default function MarketplacePage() {
               onClick={() => setCategory(cat)}
               className={`shrink-0 text-sm px-4 py-1.5 rounded-full border transition-all ${
                 category === cat
-                  ? "bg-violet-600 border-violet-600 text-white font-medium"
+                  ? "bg-blue-600 border-blue-600 text-white font-medium"
                   : "border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 bg-white"
               }`}
             >
@@ -397,7 +397,7 @@ export default function MarketplacePage() {
                     className={`text-sm font-semibold px-4 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
                       t.plan === "gratuit"
                         ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"
-                        : "bg-violet-600 hover:bg-violet-500 text-white shadow-sm"
+                        : "bg-blue-600 hover:bg-blue-500 text-white shadow-sm"
                     }`}
                   >
                     {loading === t.id
@@ -413,14 +413,14 @@ export default function MarketplacePage() {
         </div>
 
         {/* CTA bottom */}
-        <div className="mt-16 rounded-2xl border border-violet-200 bg-violet-50 p-8 text-center">
+        <div className="mt-16 rounded-2xl border border-blue-200 bg-blue-50 p-8 text-center">
           <h2 className="text-xl font-bold text-slate-900 mb-2">Tu veux un workflow sur mesure ?</h2>
           <p className="text-sm text-slate-500 mb-6">
             Décris ton besoin et on te construit une automatisation personnalisée.
           </p>
           <Link
             href="/assistant"
-            className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-all shadow-sm"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-all shadow-sm"
           >
             Parler à l'assistant IA
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">

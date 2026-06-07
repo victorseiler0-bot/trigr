@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -68,12 +68,12 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex justify-center mb-10">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_4px_16px_rgba(139,92,246,0.35)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-[0_4px_16px_rgba(59,130,246,0.35)]">
               <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
                 <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="font-bold text-slate-900 text-xl tracking-tight">Trig<span className="text-violet-600">r</span></span>
+            <span className="font-bold text-slate-900 text-xl tracking-tight">Auto<span className="text-blue-500">zen</span></span>
           </Link>
         </div>
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
           <div className="text-center mb-7">
             <h1 className="text-xl font-bold text-slate-900 mb-1">Se connecter</h1>
-            <p className="text-sm text-slate-500">Bienvenue sur Trigr</p>
+            <p className="text-sm text-slate-500">Bienvenue sur Autozen</p>
           </div>
 
           {/* Google */}
@@ -131,13 +131,13 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendCode()}
                   placeholder="vous@exemple.fr"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
                 />
               </div>
               <button
                 onClick={sendCode}
                 disabled={!email || isBusy}
-                className="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all disabled:opacity-40"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all disabled:opacity-40"
               >
                 {isBusy ? "Envoi du code…" : "Continuer par email →"}
               </button>
@@ -157,13 +157,13 @@ export default function LoginPage() {
                   inputMode="numeric"
                   maxLength={6}
                   autoFocus
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 transition-all text-center tracking-[0.3em] font-mono text-base"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-center tracking-[0.3em] font-mono text-base"
                 />
               </div>
               <button
                 onClick={verifyCode}
                 disabled={code.length < 6 || isBusy}
-                className="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all disabled:opacity-40"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all disabled:opacity-40"
               >
                 {isBusy ? "Vérification…" : "Valider le code →"}
               </button>
@@ -179,7 +179,7 @@ export default function LoginPage() {
 
         <p className="text-center text-xs text-slate-500 mt-5">
           Pas encore de compte ?{" "}
-          <Link href="/signup" className="text-violet-600 hover:text-violet-700 font-medium transition-colors">S'inscrire gratuitement →</Link>
+          <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">S'inscrire gratuitement →</Link>
         </p>
         <p className="text-center text-xs text-slate-400 mt-2">
           En continuant, vous acceptez nos{" "}

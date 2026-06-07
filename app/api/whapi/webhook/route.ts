@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 // Cache mémoire des messages entrants (max 200 — suffisant pour dev/local)
 // En multi-instance production : migrer vers Vercel KV ou Upstash
@@ -14,7 +14,7 @@ const messageCache: Array<{
 const MAX_CACHE = 200;
 
 // Webhook Whapi.cloud → reçoit les messages entrants
-// URL à configurer dans le dashboard Whapi : Settings → Webhooks → https://trigr-eight.vercel.app/api/whapi/webhook
+// URL à configurer dans le dashboard Whapi : Settings → Webhooks → https://Autozen-eight.vercel.app/api/whapi/webhook
 
 export async function POST(req: NextRequest) {
   const expectedToken = process.env.WHAPI_WEBHOOK_TOKEN;

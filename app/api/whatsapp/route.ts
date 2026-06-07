@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { clerkClient } from "@clerk/nextjs/server";
 import { storeWaMessage, sendMetaWaMessage, markWaRead, type WaMessage } from "@/lib/whatsapp-meta";
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const reply = await generateSmartResponse(text, from, fromName);
     if (reply) {
       await sendMetaWaMessage(from, reply);
-      await storeWaMessage({ id: `sent_${Date.now()}`, from: "me", fromName: "Trigr", text: reply, timestamp: Math.floor(Date.now() / 1000), incoming: false });
+      await storeWaMessage({ id: `sent_${Date.now()}`, from: "me", fromName: "Autozen", text: reply, timestamp: Math.floor(Date.now() / 1000), incoming: false });
     }
   }
 
@@ -150,7 +150,7 @@ Contact : ${fromName}
 Règles :
 - Réponds en français, concis (max 3 phrases sauf si demande détaillée)
 - Tu ${tone} le contact
-- Tu représentes l'entreprise, pas Trigr
+- Tu représentes l'entreprise, pas Autozen
 - Si question sur prix/RDV/devis : réponds selon le contexte ou propose de rappeler
 - Si question hors sujet : redirige poliment vers le cœur de métier`.trim();
 

@@ -1,4 +1,4 @@
-import Navbar from "@/components/Navbar";
+﻿import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import IntegrationOrbit from "@/components/ui/IntegrationOrbit";
@@ -49,7 +49,7 @@ const PLANS = [
 ];
 
 const COMPARE = [
-  ["", "Trigr 🇫🇷", "Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"],
+  ["", "Autozen 🇫🇷", "Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"],
   ["Prix/mois", "9 €", "50 $", "10 €", "30 $"],
   ["Langue française", "✅ Native", "❌", "❌", "❌"],
   ["WhatsApp Business", "✅ Natif", "❌", "⚠️ via Twilio", "⚠️ payant"],
@@ -77,7 +77,7 @@ export default function Home() {
         <section className="relative overflow-hidden pt-16 bg-white">
           {/* Subtle gradient top */}
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-violet-100/60 rounded-full blur-[120px]" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-blue-100/60 rounded-full blur-[120px]" />
             <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-blue-100/40 rounded-full blur-[100px]" />
           </div>
 
@@ -86,8 +86,8 @@ export default function Home() {
 
               {/* Left */}
               <div className="animate-fade-up">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-semibold mb-8">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-8">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                   Essai gratuit 7 jours · Aucune carte requise
                 </div>
                 <h1 className="text-5xl md:text-6xl font-bold text-slate-900 leading-[1.06] tracking-tight mb-6">
@@ -103,7 +103,7 @@ export default function Home() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 mb-12">
                   <Link href="/assistant"
-                    className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold px-7 py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(124,58,237,0.35)] hover:shadow-[0_6px_30px_rgba(124,58,237,0.45)] text-base">
+                    className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-7 py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(59,130,246,0.35)] hover:shadow-[0_6px_30px_rgba(59,130,246,0.45)] text-base">
                     Démarrer gratuitement
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </Link>
@@ -115,7 +115,7 @@ export default function Home() {
                 <div className="flex flex-wrap gap-5 text-sm text-slate-500">
                   {["RGPD-friendly", "Auto-hébergeable", "Sans engagement"].map(t => (
                     <span key={t} className="flex items-center gap-1.5">
-                      <svg width="14" height="14" fill="none" stroke="#7c3aed" strokeWidth="2.5"><path d="M2 7l3 3 7-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg width="14" height="14" fill="none" stroke="#3b82f6" strokeWidth="2.5"><path d="M2 7l3 3 7-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       {t}
                     </span>
                   ))}
@@ -132,7 +132,7 @@ export default function Home() {
                       <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500/70"/><div className="w-3 h-3 rounded-full bg-amber-500/70"/><div className="w-3 h-3 rounded-full bg-emerald-500/70"/></div>
                       <div className="flex-1 flex items-center justify-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full status-connected" />
-                        <span className="text-xs text-slate-400 font-medium">Trigr Assistant</span>
+                        <span className="text-xs text-slate-400 font-medium">Autozen Assistant</span>
                       </div>
                     </div>
                     {/* Messages */}
@@ -140,17 +140,17 @@ export default function Home() {
                       {CHAT_MSGS.map((m, i) => (
                         <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                           {m.role === "assistant" && (
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center mr-2 mt-0.5 shrink-0">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mr-2 mt-0.5 shrink-0">
                               <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </div>
                           )}
                           <div className={`rounded-2xl px-3.5 py-2.5 max-w-[240px] text-xs leading-relaxed ${
-                            m.role === "user" ? "bg-violet-600 text-white rounded-tr-sm" : "bg-slate-800 text-slate-200 rounded-tl-sm"
+                            m.role === "user" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-slate-800 text-slate-200 rounded-tl-sm"
                           }`} style={{ whiteSpace: "pre-line" }}>{m.text}</div>
                         </div>
                       ))}
                       <div className="flex gap-1.5 items-center">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
                           <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
                         <div className="bg-slate-800 rounded-2xl rounded-tl-sm px-3.5 py-3 flex gap-1.5">
@@ -161,7 +161,7 @@ export default function Home() {
                     <div className="px-4 pb-4">
                       <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5">
                         <span className="flex-1 text-xs text-slate-600">Tape un message…</span>
-                        <div className="w-6 h-6 rounded-lg bg-violet-600 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
                           <svg width="10" height="10" fill="none" stroke="white" strokeWidth="2"><path d="M2 5h6M5 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
                       </div>
@@ -176,7 +176,7 @@ export default function Home() {
         </section>
 
         {/* ── STATS BAR ──────────────────────────────────────────────────────── */}
-        <section className="py-8 px-6 bg-violet-600">
+        <section className="py-8 px-6 bg-blue-600">
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               {[
@@ -187,7 +187,7 @@ export default function Home() {
               ].map(s => (
                 <div key={s.label}>
                   <p className="text-3xl font-black text-white mb-1">{s.value}</p>
-                  <p className="text-xs text-violet-200 font-medium">{s.label}</p>
+                  <p className="text-xs text-blue-200 font-medium">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -218,7 +218,7 @@ export default function Home() {
         <section id="fonctions" className="py-24 px-6 bg-white">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Fonctionnalités</p>
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Fonctionnalités</p>
               <h2 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-4">
                 Tout ce dont tu as besoin,<br /><span className="gradient-text">rien de superflu</span>
               </h2>
@@ -227,10 +227,10 @@ export default function Home() {
             <div className="grid md:grid-cols-3 gap-6">
               {FEATURES.map(f => (
                 <div key={f.badge} className={`rounded-2xl border p-7 flex flex-col gap-5 bg-white hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md ${
-                  f.accent === "violet" ? "border-violet-100" : f.accent === "emerald" ? "border-emerald-100" : "border-blue-100"
+                  f.accent === "violet" ? "border-blue-100" : f.accent === "emerald" ? "border-emerald-100" : "border-blue-100"
                 }`}>
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full w-fit ${
-                    f.accent === "violet" ? "bg-violet-50 text-violet-700" : f.accent === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
+                    f.accent === "violet" ? "bg-blue-50 text-blue-700" : f.accent === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
                   }`}>{f.badge}</span>
                   <div>
                     <h3 className="text-slate-900 font-bold text-lg mb-2">{f.title}</h3>
@@ -239,7 +239,7 @@ export default function Home() {
                   <ul className="space-y-2">
                     {f.items.map(item => (
                       <li key={item} className="flex items-center gap-2 text-xs text-slate-600">
-                        <svg className={`shrink-0 ${f.accent === "violet" ? "text-violet-500" : f.accent === "emerald" ? "text-emerald-500" : "text-blue-500"}`} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg className={`shrink-0 ${f.accent === "violet" ? "text-blue-500" : f.accent === "emerald" ? "text-emerald-500" : "text-blue-500"}`} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M2 6l3 3 6-5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                         {item}
@@ -256,7 +256,7 @@ export default function Home() {
         <section id="comment" className="py-24 px-6 bg-slate-50 border-y border-slate-200">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Simple</p>
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Simple</p>
               <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">Opérationnel en <span className="gradient-text">2 minutes</span></h2>
               <p className="text-slate-500 text-lg">Pas de code, pas de setup technique. Connecte, parle, automatise.</p>
             </div>
@@ -268,7 +268,7 @@ export default function Home() {
               ].map(s => (
                 <div key={s.n} className="bg-white rounded-2xl border border-slate-200 p-7 flex flex-col gap-4 shadow-sm">
                   <div className="flex items-start justify-between">
-                    <div className="p-3 rounded-xl bg-violet-50 border border-violet-100 text-violet-600 w-fit">
+                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 w-fit">
                       <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d={s.icon}/>
                       </svg>
@@ -287,7 +287,7 @@ export default function Home() {
         <section className="py-24 px-6 bg-white">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Qui utilise Trigr ?</p>
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Qui utilise Autozen ?</p>
               <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">
                 Conçu pour les <span className="gradient-text">pros français</span>
               </h2>
@@ -304,7 +304,7 @@ export default function Home() {
                 {
                   emoji: "🔧",
                   role: "Artisan plombier",
-                  quote: "Les clients m'envoient des photos sur WhatsApp, Trigr analyse et crée un devis dans Notion. Je valide en 30 secondes.",
+                  quote: "Les clients m'envoient des photos sur WhatsApp, Autozen analyse et crée un devis dans Notion. Je valide en 30 secondes.",
                   saves: "5h/semaine",
                 },
                 {
@@ -353,18 +353,18 @@ export default function Home() {
         <section id="tarifs" className="py-24 px-6 bg-white">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Tarifs</p>
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Tarifs</p>
               <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">5× moins cher <span className="gradient-text">que Lindy</span></h2>
-              <p className="text-slate-500 text-lg">Lindy commence à 50 $/mois. Trigr commence à 9 €. Vos données restent chez vous.</p>
+              <p className="text-slate-500 text-lg">Lindy commence à 50 $/mois. Autozen commence à 9 €. Vos données restent chez vous.</p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {PLANS.map(p => (
                 <div key={p.name} className={`relative rounded-2xl border p-6 flex flex-col gap-5 transition-all ${
-                  p.highlight ? "border-violet-300 bg-violet-50 shadow-lg shadow-violet-100" : "border-slate-200 bg-white shadow-sm"
+                  p.highlight ? "border-blue-300 bg-blue-50 shadow-lg shadow-blue-100" : "border-slate-200 bg-white shadow-sm"
                 }`}>
                   {"badge" in p && p.badge && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="text-xs font-bold text-white bg-violet-600 px-3 py-1 rounded-full shadow-sm">{p.badge}</span>
+                      <span className="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full shadow-sm">{p.badge}</span>
                     </div>
                   )}
                   <div>
@@ -378,7 +378,7 @@ export default function Home() {
                   <ul className="space-y-2.5 flex-1">
                     {p.features.map(f => (
                       <li key={f} className="flex items-start gap-2 text-xs text-slate-600">
-                        <svg className="text-violet-500 shrink-0 mt-0.5" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg className="text-blue-500 shrink-0 mt-0.5" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M2 6l3 3 6-5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                         {f}
@@ -386,7 +386,7 @@ export default function Home() {
                     ))}
                   </ul>
                   <Link href={p.href} className={`text-center text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
-                    p.highlight ? "bg-violet-600 hover:bg-violet-700 text-white shadow-sm" : "bg-slate-900 hover:bg-slate-800 text-white"
+                    p.highlight ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm" : "bg-slate-900 hover:bg-slate-800 text-white"
                   }`}>{p.cta}</Link>
                 </div>
               ))}
@@ -408,7 +408,7 @@ export default function Home() {
                     Vos données vous<br /><span className="text-blue-400">appartiennent.</span>
                   </h2>
                   <p className="text-slate-300 text-base leading-relaxed mb-6">
-                    Chez Lindy et Zapier, vos emails, agendas et contacts transitent par des serveurs américains soumis au Cloud Act. Avec Trigr, tout reste en Europe.
+                    Chez Lindy et Zapier, vos emails, agendas et contacts transitent par des serveurs américains soumis au Cloud Act. Avec Autozen, tout reste en Europe.
                   </p>
                   <div className="space-y-3">
                     {[
@@ -480,16 +480,16 @@ export default function Home() {
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">Trigr Business</p>
+                        <p className="text-sm font-medium text-white">Autozen Business</p>
                         <p className="text-xs text-emerald-400">en ligne</p>
                       </div>
                     </div>
                     <div className="px-4 py-5 space-y-3 min-h-[280px]">
                       {[
                         { from: "Sophie M.", msg: "Bonjour, vous avez des tarifs pour un devis peinture ?", me: false, time: "14:02" },
-                        { from: "Trigr", msg: "Bonjour Sophie ! Voici notre grille tarifaire 2024 :\n🎨 Peinture intérieure : 25–40 €/m²\n🏠 Ravalement façade : 35–60 €/m²\nSouhaitez-vous un devis personnalisé ?", me: true, time: "14:02", auto: true },
+                        { from: "Autozen", msg: "Bonjour Sophie ! Voici notre grille tarifaire 2024 :\n🎨 Peinture intérieure : 25–40 €/m²\n🏠 Ravalement façade : 35–60 €/m²\nSouhaitez-vous un devis personnalisé ?", me: true, time: "14:02", auto: true },
                         { from: "Sophie M.", msg: "Oui s'il vous plaît ! Quand êtes-vous disponible ?", me: false, time: "14:03" },
-                        { from: "Trigr", msg: "Je vous envoie le lien pour choisir un créneau : calendly.com/artisan 📅", me: true, time: "14:03", auto: true },
+                        { from: "Autozen", msg: "Je vous envoie le lien pour choisir un créneau : calendly.com/artisan 📅", me: true, time: "14:03", auto: true },
                       ].map((m, i) => (
                         <div key={i} className={`flex ${m.me ? "justify-end" : "justify-start"}`}>
                           <div className={`max-w-[220px] rounded-xl px-3 py-2 text-xs leading-relaxed relative ${m.me ? "bg-[#005c4b] text-white rounded-tr-sm" : "bg-[#202c33] text-slate-200 rounded-tl-sm"}`} style={{ whiteSpace: "pre-line" }}>
@@ -516,8 +516,8 @@ export default function Home() {
         <section className="py-24 px-6 bg-white border-b border-slate-100">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
-              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-3">Comparaison</p>
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-3">Pourquoi Trigr ?</h2>
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Comparaison</p>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-3">Pourquoi Autozen ?</h2>
               <p className="text-slate-500">Le seul assistant IA français conçu pour les PME et indépendants.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
@@ -526,7 +526,7 @@ export default function Home() {
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="p-4 text-left text-sm text-slate-400 font-medium w-[28%]" />
                     <th className="p-4 text-center">
-                      <span className="text-sm font-bold text-violet-700 bg-violet-50 border border-violet-200 px-3 py-1 rounded-full">Trigr 🇫🇷</span>
+                      <span className="text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">Autozen 🇫🇷</span>
                     </th>
                     {["Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"].map(c => (
                       <th key={c} className="p-4 text-center border-l border-slate-100">
@@ -536,10 +536,10 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {COMPARE.slice(1).map(([feature, trigr, lindy, make, zapier], i) => (
+                  {COMPARE.slice(1).map(([feature, Autozen, lindy, make, zapier], i) => (
                     <tr key={feature} className={`hover:bg-slate-50 transition-colors ${i < COMPARE.length - 2 ? "border-b border-slate-100" : ""}`}>
                       <td className="p-4 text-sm text-slate-600 font-medium">{feature}</td>
-                      <td className="p-4 text-sm text-center font-semibold text-slate-900">{trigr}</td>
+                      <td className="p-4 text-sm text-center font-semibold text-slate-900">{Autozen}</td>
                       <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{lindy}</td>
                       <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{make}</td>
                       <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{zapier}</td>
@@ -555,13 +555,13 @@ export default function Home() {
         {/* ── CTA ─────────────────────────────────────────────────────────────── */}
         <section className="py-24 px-6 bg-white">
           <div className="max-w-2xl mx-auto text-center">
-            <div className="bg-gradient-to-br from-violet-600 to-violet-800 rounded-3xl p-14 relative overflow-hidden shadow-2xl shadow-violet-200">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-14 relative overflow-hidden shadow-2xl shadow-blue-200">
               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "24px 24px" }} />
               <div className="relative">
                 <h2 className="text-4xl font-bold text-white mb-3">Prêt à déléguer à ton IA ?</h2>
-                <p className="text-violet-200 mb-10 text-lg">7 jours gratuits · Sans carte · Annulable en 1 clic</p>
+                <p className="text-blue-200 mb-10 text-lg">7 jours gratuits · Sans carte · Annulable en 1 clic</p>
                 <Link href="/assistant"
-                  className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-violet-700 font-bold px-8 py-4 rounded-xl transition-all shadow-lg hover:shadow-xl text-base">
+                  className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-blue-700 font-bold px-8 py-4 rounded-xl transition-all shadow-lg hover:shadow-xl text-base">
                   Démarrer gratuitement
                   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </Link>

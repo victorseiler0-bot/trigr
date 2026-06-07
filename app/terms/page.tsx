@@ -1,10 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata = {
-  title: "Conditions Générales d'Utilisation — Trigr",
-  description: "Conditions générales d'utilisation du service Trigr. Droits, obligations, abonnements et limitations de responsabilité.",
+  title: "Conditions Générales d'Utilisation — Autozen",
+  description: "Conditions générales d'utilisation du service Autozen. Droits, obligations, abonnements et limitations de responsabilité.",
 };
 
 export default function TermsPage() {
@@ -23,16 +23,16 @@ export default function TermsPage() {
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">1. Présentation du service</h2>
-              <p className="mb-2">Trigr est un service d&apos;assistant IA personnel pour freelances et PME, permettant d&apos;automatiser la gestion des emails, agendas, relances clients et autres tâches bureautiques via des workflows n8n.</p>
+              <p className="mb-2">Autozen est un service d&apos;assistant IA personnel pour freelances et PME, permettant d&apos;automatiser la gestion des emails, agendas, relances clients et autres tâches bureautiques via des workflows n8n.</p>
               <p>Éditeur : Victor Seiler — victorseiler0@gmail.com</p>
-              <p className="mt-2">L&apos;accès au service se fait via le site web <strong className="text-white">trigr-eight.vercel.app</strong> ainsi que via les interfaces WhatsApp Business, email et chat web configurées par l&apos;utilisateur.</p>
+              <p className="mt-2">L&apos;accès au service se fait via le site web <strong className="text-white">Autozen-eight.vercel.app</strong> ainsi que via les interfaces WhatsApp Business, email et chat web configurées par l&apos;utilisateur.</p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">2. Acceptation des CGU</h2>
-              <p>En créant un compte, en utilisant le service ou en cliquant sur &quot;Accepter&quot;, vous acceptez sans réserve les présentes Conditions Générales d&apos;Utilisation ainsi que notre <Link href="/privacy" className="text-violet-400 hover:text-violet-300">Politique de confidentialité</Link>.</p>
+              <p>En créant un compte, en utilisant le service ou en cliquant sur &quot;Accepter&quot;, vous acceptez sans réserve les présentes Conditions Générales d&apos;Utilisation ainsi que notre <Link href="/privacy" className="text-blue-400 hover:text-blue-300">Politique de confidentialité</Link>.</p>
               <p className="mt-2">Si vous n&apos;acceptez pas ces conditions, n&apos;utilisez pas le service.</p>
-              <p className="mt-2">Ces CGU s&apos;appliquent à toute personne physique ou morale utilisant Trigr (ci-après &quot;l&apos;Utilisateur&quot;).</p>
+              <p className="mt-2">Ces CGU s&apos;appliquent à toute personne physique ou morale utilisant Autozen (ci-après &quot;l&apos;Utilisateur&quot;).</p>
             </section>
 
             <section>
@@ -41,7 +41,7 @@ export default function TermsPage() {
                 <li>Vous devez avoir au moins 18 ans pour créer un compte.</li>
                 <li>Vous vous engagez à fournir des informations exactes, complètes et à les maintenir à jour.</li>
                 <li>Vous êtes responsable de la confidentialité de vos identifiants de connexion.</li>
-                <li>Vous devez nous informer immédiatement de toute utilisation non autorisée de votre compte à <a href="mailto:victorseiler0@gmail.com" className="text-violet-400 hover:text-violet-300">victorseiler0@gmail.com</a>.</li>
+                <li>Vous devez nous informer immédiatement de toute utilisation non autorisée de votre compte à <a href="mailto:victorseiler0@gmail.com" className="text-blue-400 hover:text-blue-300">victorseiler0@gmail.com</a>.</li>
                 <li>Un compte est personnel et ne peut pas être partagé, sauf dans le cadre d&apos;un plan Équipe.</li>
               </ul>
             </section>
@@ -84,13 +84,13 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">5. Droit de rétractation</h2>
               <p>Conformément à l&apos;article L221-18 du Code de la consommation, vous disposez d&apos;un délai de <strong className="text-white">14 jours</strong> à compter de la souscription pour exercer votre droit de rétractation, sans avoir à justifier de motif.</p>
-              <p className="mt-2">Pour exercer ce droit, contactez-nous à <a href="mailto:victorseiler0@gmail.com" className="text-violet-400 hover:text-violet-300">victorseiler0@gmail.com</a> avec l&apos;objet &quot;Rétractation&quot;.</p>
+              <p className="mt-2">Pour exercer ce droit, contactez-nous à <a href="mailto:victorseiler0@gmail.com" className="text-blue-400 hover:text-blue-300">victorseiler0@gmail.com</a> avec l&apos;objet &quot;Rétractation&quot;.</p>
               <p className="mt-2">Le remboursement sera effectué dans les 14 jours suivant la réception de votre demande, par le même moyen de paiement que celui utilisé lors de la souscription.</p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">6. Utilisation du service</h2>
-              <p className="mb-3">Vous vous engagez à utiliser Trigr conformément aux lois en vigueur et aux présentes CGU. Sont notamment interdits :</p>
+              <p className="mb-3">Vous vous engagez à utiliser Autozen conformément aux lois en vigueur et aux présentes CGU. Sont notamment interdits :</p>
               <ul className="space-y-2">
                 {[
                   "Utiliser le service à des fins illégales, frauduleuses ou nuisibles",
@@ -112,28 +112,28 @@ export default function TermsPage() {
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">7. Propriété intellectuelle</h2>
-              <p className="mb-2">Le service Trigr, incluant son code source, son design, ses marques et ses contenus, est la propriété exclusive de Victor Seiler et est protégé par les lois françaises et internationales sur la propriété intellectuelle.</p>
-              <p className="mb-2">Les workflows n8n publiés dans la marketplace Trigr restent la propriété de leurs auteurs respectifs. En les publiant sur Trigr, les auteurs accordent une licence d&apos;utilisation non exclusive à Trigr et à ses utilisateurs.</p>
-              <p>Vos contenus (messages, données) restent votre propriété. En utilisant le service, vous accordez à Trigr une licence limitée pour les traiter afin de vous fournir le service.</p>
+              <p className="mb-2">Le service Autozen, incluant son code source, son design, ses marques et ses contenus, est la propriété exclusive de Victor Seiler et est protégé par les lois françaises et internationales sur la propriété intellectuelle.</p>
+              <p className="mb-2">Les workflows n8n publiés dans la marketplace Autozen restent la propriété de leurs auteurs respectifs. En les publiant sur Autozen, les auteurs accordent une licence d&apos;utilisation non exclusive à Autozen et à ses utilisateurs.</p>
+              <p>Vos contenus (messages, données) restent votre propriété. En utilisant le service, vous accordez à Autozen une licence limitée pour les traiter afin de vous fournir le service.</p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">8. Disponibilité et garanties</h2>
-              <p className="mb-2">Trigr s&apos;efforce de maintenir une disponibilité du service de <strong className="text-white">99,5 %</strong> par mois, hors maintenances planifiées. Les maintenances sont communiquées avec un préavis minimum de 48 heures.</p>
-              <p className="mb-2">Le service est fourni &quot;tel quel&quot;. Trigr ne garantit pas que le service sera exempt d&apos;erreurs, ininterrompu, ou adapté à un usage particulier.</p>
+              <p className="mb-2">Autozen s&apos;efforce de maintenir une disponibilité du service de <strong className="text-white">99,5 %</strong> par mois, hors maintenances planifiées. Les maintenances sont communiquées avec un préavis minimum de 48 heures.</p>
+              <p className="mb-2">Le service est fourni &quot;tel quel&quot;. Autozen ne garantit pas que le service sera exempt d&apos;erreurs, ininterrompu, ou adapté à un usage particulier.</p>
               <p>L&apos;intelligence artificielle peut produire des résultats inexacts. Vous restez responsable de vérifier les actions effectuées par l&apos;assistant avant de les envoyer ou de les exécuter.</p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">9. Limitation de responsabilité</h2>
-              <p className="mb-2">Dans les limites autorisées par la loi applicable, la responsabilité totale de Trigr ne saurait excéder les sommes versées par l&apos;Utilisateur au cours des 3 derniers mois précédant l&apos;événement générateur.</p>
-              <p>Trigr ne saurait être tenu responsable des dommages indirects, pertes de données, pertes de revenus ou de profits résultant de l&apos;utilisation ou de l&apos;impossibilité d&apos;utiliser le service.</p>
+              <p className="mb-2">Dans les limites autorisées par la loi applicable, la responsabilité totale de Autozen ne saurait excéder les sommes versées par l&apos;Utilisateur au cours des 3 derniers mois précédant l&apos;événement générateur.</p>
+              <p>Autozen ne saurait être tenu responsable des dommages indirects, pertes de données, pertes de revenus ou de profits résultant de l&apos;utilisation ou de l&apos;impossibilité d&apos;utiliser le service.</p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">10. Résiliation</h2>
               <p className="mb-2"><strong className="text-zinc-200">Par l&apos;Utilisateur :</strong> Vous pouvez résilier votre abonnement à tout moment depuis les paramètres de votre compte ou en contactant victorseiler0@gmail.com. L&apos;accès reste actif jusqu&apos;à la fin de la période en cours.</p>
-              <p className="mb-2"><strong className="text-zinc-200">Par Trigr :</strong> Nous pouvons suspendre ou résilier votre compte en cas de violation des présentes CGU, d&apos;impayé persistant, ou de cessation d&apos;activité du service, avec un préavis de 30 jours sauf en cas de faute grave.</p>
+              <p className="mb-2"><strong className="text-zinc-200">Par Autozen :</strong> Nous pouvons suspendre ou résilier votre compte en cas de violation des présentes CGU, d&apos;impayé persistant, ou de cessation d&apos;activité du service, avec un préavis de 30 jours sauf en cas de faute grave.</p>
               <p>À la résiliation, vos données sont conservées 30 jours puis supprimées définitivement, sauf obligation légale de conservation.</p>
             </section>
 
@@ -145,13 +145,13 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">12. Loi applicable et juridiction</h2>
               <p>Les présentes CGU sont régies par le <strong className="text-white">droit français</strong>. En cas de litige, et à défaut de résolution amiable, les tribunaux compétents sont ceux du ressort de la Cour d&apos;appel de Grenoble.</p>
-              <p className="mt-2">Pour les consommateurs résidant dans l&apos;Union européenne, vous pouvez également recourir à la plateforme de résolution en ligne des litiges de la Commission européenne : <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300">ec.europa.eu/consumers/odr</a></p>
+              <p className="mt-2">Pour les consommateurs résidant dans l&apos;Union européenne, vous pouvez également recourir à la plateforme de résolution en ligne des litiges de la Commission européenne : <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">ec.europa.eu/consumers/odr</a></p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">13. Contact</h2>
               <div className="glass rounded-xl p-4 text-zinc-400">
-                <p>Email : <a href="mailto:victorseiler0@gmail.com" className="text-violet-400 hover:text-violet-300">victorseiler0@gmail.com</a></p>
+                <p>Email : <a href="mailto:victorseiler0@gmail.com" className="text-blue-400 hover:text-blue-300">victorseiler0@gmail.com</a></p>
                 <p>Objet recommandé : [CGU] sujet de votre demande</p>
               </div>
             </section>

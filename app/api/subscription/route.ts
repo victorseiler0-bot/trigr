@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   const priceId = process.env[PLANS[plan].priceEnv];
   if (!priceId) return NextResponse.json({ error: "Prix non configuré" }, { status: 500 });
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://trigr-eight.vercel.app";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://Autozen-eight.vercel.app";
   const stripe = getStripe();
 
   const client = await clerkClient();
