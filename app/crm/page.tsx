@@ -6,6 +6,16 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 type Statut = "prospect" | "client" | "inactif" | "partenaire";
+type DealStage = "prospection" | "propose" | "negociation" | "gagne" | "perdu";
+type Deal = { id: string; title: string; contactName?: string; amount?: number; stage: DealStage; notes?: string; createdAt: string };
+
+const STAGE_CONFIG: Record<DealStage, { label: string; color: string; bg: string }> = {
+  prospection: { label: "Prospection", color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
+  propose:     { label: "Devis envoyé", color: "text-amber-400",  bg: "bg-amber-500/10 border-amber-500/20" },
+  negociation: { label: "Négociation",  color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+  gagne:       { label: "Gagné ✓",      color: "text-emerald-400",bg: "bg-emerald-500/10 border-emerald-500/20" },
+  perdu:       { label: "Perdu",        color: "text-red-400",    bg: "bg-red-500/10 border-red-500/20" },
+};
 
 interface Contact {
   id: string;
@@ -48,6 +58,11 @@ export default function CrmPage() {
   const [importingCsv, setImportingCsv] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const sheetUrl = useRef<string>("");
+  const [viewMode, setViewMode] = useState<"contacts" | "pipeline">("contacts");
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [dealForm, setDealForm] = useState<Partial<Deal>>({ stage: "prospection" });
+  const [dealOpen, setDealOpen] = useState(false);
+  const [dealSaving, setDealSaving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -65,7 +80,31 @@ export default function CrmPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    fetch("/api/crm/deals").then(r => r.json()).then(d => { if (d.deals) setDeals(d.deals); }).catch(() => {});
+  }, []);
+
+  async function saveDeal() {
+    if (!dealForm.title) return;
+    setDealSaving(true);
+    try {
+      const r = await fetch("/api/crm/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deal: dealForm }) });
+      const d = await r.json();
+      if (d.deal) { setDeals(prev => [...prev, d.deal]); setDealOpen(false); setDealForm({ stage: "prospection" }); }
+    } finally { setDealSaving(false); }
+  }
+
+  async function moveDeal(id: string, stage: DealStage) {
+    const r = await fetch("/api/crm/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "move", id, stage }) });
+    const d = await r.json();
+    if (d.deals) setDeals(d.deals);
+  }
+
+  async function deleteDeal(id: string) {
+    await fetch("/api/crm/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) });
+    setDeals(prev => prev.filter(d => d.id !== id));
+  }
 
   const filtered = contacts.filter((c) => {
     const q = search.toLowerCase();
@@ -172,6 +211,15 @@ export default function CrmPage() {
             <p className="text-zinc-400 mt-1 text-sm">Tes contacts, stockés dans ton Google Drive.</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* View toggle */}
+            <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl p-0.5">
+              <button onClick={() => setViewMode("contacts")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "contacts" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
+                Contacts
+              </button>
+              <button onClick={() => setViewMode("pipeline")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "pipeline" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}>
+                Pipeline
+              </button>
+            </div>
             {sheetUrl.current && (
               <a href={sheetUrl.current} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-zinc-500 hover:text-zinc-300 border border-white/[0.07] px-3 py-2 rounded-xl flex items-center gap-1.5 transition-colors">
@@ -213,6 +261,75 @@ export default function CrmPage() {
           </div>
         )}
 
+        {/* ── PIPELINE VIEW ─────────────────────────────────────────────── */}
+        {viewMode === "pipeline" && (
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-sm text-zinc-400">{deals.filter(d => d.stage !== "gagne" && d.stage !== "perdu").length} deal(s) actifs · {deals.filter(d => d.stage === "gagne").reduce((s, d) => s + (d.amount ?? 0), 0).toLocaleString("fr-FR")} € signés</p>
+              <button onClick={() => setDealOpen(true)} className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
+                Nouveau deal
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto pb-4">
+              {(["prospection", "propose", "negociation", "gagne", "perdu"] as DealStage[]).map(stage => {
+                const stageDeals = deals.filter(d => d.stage === stage);
+                const cfg = STAGE_CONFIG[stage];
+                return (
+                  <div key={stage} className="flex-shrink-0 w-60">
+                    <div className={`flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg border ${cfg.bg}`}>
+                      <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
+                      <span className="ml-auto text-xs text-zinc-500">{stageDeals.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {stageDeals.map(deal => (
+                        <div key={deal.id} className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3 hover:border-white/[0.12] transition-all group">
+                          <p className="text-sm font-medium text-white mb-1 leading-snug">{deal.title}</p>
+                          {deal.contactName && <p className="text-xs text-zinc-500 mb-1">{deal.contactName}</p>}
+                          {deal.amount && <p className="text-xs text-violet-400 font-semibold">{deal.amount.toLocaleString("fr-FR")} €</p>}
+                          <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {(["prospection", "propose", "negociation", "gagne", "perdu"] as DealStage[]).filter(s => s !== stage).map(s => (
+                              <button key={s} onClick={() => moveDeal(deal.id, s)} title={STAGE_CONFIG[s].label}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border ${STAGE_CONFIG[s].bg} ${STAGE_CONFIG[s].color} hover:opacity-80 transition-opacity`}>
+                                → {STAGE_CONFIG[s].label.slice(0, 6)}
+                              </button>
+                            ))}
+                            <button onClick={() => deleteDeal(deal.id)} className="ml-auto text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5">✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {dealOpen && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) setDealOpen(false); }}>
+                <div className="bg-[#111113] border border-white/[0.08] rounded-2xl p-6 w-full max-w-md">
+                  <h3 className="text-lg font-semibold text-white mb-4">Nouveau deal</h3>
+                  <div className="space-y-3">
+                    <input value={dealForm.title ?? ""} onChange={e => setDealForm(f => ({ ...f, title: e.target.value }))} placeholder="Titre du deal *" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40" />
+                    <input value={dealForm.contactName ?? ""} onChange={e => setDealForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Client / contact" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40" />
+                    <input type="number" value={dealForm.amount ?? ""} onChange={e => setDealForm(f => ({ ...f, amount: Number(e.target.value) || undefined }))} placeholder="Montant (€)" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500/40" />
+                    <select value={dealForm.stage ?? "prospection"} onChange={e => setDealForm(f => ({ ...f, stage: e.target.value as DealStage }))} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                      {(Object.keys(STAGE_CONFIG) as DealStage[]).map(s => <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-3 mt-5">
+                    <button onClick={() => setDealOpen(false)} className="flex-1 border border-white/[0.08] text-zinc-300 py-2.5 rounded-xl text-sm hover:border-white/20 transition-all">Annuler</button>
+                    <button onClick={saveDeal} disabled={dealSaving || !dealForm.title} className="flex-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-all">
+                      {dealSaving ? "Enregistrement…" : "Créer le deal"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === "contacts" && <>
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
@@ -439,6 +556,8 @@ export default function CrmPage() {
           </div>
         </div>
       )}
+
+        </>}
 
       <Footer />
     </div>
