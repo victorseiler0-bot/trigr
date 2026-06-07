@@ -87,6 +87,41 @@ export async function generateMorningBrief(userId: string): Promise<string | nul
       sections.push("💬 WHATSAPP : Aucun nouveau message");
     }
 
+    // — Rappels du jour
+    type Reminder = { id: string; title: string; dueAt: string; done?: boolean; note?: string };
+    const reminders = (meta.reminders as Reminder[]) ?? [];
+    const todayReminders = reminders.filter(r => !r.done && new Date(r.dueAt) <= new Date(Date.now() + 86400_000 * 2));
+    if (todayReminders.length > 0) {
+      const overdue = todayReminders.filter(r => new Date(r.dueAt) < new Date());
+      const upcoming = todayReminders.filter(r => new Date(r.dueAt) >= new Date());
+      let reminderText = `⏰ RAPPELS (${todayReminders.length}) :`;
+      if (overdue.length) reminderText += `\n  🔴 En retard : ${overdue.map(r => r.title).join(", ")}`;
+      if (upcoming.length) reminderText += `\n  ⏳ À venir : ${upcoming.slice(0, 3).map(r => r.title).join(", ")}`;
+      sections.push(reminderText);
+    }
+
+    // — Pipeline CRM actif
+    type Deal = { id: string; title: string; stage: string; amount?: number };
+    const deals = (meta.deals as Deal[]) ?? [];
+    const activeDeals = deals.filter(d => d.stage !== "gagne" && d.stage !== "perdu");
+    if (activeDeals.length > 0) {
+      const totalPotentiel = activeDeals.reduce((s, d) => s + (d.amount ?? 0), 0);
+      sections.push(`💼 PIPELINE : ${activeDeals.length} deal${activeDeals.length > 1 ? "s" : ""} actif${activeDeals.length > 1 ? "s" : ""}${totalPotentiel > 0 ? ` — ${totalPotentiel.toLocaleString("fr-FR")} € potentiels` : ""}`);
+    }
+
+    // — Météo locale (si profil a une ville)
+    if (profile.city) {
+      try {
+        const r = await fetch(`https://wttr.in/${encodeURIComponent(profile.city)}?format=j1`);
+        const d = await r.json() as Record<string, unknown>;
+        const current = (d.current_condition as Record<string, unknown>[])?.[0];
+        if (current) {
+          const desc = (current.weatherDesc as { value: string }[])?.[0]?.value ?? "";
+          sections.push(`🌤️ MÉTÉO ${profile.city.toUpperCase()} : ${current.temp_C}°C, ${desc}`);
+        }
+      } catch { /* skip */ }
+    }
+
     // — Automations run today
     type Automation = { id: string; name: string };
     const automations = (meta.automations as Automation[]) ?? [];

@@ -17,6 +17,7 @@ const APP_NAV = [
   ["/assistant", "Assistant"],
   ["/dashboard", "Dashboard"],
   ["/crm", "CRM"],
+  ["/workflows", "Workflows"],
   ["/marketplace", "Marketplace"],
   ["/settings", "Paramètres"],
 ];
