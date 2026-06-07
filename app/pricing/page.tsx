@@ -244,6 +244,52 @@ export default function PricingPage() {
           </div>
         </div>
 
+        {/* Comparatif concurrents */}
+        <div className="mt-20">
+          <h2 className="text-2xl font-bold text-white text-center mb-3">Autozen vs la concurrence</h2>
+          <p className="text-zinc-500 text-center text-sm mb-10">Pourquoi payer 5× plus pour moins de fonctionnalités ?</p>
+          <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left px-5 py-4 text-zinc-400 font-medium w-1/4">Fonctionnalité</th>
+                  {[
+                    { name: "Autozen", sub: "9€/mois", highlight: true },
+                    { name: "Lindy", sub: "49$/mois", highlight: false },
+                    { name: "Make", sub: "9$/mois", highlight: false },
+                    { name: "Zapier", sub: "19$/mois", highlight: false },
+                  ].map(c => (
+                    <th key={c.name} className={`text-center px-4 py-4 font-bold ${c.highlight ? "text-blue-400" : "text-zinc-400"}`}>
+                      {c.name}
+                      <div className={`text-xs font-normal mt-0.5 ${c.highlight ? "text-blue-500" : "text-zinc-600"}`}>{c.sub}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { feature: "En français natif", autozen: "✅", lindy: "⚠️ partiel", make: "❌", zapier: "❌" },
+                  { feature: "RGPD / Données FR", autozen: "✅", lindy: "❌ US", make: "❌ US", zapier: "❌ US" },
+                  { feature: "Gmail + Calendar", autozen: "✅", lindy: "✅", make: "✅", zapier: "✅" },
+                  { feature: "WhatsApp Business", autozen: "✅", lindy: "✅", make: "⚠️ payant", zapier: "❌" },
+                  { feature: "Devis + TVA auto", autozen: "✅", lindy: "⚠️ basique", make: "❌", zapier: "❌" },
+                  { feature: "CRM intégré", autozen: "✅", lindy: "❌", make: "❌", zapier: "❌" },
+                  { feature: "Sans code", autozen: "✅", lindy: "✅", make: "❌", zapier: "⚠️ partiel" },
+                  { feature: "Auto-hébergeable", autozen: "✅", lindy: "❌", make: "❌", zapier: "❌" },
+                ].map((row, i) => (
+                  <tr key={i} className={`border-b border-white/[0.04] ${i % 2 === 0 ? "bg-white/[0.01]" : ""}`}>
+                    <td className="px-5 py-3.5 text-zinc-300 font-medium">{row.feature}</td>
+                    <td className="px-4 py-3.5 text-center font-semibold text-blue-400">{row.autozen}</td>
+                    <td className="px-4 py-3.5 text-center text-zinc-500">{row.lindy}</td>
+                    <td className="px-4 py-3.5 text-center text-zinc-500">{row.make}</td>
+                    <td className="px-4 py-3.5 text-center text-zinc-500">{row.zapier}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <p className="text-center text-xs text-zinc-700 mt-12">
           Une question ? <a href="mailto:hello@Autozen.app" className="text-blue-400 hover:underline">hello@Autozen.app</a>
         </p>

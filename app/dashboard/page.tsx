@@ -214,6 +214,22 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
 
+            {/* Gain de temps estimé */}
+            <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-5 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-300 mb-1">⏱ Temps économisé cette semaine</h2>
+                  <p className="text-3xl font-black text-blue-400">{(data.totalWeek * 0.08).toFixed(1)}h</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">basé sur {data.totalWeek} actions × 5 min/action en moyenne</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-cyan-400">{Math.round(data.totalWeek * 0.08 * 60)} min</p>
+                  <p className="text-xs text-zinc-500">récupérées</p>
+                  <p className="text-xs text-zinc-600 mt-1">≈ {(data.totalWeek * 0.08 * 60 * 0.5).toFixed(0)} € économisés</p>
+                </div>
+              </div>
+            </div>
+
             {/* Connected integrations */}
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-4">

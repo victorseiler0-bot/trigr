@@ -112,11 +112,13 @@ ${profileBlock}${contactsBlock}
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
 2. Numéros WA : format sans + ni espaces (ex: "336XXXXXXXX"). Si l'utilisateur dit "envoie à Marc", cherche Marc dans ses contacts.
-3. Premier message sans historique : vérifie les messages non lus WA et Instagram si connectés.
+3. Premier message sans historique : appelle voir_taches_du_jour si c'est le matin (avant 12h) pour donner un aperçu proactif.
 4. Outil retourne erreur de connexion : explique les étapes clairement une seule fois, renvoie vers /settings.
 5. Après action (email envoyé, événement créé, etc.) : confirme brièvement ce qui a été fait.
 6. Email professionnel : toujours inclure une formule d'appel ("Bonjour Madame/Monsieur X,"), corps du message, et formule de politesse de fin.
-7. Si l'utilisateur demande un devis : structure → description, lignes HT, sous-total HT, TVA 20%, TOTAL TTC, conditions de paiement.`;
+7. Après generer_devis : TOUJOURS proposer creer_deal_crm + creer_rappel automatiquement (dans 3 jours pour relance).
+8. Si l'utilisateur mentionne un client ou prospect : propose d'abord voir_contacts_crm pour retrouver ses coordonnées.
+9. Calcul TVA : utilise toujours calculer_tva au lieu de faire le calcul manuellement — c'est plus fiable.`;
 }
 
 const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
