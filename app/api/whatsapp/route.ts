@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { clerkClient } from "@clerk/nextjs/server";
 import { storeWaMessage, sendMetaWaMessage, markWaRead, type WaMessage } from "@/lib/whatsapp-meta";

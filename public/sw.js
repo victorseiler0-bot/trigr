@@ -1,4 +1,4 @@
-﻿const CACHE = "Autozen-v1";
+const CACHE = "Autozen-v1";
 const OFFLINE = ["/", "/assistant", "/dashboard"];
 
 self.addEventListener("install", e => {

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Cache mémoire des messages entrants (max 200 — suffisant pour dev/local)
 // En multi-instance production : migrer vers Vercel KV ou Upstash

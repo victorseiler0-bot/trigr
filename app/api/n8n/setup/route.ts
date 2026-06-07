@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { upsertN8nWorkflow, buildWaSendWorkflow, buildWaReadWorkflow, buildInstagramWorkflow } from "@/lib/n8n";
 

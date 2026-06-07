@@ -1,4 +1,4 @@
-﻿import { createDAVClient } from "tsdav";
+import { createDAVClient } from "tsdav";
 import { clerkClient } from "@clerk/nextjs/server";
 
 type AppleMeta = { email: string; appPassword: string };

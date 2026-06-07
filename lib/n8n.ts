@@ -1,4 +1,4 @@
-﻿const N8N_URL = process.env.N8N_URL || "http://localhost:5678";
+const N8N_URL = process.env.N8N_URL || "http://localhost:5678";
 const N8N_KEY = process.env.N8N_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDE5NDQwZi01NmYxLTQ3YjUtODU5Zi1mZGI5MjQwZDM1NTkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiYzdiNmIwOTctOTA1NS00OGQ5LWJhZTktYTE5ZDQ1YWE0YmY0IiwiaWF0IjoxNzc3MzIxMDAyfQ.I4iU0LARlXJVezzrWRbYx4hHoXtxgxEaJCkLxkX2_QY";
 
 export async function n8n(path: string, method = "GET", body?: unknown) {

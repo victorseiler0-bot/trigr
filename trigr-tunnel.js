@@ -1,4 +1,4 @@
-﻿// Script PM2 : démarre le tunnel SSH serveo + met à jour WHATSAPP_BRIDGE_URL via Vercel CLI
+// Script PM2 : démarre le tunnel SSH serveo + met à jour WHATSAPP_BRIDGE_URL via Vercel CLI
 // Lance avec : pm2 start Autozen-tunnel.js --name Autozen-tunnel
 // Arrête avec : pm2 stop Autozen-tunnel
 
