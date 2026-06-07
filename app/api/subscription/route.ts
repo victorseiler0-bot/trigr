@@ -21,9 +21,14 @@ export async function GET() {
   const user = await client.users.getUser(userId);
   const meta = user.privateMetadata as Record<string, unknown>;
 
+  // Priorité : plan direct (admin/unlimited) > stripePlan (Stripe) > free
+  const plan = (meta.plan as string) ?? (meta.stripeStatus === "active" ? (meta.stripePlan as string) : null) ?? "free";
+  const isUnlimited = meta.unlimited === true || ["user_3D1aU2AT2pTj6fsgiLmRtha2o5L"].includes(userId);
+
   return NextResponse.json({
-    plan: (meta.stripePlan as string) ?? "free",
-    status: (meta.stripeStatus as string) ?? "inactive",
+    plan,
+    status: isUnlimited ? "active" : (meta.stripeStatus as string) ?? "inactive",
+    unlimited: isUnlimited,
     subscriptionId: meta.stripeSubscriptionId ?? null,
   });
 }

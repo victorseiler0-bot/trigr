@@ -611,8 +611,8 @@ export default function SettingsPage() {
   const googleAccount = user.externalAccounts.find(a => a.provider === "google");
   const totalConnected = (googleAccount ? 1 : 0) + (imapEmail ? 1 : 0) + (igPageName ? 1 : 0) + pdCount;
   const INTEGRATION_LIMITS: Record<string, number> = { free: 2, solo: 3, pro: 999, equipe: 999 };
-  const integrationLimit = INTEGRATION_LIMITS[plan] ?? 2;
-  const atIntegrationLimit = plan !== "pro" && plan !== "equipe" && totalConnected >= integrationLimit;
+  const integrationLimit = INTEGRATION_LIMITS[plan] ?? 999;
+  const atIntegrationLimit = plan !== "pro" && plan !== "equipe" && integrationLimit < 999 && totalConnected >= integrationLimit;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "account", label: "Compte" },
