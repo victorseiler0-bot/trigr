@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
 type DayEntry = { date: string; count: number };
 type AutoResult = { id: string; name: string; result: string; date: string };
@@ -175,13 +176,42 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* 7-day chart */}
+            {/* 7-day recharts area chart */}
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-zinc-300">Activité — 7 derniers jours</h2>
-                <span className="text-xs text-zinc-600">{data.totalWeek} actions</span>
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-300">Activité — 7 derniers jours</h2>
+                  <p className="text-xs text-zinc-600 mt-0.5">{data.totalWeek} actions au total</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 opacity-80" /> Actions IA
+                  </span>
+                </div>
               </div>
-              <SparkBar days={data.history} max={maxBar} />
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={data.history.map(d => ({
+                  jour: new Date(d.date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
+                  actions: d.count,
+                }))}>
+                  <defs>
+                    <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="jour" tick={{ fill: "#52525b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#52525b", fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
+                  <Tooltip
+                    contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 12 }}
+                    labelStyle={{ color: "#a1a1aa" }}
+                    itemStyle={{ color: "#60a5fa" }}
+                    formatter={(v: number) => [`${v} action${v > 1 ? "s" : ""}`, ""]}
+                  />
+                  <Area type="monotone" dataKey="actions" stroke="#3b82f6" strokeWidth={2} fill="url(#blueGrad)" dot={{ fill: "#3b82f6", r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: "#60a5fa" }} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Connected integrations */}

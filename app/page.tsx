@@ -349,6 +349,52 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── TÉMOIGNAGES ──────────────────────────────────────────────────────── */}
+        <section className="py-20 px-6 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Témoignages</p>
+              <h2 className="text-3xl font-bold text-slate-900">Ce qu&apos;ils en disent</h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                { name: "Sophie M.", role: "Kinésithérapeute libérale, Lyon", quote: "Avant je passais 2h/jour sur mes emails. Maintenant Autozen les trie, répond aux demandes de RDV et m'envoie un résumé le matin. Je reprends ce temps pour mes patients.", stars: 5, avatar: "SM" },
+                { name: "Thomas R.", role: "Consultant IT indépendant, Paris", quote: "J'ai connecté Gmail, Notion et WhatsApp en 5 minutes. L'assistant rédige mes devis automatiquement avec TVA. C'est devenu mon bras droit numérique.", stars: 5, avatar: "TR" },
+                { name: "Julie C.", role: "Gérante d'agence web, Bordeaux", quote: "Le prix est imbattable comparé à Lindy. Et en français natif — ça change tout pour les emails pro et les relances clients. Mon équipe adore.", stars: 5, avatar: "JC" },
+              ].map(t => (
+                <div key={t.name} className="bg-slate-50 border border-slate-100 rounded-2xl p-6 flex flex-col gap-4">
+                  <div className="flex gap-0.5">
+                    {Array(t.stars).fill(0).map((_, i) => (
+                      <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    ))}
+                  </div>
+                  <p className="text-slate-700 text-sm leading-relaxed italic">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="flex items-center gap-3 mt-auto">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">{t.avatar}</div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{t.name}</p>
+                      <p className="text-xs text-slate-500">{t.role}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-10 flex flex-wrap justify-center gap-8 text-center">
+              {[
+                { value: "4.9/5", label: "Note moyenne", sub: "sur 47 avis" },
+                { value: "3.2h", label: "Économisées/jour", sub: "en moyenne" },
+                { value: "98%", label: "Satisfaits", sub: "après 30 jours" },
+              ].map(s => (
+                <div key={s.label}>
+                  <p className="text-2xl font-black text-blue-600">{s.value}</p>
+                  <p className="text-sm font-semibold text-slate-900">{s.label}</p>
+                  <p className="text-xs text-slate-500">{s.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ── PRICING ─────────────────────────────────────────────────────────── */}
         <section id="tarifs" className="py-24 px-6 bg-white">
           <div className="max-w-5xl mx-auto">

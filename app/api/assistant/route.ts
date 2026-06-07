@@ -105,6 +105,8 @@ ${profileBlock}${contactsBlock}
 - Web : recherche_web (actualités, infos, cours, etc.) | meteo (météo temps réel)
 - Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
 - Rappels : creer_rappel (dans X jours) | voir_rappels — **Propose toujours un rappel après un devis ou une relance**
+- CRM Autozen : voir_contacts_crm | creer_contact_crm | voir_pipeline_crm | creer_deal_crm
+- Finance : calculer_tva (HT → TTC auto) | generer_devis (devis complet légal FR)
 
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
@@ -829,6 +831,110 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     }
   }
 
+  // ── CRM Autozen ──
+  if (name === "voir_contacts_crm") {
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm`, { headers: { "x-clerk-user-id": userId } });
+      const d = await r.json() as { contacts?: { nom: string; email?: string; telephone?: string; entreprise?: string; statut?: string }[] };
+      if (!d.contacts?.length) return "Aucun contact dans le CRM.";
+      return `📋 **Contacts CRM (${d.contacts.length}) :**\n${d.contacts.slice(0, 20).map(c => `- **${c.nom}**${c.entreprise ? ` (${c.entreprise})` : ""}${c.telephone ? ` — WA: ${c.telephone}` : ""}${c.email ? ` — ${c.email}` : ""} [${c.statut ?? "prospect"}]`).join("\n")}`;
+    } catch { return "Erreur accès CRM."; }
+  }
+
+  if (name === "creer_contact_crm") {
+    const { nom, email, telephone, entreprise, statut, notes } = args as { nom: string; email?: string; telephone?: string; entreprise?: string; statut?: string; notes?: string };
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add", nom, email: email ?? "", telephone: telephone ?? "", entreprise: entreprise ?? "", statut: statut ?? "prospect", notes: notes ?? "", tags: "" }),
+      });
+      if (!r.ok) return "Erreur lors de la création du contact.";
+      return `✅ Contact **${nom}** ajouté au CRM${entreprise ? ` (${entreprise})` : ""}.`;
+    } catch { return "Erreur accès CRM."; }
+  }
+
+  if (name === "voir_pipeline_crm") {
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm/deals`);
+      const d = await r.json() as { deals?: { title: string; stage: string; amount?: number; contactName?: string }[] };
+      if (!d.deals?.length) return "Aucun deal dans le pipeline.";
+      const stages: Record<string, string> = { prospection: "Prospection", propose: "Devis envoyé", negociation: "Négociation", gagne: "Gagné ✓", perdu: "Perdu" };
+      const total = d.deals.filter(d => d.stage === "gagne").reduce((s, d) => s + (d.amount ?? 0), 0);
+      return `💼 **Pipeline CRM (${d.deals.length} deals — ${total.toLocaleString("fr-FR")}€ signés) :**\n${d.deals.map(d => `- **${d.title}**${d.contactName ? ` (${d.contactName})` : ""}${d.amount ? ` — ${d.amount.toLocaleString("fr-FR")}€` : ""} → ${stages[d.stage] ?? d.stage}`).join("\n")}`;
+    } catch { return "Erreur accès pipeline."; }
+  }
+
+  if (name === "creer_deal_crm") {
+    const { titre, contactName, amount, stage, notes } = args as { titre: string; contactName?: string; amount?: number; stage?: string; notes?: string };
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/crm/deals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal: { title: titre, contactName, amount, stage: stage ?? "prospection", notes } }),
+      });
+      const d = await r.json() as { deal?: { id: string } };
+      if (!d.deal) return "Erreur création deal.";
+      return `✅ Deal **${titre}** créé dans le pipeline${amount ? ` (${amount.toLocaleString("fr-FR")}€)` : ""}.`;
+    } catch { return "Erreur accès pipeline."; }
+  }
+
+  // ── Finance ──
+  if (name === "calculer_tva") {
+    const { montant, type, taux } = args as { montant: number; type: "ht" | "ttc"; taux?: number };
+    const tvaTaux = taux ?? 20;
+    let ht: number, tva: number, ttc: number;
+    if (type === "ht") { ht = montant; tva = ht * tvaTaux / 100; ttc = ht + tva; }
+    else { ttc = montant; ht = ttc / (1 + tvaTaux / 100); tva = ttc - ht; }
+    return `💶 **Calcul TVA ${tvaTaux}%**\n- HT : **${ht.toFixed(2)} €**\n- TVA ${tvaTaux}% : **${tva.toFixed(2)} €**\n- TTC : **${ttc.toFixed(2)} €**`;
+  }
+
+  if (name === "generer_devis") {
+    const { client, prestation, lignes, conditions, validite, numero } = args as {
+      client: { nom: string; adresse?: string; siret?: string };
+      prestation: string;
+      lignes: { description: string; quantite: number; prixUnitaireHT: number }[];
+      conditions?: string;
+      validite?: number;
+      numero?: string;
+    };
+    const date = new Date().toLocaleDateString("fr-FR");
+    const num = numero ?? `DEV-${Date.now().toString().slice(-6)}`;
+    const sousTotal = lignes.reduce((s, l) => s + l.quantite * l.prixUnitaireHT, 0);
+    const tva = sousTotal * 0.20;
+    const totalTTC = sousTotal + tva;
+    const devis = `# DEVIS ${num}
+**Date :** ${date}
+**Validité :** ${validite ?? 30} jours
+
+---
+
+## Client
+**${client.nom}**${client.adresse ? `\n${client.adresse}` : ""}${client.siret ? `\nSIRET : ${client.siret}` : ""}
+
+---
+
+## Prestation : ${prestation}
+
+| Description | Qté | Prix unit. HT | Total HT |
+|-------------|-----|--------------|----------|
+${lignes.map(l => `| ${l.description} | ${l.quantite} | ${l.prixUnitaireHT.toFixed(2)} € | ${(l.quantite * l.prixUnitaireHT).toFixed(2)} € |`).join("\n")}
+
+---
+
+**Sous-total HT : ${sousTotal.toFixed(2)} €**
+**TVA 20% : ${tva.toFixed(2)} €**
+**TOTAL TTC : ${totalTTC.toFixed(2)} €**
+
+---
+
+**Conditions de paiement :** ${conditions ?? "30 jours à réception de facture"}
+**Pour accepter :** retourner ce devis signé avec la mention "Bon pour accord"
+
+*Ce devis est valable ${validite ?? 30} jours à compter du ${date}.*`;
+    return devis;
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -942,6 +1048,20 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // Météo — always available
   tools.push(
     { type: "function", function: { name: "meteo", description: "Obtenir la météo actuelle pour une ville française ou mondiale.", parameters: { type: "object" as const, properties: { ville: { type: "string", description: "Nom de la ville (ex: Paris, Lyon, Marseille)" } }, required: ["ville"] } } }
+  );
+
+  // CRM Autozen — always available
+  tools.push(
+    { type: "function", function: { name: "voir_contacts_crm", description: "Voir les contacts dans le CRM Autozen (nom, email, téléphone, entreprise, statut).", parameters: { type: "object" as const, properties: {} } } },
+    { type: "function", function: { name: "creer_contact_crm", description: "Ajouter un nouveau contact dans le CRM Autozen.", parameters: { type: "object" as const, properties: { nom: { type: "string" }, email: { type: "string" }, telephone: { type: "string", description: "Numéro sans + ni espaces" }, entreprise: { type: "string" }, statut: { type: "string", enum: ["prospect", "client", "partenaire", "inactif"] }, notes: { type: "string" } }, required: ["nom"] } } },
+    { type: "function", function: { name: "voir_pipeline_crm", description: "Voir tous les deals du pipeline commercial (prospection, devis, négociation, gagné, perdu).", parameters: { type: "object" as const, properties: {} } } },
+    { type: "function", function: { name: "creer_deal_crm", description: "Créer un deal dans le pipeline commercial.", parameters: { type: "object" as const, properties: { titre: { type: "string" }, contactName: { type: "string" }, amount: { type: "number", description: "Montant en euros" }, stage: { type: "string", enum: ["prospection", "propose", "negociation", "gagne", "perdu"] }, notes: { type: "string" } }, required: ["titre"] } } }
+  );
+
+  // Finance FR — always available
+  tools.push(
+    { type: "function", function: { name: "calculer_tva", description: "Calculer HT/TVA/TTC automatiquement. Utilise ce tool dès que l'utilisateur mentionne un montant et des impôts/taxes.", parameters: { type: "object" as const, properties: { montant: { type: "number" }, type: { type: "string", enum: ["ht", "ttc"], description: "Le montant fourni est HT ou TTC ?" }, taux: { type: "number", description: "Taux TVA en % (défaut: 20)" } }, required: ["montant", "type"] } } },
+    { type: "function", function: { name: "generer_devis", description: "Générer un devis professionnel complet au format légal français avec TVA. Propose automatiquement de créer un rappel de suivi.", parameters: { type: "object" as const, properties: { client: { type: "object", properties: { nom: { type: "string" }, adresse: { type: "string" }, siret: { type: "string" } }, required: ["nom"] }, prestation: { type: "string" }, lignes: { type: "array", items: { type: "object", properties: { description: { type: "string" }, quantite: { type: "number" }, prixUnitaireHT: { type: "number" } }, required: ["description", "quantite", "prixUnitaireHT"] } }, conditions: { type: "string" }, validite: { type: "number", description: "Validité en jours (défaut: 30)" }, numero: { type: "string" } }, required: ["client", "prestation", "lignes"] } } }
   );
 
   // Rappels — always available
