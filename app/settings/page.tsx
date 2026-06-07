@@ -302,6 +302,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("account");
   const [oauthError, setOauthError] = useState("");
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleConnectedServer, setGoogleConnectedServer] = useState<boolean | null>(null);
 
   // n8n workflows
   const [workflows, setWorkflows] = useState<N8nWorkflow[]>([]);
@@ -513,6 +514,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!isSignedIn) return;
     fetch("/api/subscription").then(r => r.json()).then(d => { if (d.plan) setPlan(d.plan); }).catch(() => {});
+    fetch("/api/google/status").then(r => r.json()).then(d => setGoogleConnectedServer(d.connected)).catch(() => {});
     fetch("/api/pipedream/accounts").then(r => r.json()).then(d => {
       if (d.connected) setPdCount(Object.keys(d.connected).length);
     }).catch(() => {});
@@ -608,8 +610,9 @@ export default function SettingsPage() {
 
   const initials = (user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "");
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.primaryEmailAddress?.emailAddress;
-  const googleAccount = user.externalAccounts.find(a => (a.provider === "google" || a.provider === "oauth_google"));
-  const totalConnected = (googleAccount ? 1 : 0) + (imapEmail ? 1 : 0) + (igPageName ? 1 : 0) + pdCount;
+  const googleAccount = user.externalAccounts.find(a => a.provider === "google" || a.provider === "oauth_google" as string);
+  const isGoogleConnected = googleConnectedServer !== null ? googleConnectedServer : !!googleAccount;
+  const totalConnected = (isGoogleConnected ? 1 : 0) + (imapEmail ? 1 : 0) + (igPageName ? 1 : 0) + pdCount;
   const INTEGRATION_LIMITS: Record<string, number> = { free: 2, solo: 3, pro: 999, equipe: 999 };
   const integrationLimit = INTEGRATION_LIMITS[plan] ?? 999;
   const atIntegrationLimit = plan !== "pro" && plan !== "equipe" && integrationLimit < 999 && totalConnected >= integrationLimit;
@@ -797,25 +800,28 @@ export default function SettingsPage() {
                   {oauthError && (
                     <div className="mb-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{oauthError}</div>
                   )}
-                  {googleAccount ? (
+                  {isGoogleConnected ? (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <GoogleLogo />
                           <div>
                             <p className="text-sm font-medium text-slate-900">Google</p>
-                            <p className="text-xs text-slate-500">{googleAccount.emailAddress}</p>
+                            <p className="text-xs text-slate-500">{googleAccount?.emailAddress ?? user.primaryEmailAddress?.emailAddress}</p>
                           </div>
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Connecté</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => testIntegration("google")} disabled={health.google?.loading}
                             className="text-xs text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 px-2 py-1 rounded-lg transition-all disabled:opacity-40">
                             {health.google?.loading ? "Test…" : "Tester"}
                           </button>
-                          <button onClick={() => disconnectGoogle(googleAccount.id)} disabled={googleBusy}
-                            className="text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40">
-                            Retirer
-                          </button>
+                          {googleAccount && (
+                            <button onClick={() => disconnectGoogle(googleAccount.id)} disabled={googleBusy}
+                              className="text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40">
+                              Retirer
+                            </button>
+                          )}
                         </div>
                       </div>
                       {health.google && !health.google.loading && (

@@ -189,7 +189,7 @@ export default function IntegrationsPage() {
       .finally(() => setLoading(false));
   }, [isSignedIn]);
 
-  const googleAccount = user?.externalAccounts.find(a => (a.provider === "google" || a.provider === "oauth_google"));
+  const googleAccount = user?.externalAccounts.find(a => a.provider === "google");
   const googleConnected = !!googleAccount;
 
   async function connectGoogle() {

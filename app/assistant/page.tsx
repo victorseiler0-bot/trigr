@@ -322,14 +322,19 @@ export default function AssistantPage() {
     try { localStorage.setItem("autozen_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
   }, [messages, historyLoaded]);
 
-  // Detect connected integrations
-  const hasGoogle = !!user?.externalAccounts.find(a => (a.provider === "google" || a.provider === "oauth_google"));
+  // Detect connected integrations (server-side check more reliable)
+  const hasGoogle = !!user?.externalAccounts.find(a => a.provider === "google" || (a.provider as string) === "oauth_google");
 
   useEffect(() => {
-    fetch("/api/pipedream/accounts").then(r => r.json()).then(d => {
-      setConnectedCount((hasGoogle ? 1 : 0) + Object.keys(d.connected ?? {}).length);
-    }).catch(() => setConnectedCount(hasGoogle ? 1 : 0));
-  }, [hasGoogle]);
+    if (!user) return;
+    Promise.all([
+      fetch("/api/pipedream/accounts").then(r => r.json()).catch(() => ({ connected: {} })),
+      fetch("/api/google/status").then(r => r.json()).catch(() => ({ connected: false })),
+    ]).then(([pd, gs]) => {
+      const googleOk = gs.connected || hasGoogle;
+      setConnectedCount((googleOk ? 1 : 0) + Object.keys(pd.connected ?? {}).length);
+    });
+  }, [user, hasGoogle]);
 
   // Auto-scroll on new message
   useEffect(() => {
