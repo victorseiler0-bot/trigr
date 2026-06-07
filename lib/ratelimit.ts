@@ -1,28 +1,31 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getUserPlan, PLAN_LIMITS } from "./subscription";
 
-const TODAY_KEY = () => new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+const TODAY_KEY = () => new Date().toISOString().slice(0, 10);
 
-const ADMIN_IDS = (process.env.ADMIN_CLERK_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+const ADMIN_IDS = [
+  "user_3D1aU2AT2pTj6fsgiLmRtha2o5L", // victorseiler0@gmail.com — toujours illimité
+  ...(process.env.ADMIN_CLERK_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean),
+];
 
 type DayEntry = { date: string; count: number };
 
+function isUnlimited(userId: string, meta: Record<string, unknown>): boolean {
+  if (ADMIN_IDS.includes(userId)) return true;
+  if (meta.unlimited === true || meta.unlimited === "true") return true;
+  return false;
+}
+
 export async function checkAndIncrementAction(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  // Admin ou flag unlimited → jamais bloqué, affiche ∞
-  if (ADMIN_IDS.includes(userId)) return { allowed: true, remaining: -1 };
-
-  // Vérification du flag unlimited dans les metadata Clerk
-  const clientCheck = await clerkClient();
-  const userCheck = await clientCheck.users.getUser(userId);
-  const metaCheck = userCheck.privateMetadata as Record<string, unknown>;
-  if (metaCheck.unlimited === true) return { allowed: true, remaining: -1 };
-
-  const plan = await getUserPlan(userId);
-  const limit = PLAN_LIMITS[plan].actionsPerDay;
-
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const meta = user.privateMetadata as Record<string, unknown>;
+
+  // Illimité → retourne immédiatement, ne compte pas les actions
+  if (isUnlimited(userId, meta)) return { allowed: true, remaining: -1 };
+
+  const plan = await getUserPlan(userId);
+  const limit = PLAN_LIMITS[plan].actionsPerDay;
 
   const today = TODAY_KEY();
   const lastDate = meta.actionDate as string | undefined;
