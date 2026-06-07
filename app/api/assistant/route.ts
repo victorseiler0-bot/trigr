@@ -109,16 +109,27 @@ ${profileBlock}${contactsBlock}
 - CRM Autozen : voir_contacts_crm | creer_contact_crm | voir_pipeline_crm | creer_deal_crm
 - Finance : calculer_tva | generer_devis | envoyer_devis_par_email (si Gmail connecté) | preparer_reunion
 
+## RÈGLE ABSOLUE — DEMANDER AVANT D'AGIR
+**AVANT d'appeler TOUT outil qui envoie, crée ou modifie quelque chose, vérifie que tu as TOUTES les informations nécessaires. Si une info est manquante ou ambiguë, POSE LA QUESTION — ne suppose jamais, ne mets jamais de placeholder.**
+
+Exemples de questions obligatoires :
+- Email → "À quelle adresse email ?" si pas précisé
+- WhatsApp → "À quel numéro ou contact ?" si pas précisé
+- Événement → "Quelle date et heure ?" si pas précisé
+- Devis → "Pour quel client et quelle prestation ?" si pas précisé
+- Rappel → "Dans combien de jours ?" si pas précisé
+
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
-2. Numéros WA : format sans + ni espaces (ex: "336XXXXXXXX"). Si l'utilisateur dit "envoie à Marc", cherche Marc dans ses contacts.
-3. Premier message sans historique : appelle voir_taches_du_jour si c'est le matin (avant 12h) pour donner un aperçu proactif.
+2. Numéros WA : format sans + ni espaces (ex: "336XXXXXXXX"). Si l'utilisateur dit "envoie à Marc", cherche Marc dans ses contacts via voir_mes_contacts.
+3. Premier message sans historique : appelle voir_taches_du_jour si c'est le matin (avant 12h).
 4. Outil retourne erreur de connexion : explique les étapes clairement une seule fois, renvoie vers /settings.
 5. Après action (email envoyé, événement créé, etc.) : confirme brièvement ce qui a été fait.
-6. Email professionnel : toujours inclure une formule d'appel ("Bonjour Madame/Monsieur X,"), corps du message, et formule de politesse de fin.
-7. Après generer_devis : TOUJOURS proposer creer_deal_crm + creer_rappel automatiquement (dans 3 jours pour relance).
-8. Si l'utilisateur mentionne un client ou prospect : propose d'abord voir_contacts_crm pour retrouver ses coordonnées.
-9. Calcul TVA : utilise toujours calculer_tva au lieu de faire le calcul manuellement — c'est plus fiable.`;
+6. Email professionnel : toujours inclure une formule d'appel, corps du message, et formule de politesse de fin.
+7. Après generer_devis : TOUJOURS proposer creer_deal_crm + creer_rappel (dans 3 jours).
+8. Si l'utilisateur mentionne un client : propose voir_contacts_crm pour retrouver ses coordonnées.
+9. Ne jamais utiliser de placeholder (votre_email@example.com, [EMAIL], 0600000000) dans un envoi réel.
+10. Si tu n'es pas sûr d'une info (prénom, email, date, montant) → DEMANDE, ne suppose pas.`;
 }
 
 const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
@@ -241,9 +252,14 @@ async function executeTool(
   if (name === "envoyer_email") {
     if (!googleToken) return JSON.stringify({ error: "Connectez-vous avec Google pour envoyer via Gmail." });
     const { to, subject, body } = args as { to: string; subject: string; body: string };
+    // Validation anti-placeholder
+    const PLACEHOLDERS = ["example.com", "votre_email", "[email]", "[e-mail]", "test@test", "foo@bar", "placeholder"];
+    if (!to || !to.includes("@") || PLACEHOLDERS.some(p => to.toLowerCase().includes(p))) {
+      return `⚠️ Adresse email invalide ou placeholder détecté : "${to}". Peux-tu me donner la vraie adresse email du destinataire ?`;
+    }
     const raw = encodeBase64url(`To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`);
     const r = await gFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", googleToken, { method: "POST", body: JSON.stringify({ raw }) });
-    return r.id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r });
+    return r.id ? JSON.stringify({ success: true, message: `Email envoyé à ${to}` }) : JSON.stringify({ error: r });
   }
 
   if (name === "voir_agenda") {
@@ -429,7 +445,11 @@ async function executeTool(
   if (name === "envoyer_whatsapp") {
     if (!hasWa) return JSON.stringify({ error: "WhatsApp non connecté." });
     const { to, message } = args as { to: string; message: string };
-    if (!to || !message) return JSON.stringify({ error: "Destinataire et message requis." });
+    if (!to || !message) return `⚠️ Il me manque des informations. ${!to ? "À quel numéro ou contact dois-je envoyer ce message WhatsApp ?" : "Quel message dois-je envoyer ?"}`;
+    const PHONE_PLACEHOLDERS = ["0600000000", "33600000000", "numéro", "phone", "000000", "123456"];
+    if (PHONE_PLACEHOLDERS.some(p => to.includes(p)) || to.replace(/\D/g, "").length < 8) {
+      return `⚠️ Numéro invalide ou placeholder détecté : "${to}". Peux-tu me donner le vrai numéro WhatsApp du destinataire ?`;
+    }
     const phone = to.replace(/\D/g, "");
     // Priorité 1 : Meta API directe
     if (waMetaToken && waPhoneId) {
@@ -1013,6 +1033,11 @@ Sois concis et actionnable. Maximum 200 mots.`;
   // ── Envoyer devis par email ──
   if (name === "envoyer_devis_par_email") {
     const { devis, emailDest, nomDest } = args as { devis: string; emailDest: string; nomDest?: string };
+    // Validation anti-placeholder
+    const PLACEHOLDERS = ["example.com", "votre_email", "[email]", "test@test", "placeholder", "foo@bar"];
+    if (!emailDest || !emailDest.includes("@") || PLACEHOLDERS.some(p => emailDest.toLowerCase().includes(p))) {
+      return `⚠️ Adresse email manquante ou invalide : "${emailDest}". À quelle adresse email dois-je envoyer ce devis ?`;
+    }
     const googleToken = await clerkClient().then(c => c.users.getUserOauthAccessToken(userId, "google")).then(d => d.data[0]?.token ?? null);
     if (!googleToken) return "Gmail non connecté. Va dans /settings pour connecter ton compte Google.";
     try {
