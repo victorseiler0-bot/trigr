@@ -285,9 +285,11 @@ export default function AssistantPage() {
   const [listening, setListening] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
   const [sessions, setSessions] = useState<ConvSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState<Set<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -509,9 +511,9 @@ export default function AssistantPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 flex flex-col">
-      <Navbar />
+      {!focusMode && <Navbar />}
 
-      <div className="flex flex-1 pt-16">
+      <div className={`flex flex-1 ${focusMode ? "pt-0" : "pt-16"}`}>
 
         {/* ── SIDEBAR GAUCHE ──────────────────────────────────────────────────── */}
         <aside className={`${sidebarOpen ? "w-64" : "w-0"} shrink-0 transition-all duration-300 overflow-hidden`}>
@@ -619,6 +621,18 @@ export default function AssistantPage() {
                 </svg>
               </button>
             )}
+            <button
+              onClick={() => { setFocusMode(f => !f); setSidebarOpen(false); }}
+              className={`p-2 rounded-lg transition-all text-xs font-medium ${focusMode ? "bg-blue-100 text-blue-600" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+              title={focusMode ? "Quitter le mode Focus" : "Mode Focus (plein écran)"}
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                {focusMode
+                  ? <path d="M9 9L4 4M4 4h5M4 4v5M15 9l5-5M20 4h-5M20 4v5M9 15l-5 5M4 20h5M4 20v-5M15 15l5 5M20 20h-5M20 20v-5" strokeLinecap="round"/>
+                  : <path d="M4 8V6a2 2 0 012-2h2M4 16v2a2 2 0 002 2h2M14 4h2a2 2 0 012 2v2M14 20h2a2 2 0 002-2v-2" strokeLinecap="round"/>
+                }
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -682,7 +696,27 @@ export default function AssistantPage() {
                       }
                     </div>
                     {m.role === "assistant" && !isStreamingMsg && m.content && (
-                      <CopyButton text={m.content} />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <CopyButton text={m.content} />
+                        {!feedbackSent.has(i) ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageIndex: i, rating: "up", content: m.content.slice(0, 200) }) });
+                                setFeedbackSent(prev => new Set([...prev, i]));
+                              }}
+                              className="p-1 rounded-md hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-all" title="Bonne réponse"
+                            >👍</button>
+                            <button
+                              onClick={() => {
+                                fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageIndex: i, rating: "down", content: m.content.slice(0, 200) }) });
+                                setFeedbackSent(prev => new Set([...prev, i]));
+                              }}
+                              className="p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all" title="Mauvaise réponse"
+                            >👎</button>
+                          </>
+                        ) : <span className="text-xs text-slate-400 ml-1">Merci ✓</span>}
+                      </div>
                     )}
                   </div>
                   {m.role === "assistant" && !isStreamingMsg && m.content && (

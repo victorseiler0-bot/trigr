@@ -48,7 +48,7 @@ export default function Footer() {
           <div>
             <p className="text-xs text-slate-400 uppercase tracking-[0.12em] font-semibold mb-3">Légal</p>
             <nav className="flex flex-col gap-2">
-              {[["/privacy","Confidentialité"],["/terms","CGU"]].map(([href,label]) => (
+              {[["/privacy","Confidentialité"],["/terms","CGU"],["/status","État des services"],["/workflows","Workflows"]].map(([href,label]) => (
                 <Link key={href} href={href} className="text-xs text-slate-500 hover:text-slate-800 transition-colors">{label}</Link>
               ))}
             </nav>
