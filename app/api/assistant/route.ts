@@ -834,6 +834,29 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     }
   }
 
+  // ── Recherche emails ──
+  if (name === "rechercher_dans_mes_emails") {
+    const { query, maxResults } = args as { query: string; maxResults?: number };
+    const googleToken = await clerkClient().then(c => c.users.getUserOauthAccessToken(userId, "google")).then(d => d.data[0]?.token ?? null);
+    if (!googleToken) return "Gmail non connecté.";
+    try {
+      const max = maxResults ?? 5;
+      const list = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${max}`, { headers: { Authorization: `Bearer ${googleToken}` } });
+      const data = await list.json() as { messages?: { id: string }[]; resultSizeEstimate?: number };
+      if (!data.messages?.length) return `Aucun email trouvé pour "${query}".`;
+      const emails = await Promise.all(data.messages.slice(0, max).map(async (m) => {
+        const msg = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, { headers: { Authorization: `Bearer ${googleToken}` } });
+        const d = await msg.json() as { payload?: { headers?: { name: string; value: string }[] }; snippet?: string };
+        const hdr = d.payload?.headers ?? [];
+        const from = hdr.find(h => h.name === "From")?.value?.replace(/<.*>/, "").trim() ?? "?";
+        const subj = hdr.find(h => h.name === "Subject")?.value ?? "Sans objet";
+        const date = hdr.find(h => h.name === "Date")?.value ?? "";
+        return `- **${subj}** (de ${from.slice(0, 30)}, ${new Date(date).toLocaleDateString("fr-FR")})\n  ${(d.snippet ?? "").slice(0, 100)}…`;
+      }));
+      return `🔍 **${data.resultSizeEstimate ?? emails.length} email(s) pour "${query}" :**\n${emails.join("\n\n")}`;
+    } catch { return "Erreur lors de la recherche dans les emails."; }
+  }
+
   // ── CRM Autozen (Clerk direct) ──
   if (name === "voir_contacts_crm") {
     const clerk = await clerkClient();
@@ -1074,6 +1097,7 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   if (hasGoogle) {
     tools.push(
       { type: "function", function: { name: "lire_emails", description: "Lire emails Gmail (non lus ou filtrés).", parameters: { type: "object" as const, properties: { maxResults: { type: "number" }, query: { type: "string" } } } } },
+      { type: "function", function: { name: "rechercher_dans_mes_emails", description: "Rechercher des emails par mot-clé, expéditeur, sujet ou date. Plus puissant que lire_emails pour trouver un email spécifique.", parameters: { type: "object" as const, properties: { query: { type: "string", description: "Requête Gmail (ex: 'from:client@exemple.com devis', 'facture impayée', 'subject:réunion')" }, maxResults: { type: "number" } }, required: ["query"] } } },
       { type: "function", function: { name: "envoyer_email", description: "Envoyer un email via Gmail.", parameters: { type: "object" as const, properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, required: ["to", "subject", "body"] } } },
       { type: "function", function: { name: "voir_agenda", description: "Voir Google Calendar.", parameters: { type: "object" as const, properties: { timeMin: { type: "string" }, timeMax: { type: "string" }, maxResults: { type: "number" } } } } },
       { type: "function", function: { name: "creer_evenement", description: "Créer un événement Google Calendar.", parameters: { type: "object" as const, properties: { summary: { type: "string" }, start: { type: "string" }, end: { type: "string" }, description: { type: "string" } }, required: ["summary", "start", "end"] } } }
