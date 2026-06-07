@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     switch (integration) {
       case "google": {
-        const googleAccount = user.externalAccounts.find(a => a.provider === "google");
+        const googleAccount = user.externalAccounts.find(a => (a.provider === "google" || a.provider === "oauth_google"));
         if (!googleAccount) return NextResponse.json({ ok: false, message: "Non connecté" });
         const tokens = await clerk.users.getUserOauthAccessToken(userId, "oauth_google");
         const token = tokens.data?.[0]?.token;

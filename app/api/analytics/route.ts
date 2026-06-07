@@ -34,7 +34,7 @@ export async function GET() {
 
   // Count connected integrations
   const integrations: string[] = [];
-  if (user.externalAccounts?.some(a => a.provider === "google")) integrations.push("google");
+  if (user.externalAccounts?.some(a => (a.provider === "google" || a.provider === "oauth_google"))) integrations.push("google");
   if (user.externalAccounts?.some(a => a.provider === "microsoft")) integrations.push("microsoft");
   if (meta.notionToken) integrations.push("notion");
   if (meta.slackToken) integrations.push("slack");

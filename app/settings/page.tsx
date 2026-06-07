@@ -608,7 +608,7 @@ export default function SettingsPage() {
 
   const initials = (user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "");
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.primaryEmailAddress?.emailAddress;
-  const googleAccount = user.externalAccounts.find(a => a.provider === "google");
+  const googleAccount = user.externalAccounts.find(a => (a.provider === "google" || a.provider === "oauth_google"));
   const totalConnected = (googleAccount ? 1 : 0) + (imapEmail ? 1 : 0) + (igPageName ? 1 : 0) + pdCount;
   const INTEGRATION_LIMITS: Record<string, number> = { free: 2, solo: 3, pro: 999, equipe: 999 };
   const integrationLimit = INTEGRATION_LIMITS[plan] ?? 999;

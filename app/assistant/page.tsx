@@ -323,7 +323,7 @@ export default function AssistantPage() {
   }, [messages, historyLoaded]);
 
   // Detect connected integrations
-  const hasGoogle = !!user?.externalAccounts.find(a => a.provider === "google");
+  const hasGoogle = !!user?.externalAccounts.find(a => (a.provider === "google" || a.provider === "oauth_google"));
 
   useEffect(() => {
     fetch("/api/pipedream/accounts").then(r => r.json()).then(d => {
