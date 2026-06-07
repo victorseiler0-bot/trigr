@@ -104,6 +104,7 @@ ${profileBlock}${contactsBlock}
 - Contacts : voir_mes_contacts, ajouter_contact, supprimer_contact
 - Web : recherche_web (actualités, infos, cours, etc.) | meteo (météo temps réel)
 - Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
+- Rappels : creer_rappel (dans X jours) | voir_rappels — **Propose toujours un rappel après un devis ou une relance**
 
 ## Règles
 1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
@@ -799,6 +800,35 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     }
   }
 
+  if (name === "creer_rappel") {
+    const { titre, note, dansJours, canal } = args as { titre: string; note?: string; dansJours: number; canal?: string };
+    const dueAt = new Date(Date.now() + dansJours * 86400_000).toISOString();
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/reminders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-trigr-internal": process.env.CRON_SECRET ?? "" },
+        body: JSON.stringify({ title: titre, note, dueAt, channel: canal ?? "push" }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return `✅ Rappel créé : **${titre}** dans ${dansJours} jour${dansJours > 1 ? "s" : ""} (${new Date(dueAt).toLocaleDateString("fr-FR")}).`;
+    } catch {
+      return `Erreur lors de la création du rappel.`;
+    }
+  }
+
+  if (name === "voir_rappels") {
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/reminders`, {
+        headers: { "x-trigr-internal": process.env.CRON_SECRET ?? "" },
+      });
+      const d = await r.json() as { reminders: { title: string; dueAt: string; note?: string }[] };
+      if (!d.reminders?.length) return "Aucun rappel en attente.";
+      return `📋 **Rappels en attente :**\n${d.reminders.map(r => `- **${r.title}** — ${new Date(r.dueAt).toLocaleDateString("fr-FR")}${r.note ? ` (${r.note})` : ""}`).join("\n")}`;
+    } catch {
+      return "Erreur lors de la récupération des rappels.";
+    }
+  }
+
   return JSON.stringify({ error: `Outil inconnu : ${name}` });
 }
 
@@ -912,6 +942,12 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   // Météo — always available
   tools.push(
     { type: "function", function: { name: "meteo", description: "Obtenir la météo actuelle pour une ville française ou mondiale.", parameters: { type: "object" as const, properties: { ville: { type: "string", description: "Nom de la ville (ex: Paris, Lyon, Marseille)" } }, required: ["ville"] } } }
+  );
+
+  // Rappels — always available
+  tools.push(
+    { type: "function", function: { name: "creer_rappel", description: "Créer un rappel pour l'utilisateur (relance client, suivi devis, paiement, rendez-vous, etc.). Propose automatiquement un rappel après avoir rédigé un devis ou une relance.", parameters: { type: "object" as const, properties: { titre: { type: "string", description: "Titre court du rappel, ex: 'Relance devis Martin'" }, note: { type: "string", description: "Détails optionnels" }, dansJours: { type: "number", description: "Dans combien de jours (ex: 3 pour dans 3 jours)" }, canal: { type: "string", enum: ["push", "wa", "dashboard"], description: "Canal de notification (push = notification navigateur)" } }, required: ["titre", "dansJours"] } } },
+    { type: "function", function: { name: "voir_rappels", description: "Voir les rappels en attente de l'utilisateur.", parameters: { type: "object" as const, properties: {} } } }
   );
 
   return tools;

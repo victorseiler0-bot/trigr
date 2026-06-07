@@ -83,6 +83,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [brief, setBrief] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
+  type Reminder = { id: string; title: string; note?: string; dueAt: string; channel: string };
+  const [reminders, setReminders] = useState<Reminder[]>([]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.replace("/login");
@@ -94,6 +96,10 @@ export default function DashboardPage() {
       .then(r => r.json())
       .then(d => setData(d))
       .finally(() => setLoading(false));
+    fetch("/api/reminders")
+      .then(r => r.json())
+      .then(d => { if (d.reminders) setReminders(d.reminders); })
+      .catch(() => {});
   }, [isSignedIn]);
 
   if (!isLoaded || !isSignedIn) return (
@@ -279,6 +285,44 @@ export default function DashboardPage() {
                       <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">{ar.result}</p>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rappels */}
+            {reminders.length > 0 && (
+              <div className="mt-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
+                    <span>⏰</span> Rappels en attente
+                  </h2>
+                  <Link href="/assistant" className="text-xs text-violet-400 hover:text-violet-300">Gérer →</Link>
+                </div>
+                <div className="space-y-2">
+                  {reminders.slice(0, 5).map(r => {
+                    const due = new Date(r.dueAt);
+                    const isOverdue = due < new Date();
+                    return (
+                      <div key={r.id} className={`flex items-center gap-3 bg-white/[0.03] rounded-xl p-3 ${isOverdue ? "border border-red-500/20" : ""}`}>
+                        <span className="text-base">{isOverdue ? "🔴" : "⏳"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-zinc-200 truncate">{r.title}</p>
+                          <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-400" : "text-zinc-500"}`}>
+                            {isOverdue ? "En retard — " : ""}{due.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            await fetch("/api/reminders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "done", id: r.id }) });
+                            setReminders(prev => prev.filter(x => x.id !== r.id));
+                          }}
+                          className="text-xs text-zinc-600 hover:text-emerald-400 transition-colors px-2 py-1 rounded-lg hover:bg-emerald-500/10"
+                        >
+                          ✓ Fait
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
