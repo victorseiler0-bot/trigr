@@ -207,7 +207,7 @@ export default function DashboardPage() {
                     contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 12 }}
                     labelStyle={{ color: "#a1a1aa" }}
                     itemStyle={{ color: "#60a5fa" }}
-                    formatter={(v: number) => [`${v} action${v > 1 ? "s" : ""}`, ""]}
+                    formatter={(v) => [`${v} action${Number(v) > 1 ? "s" : ""}`, ""]}
                   />
                   <Area type="monotone" dataKey="actions" stroke="#3b82f6" strokeWidth={2} fill="url(#blueGrad)" dot={{ fill: "#3b82f6", r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: "#60a5fa" }} />
                 </AreaChart>
