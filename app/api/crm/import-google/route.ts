@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -40,8 +40,8 @@ async function getOrCreateSheet(token: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   void req;
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   try {
     const client = await clerkClient();

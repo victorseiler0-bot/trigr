@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getHubSpotMeta, clearHubSpotMeta } from "@/lib/hubspot";
 
@@ -10,8 +10,8 @@ const HUBSPOT_REDIRECT_URI = process.env.NEXT_PUBLIC_SITE_URL
 const SCOPES = ["crm.objects.contacts.read", "crm.objects.contacts.write", "crm.objects.deals.read", "crm.objects.deals.write"].join(" ");
 
 export async function GET(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const url = new URL(req.url);
   if (url.searchParams.get("action") === "authorize") {
@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   await clearHubSpotMeta(userId);
   return NextResponse.json({ configured: false });
 }

@@ -166,6 +166,200 @@ Cordialement,
   },
 ];
 
+function AirtableSection() {
+  const [token, setToken] = useState("");
+  const [connected, setConnected] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [status, setStatus] = useState<null | { ok: boolean; msg: string }>(null);
+
+  useEffect(() => {
+    fetch("/api/integrations/airtable").then(r => r.json()).then(d => setConnected(d.connected)).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setStatus(null);
+    try {
+      const r = await fetch("/api/integrations/airtable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+      const d = await r.json();
+      if (d.ok) { setConnected(true); setOpen(false); setToken(""); }
+      else setStatus({ ok: false, msg: d.error ?? "Erreur" });
+    } finally { setSaving(false); }
+  }
+
+  async function disconnect() {
+    await fetch("/api/integrations/airtable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disconnect" }) });
+    setConnected(false);
+    setStatus(null);
+  }
+
+  async function test() {
+    setTesting(true);
+    setStatus(null);
+    try {
+      const r = await fetch("/api/integrations/airtable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "test" }) });
+      const d = await r.json();
+      setStatus({ ok: d.ok, msg: d.ok ? `✓ Connecté — ${d.bases?.length ?? 0} base(s) trouvée(s)` : d.error ?? "Erreur" });
+    } finally { setTesting(false); }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center">
+            <svg viewBox="0 0 200 170" width="18" height="15"><path d="M90.039 12.368L24.079 38.66c-4.418 1.748-4.39 7.985.045 9.694l66.26 25.455c6.027 2.314 12.719 2.314 18.746 0l66.261-25.455c4.435-1.71 4.462-7.946.045-9.694L109.416 12.368c-6.231-2.45-13.146-2.45-19.377 0z" fill="white"/><path d="M105.382 95.387v67.79c0 3.225 3.245 5.388 6.222 4.19l73.394-28.593c1.73-.674 2.86-2.35 2.86-4.19V66.794c0-3.225-3.246-5.388-6.222-4.19l-73.395 28.593c-1.73.675-2.86 2.35-2.86 4.19z" fill="white"/><path d="M88.198 99.55L65.862 89.22l-2.584-1.21L18.8 68.906c-3.006-1.395-6.442.748-6.442 4.08v67.765c0 1.77.963 3.393 2.54 4.205l7.478 3.868 59.868 30.992c3.149 1.63 6.822-.625 6.822-4.205V103.63a4.663 4.663 0 00-2.868-4.08z" fill="white"/></svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Airtable</h2>
+            <p className="text-xs text-slate-400">Bases de données, CRM, gestion de projets</p>
+          </div>
+        </div>
+        {connected && <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Connecté</span>}
+      </div>
+
+      {connected ? (
+        <div className="space-y-2">
+          {status && <p className={`text-xs px-3 py-2 rounded-lg ${status.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{status.msg}</p>}
+          <div className="flex gap-2">
+            <button onClick={test} disabled={testing} className="text-sm px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all">
+              {testing ? "Test…" : "Tester"}
+            </button>
+            <button onClick={disconnect} className="text-sm px-4 py-2 border border-red-200 rounded-xl text-red-500 hover:bg-red-50 transition-all">
+              Déconnecter
+            </button>
+          </div>
+        </div>
+      ) : open ? (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Personal Access Token</label>
+            <input value={token} onChange={e => setToken(e.target.value)} type="password" placeholder="pat…"
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            <p className="text-xs text-slate-400 mt-1">airtable.com/create/tokens → Créer un token avec scopes <code className="bg-slate-100 px-1 rounded">data.records:read</code> et <code className="bg-slate-100 px-1 rounded">schema.bases:read</code></p>
+          </div>
+          {status && <p className={`text-xs px-3 py-2 rounded-lg ${status.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{status.msg}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => setOpen(false)} className="flex-1 text-sm border border-slate-200 text-slate-500 py-2.5 rounded-xl hover:bg-slate-50 transition-all">Annuler</button>
+            <button onClick={save} disabled={saving || !token} className="flex-1 text-sm bg-amber-500 hover:bg-amber-400 text-white py-2.5 rounded-xl font-semibold disabled:opacity-40 transition-all">
+              {saving ? "Vérification…" : "Connecter"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-amber-400 text-slate-500 hover:text-amber-600 text-sm py-3 rounded-xl transition-all">
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
+          Connecter Airtable
+        </button>
+      )}
+    </div>
+  );
+}
+
+function TrelloSection() {
+  const [apiKey, setApiKey] = useState("");
+  const [trelloToken, setTrelloToken] = useState("");
+  const [connected, setConnected] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [status, setStatus] = useState<null | { ok: boolean; msg: string }>(null);
+
+  useEffect(() => {
+    fetch("/api/integrations/trello").then(r => r.json()).then(d => setConnected(d.connected)).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setStatus(null);
+    try {
+      const r = await fetch("/api/integrations/trello", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey, token: trelloToken }) });
+      const d = await r.json();
+      if (d.ok) { setConnected(true); setOpen(false); setApiKey(""); setTrelloToken(""); }
+      else setStatus({ ok: false, msg: d.error ?? "Erreur" });
+    } finally { setSaving(false); }
+  }
+
+  async function disconnect() {
+    await fetch("/api/integrations/trello", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disconnect" }) });
+    setConnected(false);
+    setStatus(null);
+  }
+
+  async function test() {
+    setTesting(true);
+    setStatus(null);
+    try {
+      const r = await fetch("/api/integrations/trello", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "test" }) });
+      const d = await r.json();
+      setStatus({ ok: d.ok, msg: d.ok ? `✓ Connecté — ${d.boards?.length ?? 0} tableau(x) trouvé(s)` : d.error ?? "Erreur" });
+    } finally { setTesting(false); }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M21 0H3C1.343 0 0 1.343 0 3v18c0 1.656 1.343 3 3 3h18c1.656 0 3-1.344 3-3V3c0-1.657-1.344-3-3-3zM10.44 18.18c0 .795-.645 1.44-1.44 1.44H4.56c-.795 0-1.44-.645-1.44-1.44V4.56c0-.795.645-1.44 1.44-1.44H9c.795 0 1.44.645 1.44 1.44v13.62zm10.44-6c0 .794-.645 1.44-1.44 1.44H15c-.795 0-1.44-.646-1.44-1.44V4.56c0-.795.645-1.44 1.44-1.44h4.44c.795 0 1.44.645 1.44 1.44v7.62z"/></svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Trello</h2>
+            <p className="text-xs text-slate-400">Tableaux, cartes, gestion de tâches Kanban</p>
+          </div>
+        </div>
+        {connected && <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Connecté</span>}
+      </div>
+
+      {connected ? (
+        <div className="space-y-2">
+          {status && <p className={`text-xs px-3 py-2 rounded-lg ${status.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{status.msg}</p>}
+          <div className="flex gap-2">
+            <button onClick={test} disabled={testing} className="text-sm px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all">
+              {testing ? "Test…" : "Tester"}
+            </button>
+            <button onClick={disconnect} className="text-sm px-4 py-2 border border-red-200 rounded-xl text-red-500 hover:bg-red-50 transition-all">
+              Déconnecter
+            </button>
+          </div>
+        </div>
+      ) : open ? (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">API Key</label>
+            <input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Clé API Trello"
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Token</label>
+            <input value={trelloToken} onChange={e => setTrelloToken(e.target.value)} type="password" placeholder="Token d'autorisation Trello"
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            <p className="text-xs text-slate-400 mt-1">
+              trello.com/power-ups/admin → Clé API → puis autoriser avec ton compte pour obtenir le token.
+            </p>
+          </div>
+          {status && <p className={`text-xs px-3 py-2 rounded-lg ${status.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{status.msg}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => setOpen(false)} className="flex-1 text-sm border border-slate-200 text-slate-500 py-2.5 rounded-xl hover:bg-slate-50 transition-all">Annuler</button>
+            <button onClick={save} disabled={saving || !apiKey || !trelloToken} className="flex-1 text-sm bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-semibold disabled:opacity-40 transition-all">
+              {saving ? "Vérification…" : "Connecter"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-blue-400 text-slate-500 hover:text-blue-600 text-sm py-3 rounded-xl transition-all">
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" strokeLinecap="round"/></svg>
+          Connecter Trello
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TwentyCrmSection() {
   const [url, setUrl]   = useState("");
   const [key, setKey]   = useState("");
@@ -989,6 +1183,12 @@ export default function SettingsPage() {
                     </>
                   )}
                 </div>
+
+                {/* ── Airtable ──────────────────────────────────────────── */}
+                <AirtableSection />
+
+                {/* ── Trello ────────────────────────────────────────────── */}
+                <TrelloSection />
 
                 {/* Autres intégrations → /integrations */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">

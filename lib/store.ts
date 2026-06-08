@@ -1,10 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
 import notificationsReducer from "./slices/notificationsSlice";
+import crmReducer from "./slices/crmSlice";
 
 export const makeStore = () =>
   configureStore({
     reducer: {
       notifications: notificationsReducer,
+      crm: crmReducer,
     },
   });
 

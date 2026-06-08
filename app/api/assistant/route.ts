@@ -11,6 +11,7 @@ import { getHubSpotMeta, searchHubSpotContacts, getHubSpotDeals, createHubSpotCo
 import { getPipedreamClient } from "@/lib/pipedream";
 import { readImapEmails, sendImapEmail, type ImapConfig } from "@/lib/imap";
 import { triggerN8nWebhook } from "@/lib/n8n";
+import { classifyIntent, getAgentSystemPrompt, filterTools } from "@/lib/agents";
 
 export const maxDuration = 60;
 
@@ -57,79 +58,12 @@ async function pdPost(
 type SavedContact = { id: string; name: string; phone?: string; email?: string; notes?: string };
 type UserProfile = { businessName?: string; profession?: string; city?: string; tone?: "formal" | "informal"; context?: string };
 
-function buildSystemPrompt(compact = false, contacts: SavedContact[] = [], profile: UserProfile = {}) {
+function buildSystemPrompt(compact = false, contacts: SavedContact[] = [], profile: UserProfile = {}, intent = "general") {
   const date = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-  const contactsBlock = contacts.length > 0
-    ? `\nContacts enregistrés de l'utilisateur :\n${contacts.map(c => `- ${c.name}${c.phone ? ` (WA: ${c.phone})` : ""}${c.email ? ` (email: ${c.email})` : ""}${c.notes ? ` — ${c.notes}` : ""}`).join("\n")}\n`
-    : "";
-  const profileBlock = (profile.businessName || profile.profession || profile.city || profile.context)
-    ? `\nProfil de l'utilisateur : ${[
-        profile.profession && `Métier : ${profile.profession}`,
-        profile.businessName && `Entreprise : ${profile.businessName}`,
-        profile.city && `Ville : ${profile.city}`,
-        profile.tone && `Ton souhaité : ${profile.tone === "informal" ? "informel (tutoyer)" : "formel (vouvoyer)"}`,
-        profile.context && `Contexte : ${profile.context}`,
-      ].filter(Boolean).join(" | ")}\n`
-    : "";
   if (compact) {
-    return `Tu es Autozen, assistant IA personnel. Réponds en français, concis. Date: ${date}.${profileBlock}${contactsBlock}Utilise les outils disponibles pour aider l'utilisateur.`;
+    return `Tu es Autozen, assistant IA. Réponds en français, concis. Date: ${date}. Jamais de placeholder. Demande si info manquante.`;
   }
-  return `Tu es Autozen, l'assistant IA personnel de l'utilisateur. Tu réponds TOUJOURS en français.
-Date et heure : ${date}
-${profileBlock}${contactsBlock}
-## Mise en forme des réponses
-- Utilise **gras** pour mettre en valeur les informations importantes
-- Utilise des listes à tirets (- item) pour les listes d'emails, événements, tâches
-- Sois concis : une réponse complète ≤ 200 mots sauf si l'utilisateur demande du détail
-- Pour les emails rédigés : fournis le texte complet, bien formaté, prêt à envoyer
-- Commence par les infos clés, détails ensuite
-
-## Capacités spéciales PME françaises
-- **Emails professionnels** : rédige en français soutenu (pas d'anglicismes inutiles), avec formule de politesse adaptée
-- **Devis/factures** : inclus TVA 20% HT/TTC, mentions légales (SIRET, RCS), délai de paiement 30 jours
-- **Relances** : 3 niveaux — poli, ferme, juridique (indiquer le niveau avant de rédiger)
-- **Vérification entreprise** : utilise rechercher_entreprise pour vérifier SIREN, adresse, statut actif
-- **Calendrier** : ajoute automatiquement fuseau horaire Europe/Paris
-
-## Outils disponibles
-- Google : lire_emails, envoyer_email, voir_agenda, creer_evenement
-- Microsoft : lire_emails_outlook, envoyer_email_outlook, voir_agenda_outlook, lire_teams
-- WhatsApp : voir_chats_whatsapp, lire_messages_whatsapp, envoyer_whatsapp, voir_contacts_whatsapp, messages_envoyes
-- Instagram : voir_conversations_instagram, lire_messages_instagram, envoyer_instagram
-- Apple : voir_calendrier_apple, creer_evenement_apple, voir_contacts_apple
-- Notion : chercher_notion, lire_page_notion, creer_page_notion
-- Slack : voir_canaux_slack, lire_messages_slack, envoyer_slack
-- HubSpot : chercher_contacts_hubspot, voir_deals_hubspot, creer_contact_hubspot, creer_deal_hubspot
-- GitHub : voir_repos_github, lire_issues_github, creer_issue_github, voir_prs_github
-- Contacts : voir_mes_contacts, ajouter_contact, supprimer_contact
-- Web : recherche_web (actualités, infos, cours, etc.) | meteo (météo temps réel)
-- Entreprises FR : rechercher_entreprise (SIREN/SIRET, adresse, activité via base INSEE officielle)
-- Rappels : creer_rappel (dans X jours) | voir_rappels — **Propose toujours un rappel après un devis ou une relance**
-- Tâches : voir_taches_du_jour — **utilise en début de journée automatiquement** | trouver_disponibilite (créneaux agenda libres)
-- CRM Autozen : voir_contacts_crm | creer_contact_crm | voir_pipeline_crm | creer_deal_crm
-- Finance : calculer_tva | generer_devis | envoyer_devis_par_email (si Gmail connecté) | preparer_reunion
-
-## RÈGLE ABSOLUE — DEMANDER AVANT D'AGIR
-**AVANT d'appeler TOUT outil qui envoie, crée ou modifie quelque chose, vérifie que tu as TOUTES les informations nécessaires. Si une info est manquante ou ambiguë, POSE LA QUESTION — ne suppose jamais, ne mets jamais de placeholder.**
-
-Exemples de questions obligatoires :
-- Email → "À quelle adresse email ?" si pas précisé
-- WhatsApp → "À quel numéro ou contact ?" si pas précisé
-- Événement → "Quelle date et heure ?" si pas précisé
-- Devis → "Pour quel client et quelle prestation ?" si pas précisé
-- Rappel → "Dans combien de jours ?" si pas précisé
-
-## Règles
-1. WhatsApp/Instagram : utilise voir_chats/voir_conversations d'abord pour obtenir les IDs.
-2. Si l'utilisateur mentionne un prénom/nom sans email/numéro (ex: "envoie à Marc", "WhatsApp à Sophie") → appelle TOUJOURS rechercher_contact_par_nom AVANT d'essayer d'envoyer. Présente les contacts trouvés et demande de confirmer.
-3. Premier message sans historique : appelle voir_taches_du_jour si c'est le matin (avant 12h).
-4. Outil retourne erreur de connexion : explique les étapes clairement une seule fois, renvoie vers /settings.
-5. Après action (email envoyé, événement créé, etc.) : confirme brièvement ce qui a été fait.
-6. Email professionnel : toujours inclure une formule d'appel, corps du message, et formule de politesse de fin.
-7. Après generer_devis : TOUJOURS proposer creer_deal_crm + creer_rappel (dans 3 jours).
-8. Si l'utilisateur mentionne un client : propose voir_contacts_crm pour retrouver ses coordonnées.
-9. Ne jamais utiliser de placeholder (votre_email@example.com, [EMAIL], 0600000000) dans un envoi réel.
-10. Si tu n'es pas sûr d'une info (prénom, email, date, montant) → DEMANDE, ne suppose pas.`;
+  return getAgentSystemPrompt(intent as import("@/lib/agents").AgentIntent, date, contacts, profile);
 }
 
 const WA_BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
@@ -696,82 +630,96 @@ async function executeTool(
 
   // ─── Recherche contact par nom ────────────────────────────────────────────────
   if (name === "rechercher_contact_par_nom") {
-    const { prenom } = args as { prenom: string };
-    const q = prenom.toLowerCase().trim();
-    const results: { nom: string; email?: string; telephone?: string; source: string }[] = [];
+    try {
+      const { prenom } = args as { prenom: string };
+      if (!prenom) return "Quel prénom ou nom dois-je chercher ?";
+      const q = prenom.toLowerCase().trim();
+      const results: { nom: string; email?: string; telephone?: string; source: string }[] = [];
 
-    // 1. Contacts Autozen (CRM local)
-    const clerk = await clerkClient();
-    const u = await clerk.users.getUser(userId);
-    const crmContacts = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
-    for (const c of crmContacts) {
-      if (c.name.toLowerCase().includes(q)) {
-        results.push({ nom: c.name, email: c.email, telephone: c.phone, source: "CRM Autozen" });
-      }
-    }
-
-    // 2. Google Contacts (People API)
-    if (googleToken) {
+      // 1. Contacts Autozen (CRM local) — toujours disponible
       try {
-        const r = await fetch(
-          `https://people.googleapis.com/v1/people:searchContacts?query=${encodeURIComponent(prenom)}&readMask=names,emailAddresses,phoneNumbers&pageSize=10`,
-          { headers: { Authorization: `Bearer ${googleToken}` } }
-        );
-        const data = await r.json() as { results?: { person?: { names?: { displayName: string }[]; emailAddresses?: { value: string }[]; phoneNumbers?: { value: string }[] } }[] };
-        for (const item of data.results ?? []) {
-          const p = item.person;
-          if (!p) continue;
-          const nom = p.names?.[0]?.displayName ?? "";
-          const email = p.emailAddresses?.[0]?.value;
-          const telephone = p.phoneNumbers?.[0]?.value;
-          if (nom.toLowerCase().includes(q) && !results.find(r => r.email === email)) {
-            results.push({ nom, email, telephone, source: "Google Contacts" });
+        const clerkInst = await clerkClient();
+        const u = await clerkInst.users.getUser(userId);
+        const crmContacts = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
+        for (const c of crmContacts) {
+          if (c.name.toLowerCase().includes(q)) {
+            results.push({ nom: c.name, email: c.email, telephone: c.phone, source: "CRM Autozen" });
           }
         }
       } catch { /* ignore */ }
-    }
 
-    // 3. Gmail — chercher dans les échanges récents
-    if (googleToken && results.length < 3) {
-      try {
-        const r = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(prenom)}&maxResults=5`,
-          { headers: { Authorization: `Bearer ${googleToken}` } }
-        );
-        const data = await r.json() as { messages?: { id: string }[] };
-        for (const m of (data.messages ?? []).slice(0, 3)) {
-          const msg = await fetch(
-            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=To`,
+      // 2. Google Contacts (People API) — nécessite contacts.readonly scope
+      if (googleToken) {
+        try {
+          const gcResp = await fetch(
+            `https://people.googleapis.com/v1/people:searchContacts?query=${encodeURIComponent(prenom)}&readMask=names,emailAddresses,phoneNumbers&pageSize=10`,
             { headers: { Authorization: `Bearer ${googleToken}` } }
           );
-          const d = await msg.json() as { payload?: { headers?: { name: string; value: string }[] } };
-          const hdrs = d.payload?.headers ?? [];
-          for (const h of hdrs) {
-            if (h.name === "From" || h.name === "To") {
-              const match = h.value.match(/([^<]*)<([^>]+)>/);
-              if (match) {
-                const [, nom, email] = match;
-                if (nom.toLowerCase().includes(q) && email && !results.find(r => r.email === email)) {
-                  results.push({ nom: nom.trim(), email: email.trim(), source: "Gmail récent" });
-                }
+          if (gcResp.ok) {
+            const gcData = await gcResp.json() as { results?: { person?: { names?: { displayName: string }[]; emailAddresses?: { value: string }[]; phoneNumbers?: { value: string }[] } }[] };
+            for (const item of gcData.results ?? []) {
+              const p = item.person;
+              if (!p) continue;
+              const nom = p.names?.[0]?.displayName ?? "";
+              const email = p.emailAddresses?.[0]?.value;
+              const telephone = p.phoneNumbers?.[0]?.value;
+              if (nom.toLowerCase().includes(q) && !results.find(ex => ex.email === email && email)) {
+                results.push({ nom, email, telephone, source: "Google Contacts" });
               }
             }
           }
-        }
-      } catch { /* ignore */ }
-    }
+        } catch { /* scope absent ou erreur réseau */ }
+      }
 
-    if (!results.length) {
-      return `Aucun contact trouvé pour "${prenom}". Peux-tu me donner l'adresse email ou le numéro directement ?`;
-    }
+      // 3. Gmail — chercher dans les échanges récents
+      if (googleToken && results.length < 5) {
+        try {
+          const gmResp = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(prenom)}&maxResults=5`,
+            { headers: { Authorization: `Bearer ${googleToken}` } }
+          );
+          if (gmResp.ok) {
+            const gmData = await gmResp.json() as { messages?: { id: string }[] };
+            for (const m of (gmData.messages ?? []).slice(0, 3)) {
+              try {
+                const msgResp = await fetch(
+                  `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=To`,
+                  { headers: { Authorization: `Bearer ${googleToken}` } }
+                );
+                if (!msgResp.ok) continue;
+                const msgData = await msgResp.json() as { payload?: { headers?: { name: string; value: string }[] } };
+                for (const h of msgData.payload?.headers ?? []) {
+                  if (h.name !== "From" && h.name !== "To") continue;
+                  const hVal = h.value ?? "";
+                  const match = hVal.match(/([^<]+)<([^>]+)>/);
+                  if (match && match[1] && match[2]) {
+                    const nom = match[1].trim().replace(/"/g, "");
+                    const email = match[2].trim();
+                    if (nom.toLowerCase().includes(q) && email.includes("@") && !results.find(ex => ex.email === email)) {
+                      results.push({ nom, email, source: "Gmail récent" });
+                    }
+                  }
+                }
+              } catch { /* ignorer ce message */ }
+            }
+          }
+        } catch { /* ignore */ }
+      }
 
-    if (results.length === 1) {
-      const c = results[0];
-      return `J'ai trouvé **${c.nom}**${c.email ? ` (${c.email})` : ""}${c.telephone ? ` — WA: ${c.telephone}` : ""} dans ${c.source}. C'est bien ce contact ?`;
-    }
+      if (!results.length) {
+        return `Aucun contact trouvé pour "${prenom}". Peux-tu me donner l'adresse email ou le numéro directement ?`;
+      }
 
-    const list = results.slice(0, 5).map((c, i) => `${i + 1}. **${c.nom}** — ${c.email ?? "pas d'email"}${c.telephone ? ` / ${c.telephone}` : ""} *(${c.source})*`).join("\n");
-    return `J'ai trouvé **${results.length} contacts** correspondant à "${prenom}" :\n${list}\n\nLequel veux-tu utiliser ? (réponds avec le numéro ou le nom exact)`;
+      if (results.length === 1) {
+        const c = results[0];
+        return `J'ai trouvé **${c.nom}**${c.email ? ` (${c.email})` : ""}${c.telephone ? ` — 📱 ${c.telephone}` : ""} dans ${c.source}. C'est bien ce contact ?`;
+      }
+
+      const list = results.slice(0, 5).map((c, i) => `${i + 1}. **${c.nom}** — ${c.email ?? "pas d'email"}${c.telephone ? ` / ${c.telephone}` : ""} *(${c.source})*`).join("\n");
+      return `J'ai trouvé **${results.length} contacts** pour "${prenom}" :\n\n${list}\n\nLequel veux-tu utiliser ? (réponds par le numéro)`;
+    } catch {
+      return `Aucun contact trouvé pour "${(args as { prenom?: string }).prenom ?? "ce prénom"}". Peux-tu me donner l'email directement ?`;
+    }
   }
 
   // ─── Contacts ─────────────────────────────────────────────────────────────────
@@ -1373,8 +1321,8 @@ function streamText(text: string, clientActions: ClientAction[], remaining: numb
 }
 
 export async function POST(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   const useStream = (req.headers.get("accept") ?? "").includes("text/event-stream");
 
   try {
@@ -1450,30 +1398,36 @@ export async function POST(req: NextRequest) {
     const hasWhatsApp = !!whapiToken || !!waMetaToken || !!pdAccountIds.whatsapp_business || bridgeData.wa?.connected === true;
     const hasInstagram = !!pdAccountIds.instagram_business || !!igMeta?.token;
     const hasImap = !!imapConfig;
-    const tools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasInstagram, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub, hasImap);
+    const allTools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasInstagram, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub, hasImap);
 
-    let compact = false; // passe en mode compact si contexte trop grand
+    // ── Routing multi-agent : classification d'intent (instantané, 0 LLM call) ──
+    const intent = classifyIntent(message, history);
+    const agentTools = filterTools(allTools, intent);
+
+    let compact = false;
     const buildMessages = (): OpenAI.Chat.ChatCompletionMessageParam[] => [
-      { role: "system", content: buildSystemPrompt(compact, userContacts, userProfile) },
+      { role: "system", content: buildSystemPrompt(compact, userContacts, userProfile, intent) },
       ...history.slice(compact ? -2 : -16).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: message },
     ];
 
     const clientActions: ClientAction[] = [];
-    let currentModel = PRIMARY_MODEL; // persiste entre tours — une fois fallback, on reste fallback
+    let currentModel = PRIMARY_MODEL;
     let messages = buildMessages();
 
     // Boucle tool-calling (max 5 tours)
     for (let i = 0; i < 5; i++) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let completion: any;
+      // Outils actifs : mode compact → subset minimal | sinon → outils de l'agent spécialisé
+      const activeTools = compact ? compactTools(agentTools) : (agentTools.length > 0 ? agentTools : undefined);
       for (let attempt = 0; attempt < 4; attempt++) {
         try {
           completion = await getAI().chat.completions.create({
             model: currentModel,
             messages,
-            tools: compact ? compactTools(tools) : (tools.length > 0 ? tools : undefined),
-            tool_choice: tools.length > 0 ? "auto" : undefined,
+            tools: activeTools,
+            tool_choice: activeTools && activeTools.length > 0 ? "auto" : undefined,
             max_tokens: 1024,
             temperature: 0.3,
           });

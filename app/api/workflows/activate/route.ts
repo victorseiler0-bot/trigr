@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { n8n } from "@/lib/n8n";
 
 // POST — active un workflow par son ID
 export async function POST(req: NextRequest) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const { workflowId } = await req.json();
   if (!workflowId) return NextResponse.json({ error: "workflowId requis" }, { status: 400 });
@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
 
 // GET ?ids=id1,id2 — statuts des workflows
 export async function GET(req: NextRequest) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const ids = req.nextUrl.searchParams.get("ids")?.split(",").filter(Boolean) ?? [];
   if (!ids.length || !process.env.N8N_API_KEY) return NextResponse.json({ statuses: {} });

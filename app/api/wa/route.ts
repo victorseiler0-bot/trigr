@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
 const BRIDGE = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
@@ -12,8 +12,8 @@ async function callBridge(method: string, path: string, body?: unknown) {
 }
 
 export async function GET(req: NextRequest) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const sp = new URL(req.url).searchParams;
   const action = sp.get("action") ?? "status";
@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   try {
     const body = await req.json();
@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   try {
     const { status, data } = await callBridge("POST", "logout");

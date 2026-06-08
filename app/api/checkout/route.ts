@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
@@ -19,8 +19,8 @@ const PRODUCTS: Record<string, { name: string; price: number; priceId: string }>
 };
 
 export async function POST(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   try {
     const { productId, withInstall } = await req.json();

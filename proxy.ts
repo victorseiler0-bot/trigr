@@ -13,6 +13,10 @@ const isPublicRoute = createRouteMatcher([
   "/api/whatsapp(.*)",
   "/api/health",
   "/api/whapi/webhook",
+  "/api/pipeline-ia",
+  "/api/agent-config",
+  "/api/cron/(.*)",
+  "/api/whatsapp",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getNotionMeta, clearNotionMeta } from "@/lib/notion";
 
@@ -9,8 +9,8 @@ const NOTION_REDIRECT_URI = process.env.NEXT_PUBLIC_SITE_URL
 
 // GET — vérifier si Notion est configuré OU initier l'OAuth
 export async function GET(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const url = new URL(req.url);
   if (url.searchParams.get("action") === "authorize") {
@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
 
 // DELETE — déconnecter Notion
 export async function DELETE() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   await clearNotionMeta(userId);
   return NextResponse.json({ configured: false });
 }

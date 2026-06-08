@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
@@ -14,8 +14,8 @@ function getStripe() {
 
 // GET — statut abonnement actuel
 export async function GET() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
@@ -35,8 +35,8 @@ export async function GET() {
 
 // POST — créer session checkout abonnement
 export async function POST(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const { plan } = await req.json() as { plan: keyof typeof PLANS };
   if (!PLANS[plan]) return NextResponse.json({ error: "Plan invalide" }, { status: 400 });
@@ -67,8 +67,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE — annuler abonnement
 export async function DELETE() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);

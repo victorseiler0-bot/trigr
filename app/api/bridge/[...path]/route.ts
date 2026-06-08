@@ -12,8 +12,8 @@ async function getBridgeUrl(): Promise<string> {
 }
 
 async function proxy(req: NextRequest, params: { path: string[] }) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   if (params.path.some(seg => seg.includes("..") || seg.startsWith("/"))) {
     return NextResponse.json({ error: "Chemin invalide" }, { status: 400 });

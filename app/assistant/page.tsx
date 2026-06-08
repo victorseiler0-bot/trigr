@@ -359,7 +359,7 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      const r = await fetch("/api/assistant", {
+      const r = await fetch("/api/autozen", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),

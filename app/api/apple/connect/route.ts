@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAppleMeta, saveAppleMeta, clearAppleMeta, testAppleConnection } from "@/lib/apple";
 
 // GET — vérifier si Apple est configuré
 export async function GET() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const meta = await getAppleMeta(userId);
   if (!meta) return NextResponse.json({ configured: false });
@@ -14,8 +14,8 @@ export async function GET() {
 
 // POST — sauvegarder + tester les credentials Apple
 export async function POST(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const { email, appPassword } = await req.json() as { email?: string; appPassword?: string };
   if (!email || !appPassword) return NextResponse.json({ error: "Email et mot de passe requis." }, { status: 400 });
@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE — supprimer les credentials Apple
 export async function DELETE() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   await clearAppleMeta(userId);
   return NextResponse.json({ configured: false });

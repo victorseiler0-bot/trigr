@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -121,8 +121,8 @@ async function deleteContact(token: string, sheetId: string, id: string) {
 // ── Handler ────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   try {
     const client = await clerkClient();
@@ -140,8 +140,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   try {
     const body = await req.json();

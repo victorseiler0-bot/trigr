@@ -125,18 +125,18 @@ export default function Home() {
               {/* Right — chat preview */}
               <div className="hidden lg:flex justify-center animate-fade-up-2">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-slate-200/50 rounded-3xl blur-2xl scale-105" />
-                  <div className="relative bg-slate-900 rounded-2xl overflow-hidden w-[360px] shadow-2xl border border-slate-700">
+                  <div className="absolute inset-0 bg-blue-100/50 rounded-3xl blur-2xl scale-105" />
+                  <div className="relative bg-white rounded-2xl overflow-hidden w-[360px] shadow-xl border border-slate-200">
                     {/* Header */}
-                    <div className="px-4 py-3 bg-slate-800 border-b border-slate-700 flex items-center gap-3">
-                      <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500/70"/><div className="w-3 h-3 rounded-full bg-amber-500/70"/><div className="w-3 h-3 rounded-full bg-emerald-500/70"/></div>
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
+                      <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400/70"/><div className="w-3 h-3 rounded-full bg-amber-400/70"/><div className="w-3 h-3 rounded-full bg-emerald-400/70"/></div>
                       <div className="flex-1 flex items-center justify-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full status-connected" />
-                        <span className="text-xs text-slate-400 font-medium">Autozen Assistant</span>
+                        <span className="text-xs text-slate-500 font-medium">Autozen Assistant</span>
                       </div>
                     </div>
                     {/* Messages */}
-                    <div className="px-4 py-5 space-y-4 min-h-[280px]">
+                    <div className="px-4 py-5 space-y-4 min-h-[280px] bg-white">
                       {CHAT_MSGS.map((m, i) => (
                         <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                           {m.role === "assistant" && (
@@ -145,7 +145,7 @@ export default function Home() {
                             </div>
                           )}
                           <div className={`rounded-2xl px-3.5 py-2.5 max-w-[240px] text-xs leading-relaxed ${
-                            m.role === "user" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-slate-800 text-slate-200 rounded-tl-sm"
+                            m.role === "user" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-slate-100 text-slate-700 rounded-tl-sm"
                           }`} style={{ whiteSpace: "pre-line" }}>{m.text}</div>
                         </div>
                       ))}
@@ -153,14 +153,14 @@ export default function Home() {
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
                           <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
-                        <div className="bg-slate-800 rounded-2xl rounded-tl-sm px-3.5 py-3 flex gap-1.5">
-                          {[0,150,300].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: `${d}ms` }}/>)}
+                        <div className="bg-slate-100 rounded-2xl rounded-tl-sm px-3.5 py-3 flex gap-1.5">
+                          {[0,150,300].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }}/>)}
                         </div>
                       </div>
                     </div>
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5">
-                        <span className="flex-1 text-xs text-slate-600">Tape un message…</span>
+                    <div className="px-4 pb-4 bg-white">
+                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                        <span className="flex-1 text-xs text-slate-400">Tape un message…</span>
                         <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
                           <svg width="10" height="10" fill="none" stroke="white" strokeWidth="2"><path d="M2 5h6M5 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
@@ -441,19 +441,19 @@ export default function Home() {
         </section>
 
         {/* ── RGPD TRUST ──────────────────────────────────────────────────────── */}
-        <section className="py-20 px-6 bg-white border-b border-slate-100">
+        <section className="py-20 px-6 bg-slate-50 border-y border-slate-200">
           <div className="max-w-5xl mx-auto">
-            <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-10 md:p-14 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "28px 28px" }} />
+            <div className="rounded-3xl bg-white border border-blue-100 p-10 md:p-14 relative overflow-hidden shadow-sm">
+              <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)", backgroundSize: "28px 28px" }} />
               <div className="relative grid md:grid-cols-2 gap-12 items-center">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-semibold mb-6">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-6">
                     🇪🇺 Conforme RGPD — Hébergé en France
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
-                    Vos données vous<br /><span className="text-blue-400">appartiennent.</span>
+                  <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
+                    Vos données vous<br /><span className="gradient-text">appartiennent.</span>
                   </h2>
-                  <p className="text-slate-300 text-base leading-relaxed mb-6">
+                  <p className="text-slate-600 text-base leading-relaxed mb-6">
                     Chez Lindy et Zapier, vos emails, agendas et contacts transitent par des serveurs américains soumis au Cloud Act. Avec Autozen, tout reste en Europe.
                   </p>
                   <div className="space-y-3">
@@ -463,8 +463,8 @@ export default function Home() {
                       "Aucune revente ni analyse de vos données",
                       "Suppression complète à la désinscription",
                     ].map(item => (
-                      <div key={item} className="flex items-center gap-2.5 text-sm text-slate-300">
-                        <svg className="text-blue-400 shrink-0" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 8l4 4 8-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <div key={item} className="flex items-center gap-2.5 text-sm text-slate-600">
+                        <svg className="text-blue-500 shrink-0" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 8l4 4 8-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         {item}
                       </div>
                     ))}
@@ -477,10 +477,10 @@ export default function Home() {
                     { icon: "🏠", title: "Self-hosted", desc: "Docker disponible — vos serveurs, vos règles" },
                     { icon: "🗑️", title: "Droit à l'oubli", desc: "Suppression complète en 1 clic, immédiate" },
                   ].map(card => (
-                    <div key={card.title} className="bg-white/[0.06] border border-white/10 rounded-2xl p-4">
+                    <div key={card.title} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 hover:border-blue-200 hover:bg-blue-50/50 transition-all">
                       <span className="text-2xl mb-2 block">{card.icon}</span>
-                      <p className="text-sm font-semibold text-white mb-1">{card.title}</p>
-                      <p className="text-xs text-slate-400 leading-relaxed">{card.desc}</p>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">{card.title}</p>
+                      <p className="text-xs text-slate-500 leading-relaxed">{card.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -519,18 +519,18 @@ export default function Home() {
               </div>
               <div className="flex justify-center">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-200/30 rounded-3xl blur-2xl scale-110" />
-                  <div className="relative bg-[#111b21] rounded-2xl overflow-hidden w-[320px] shadow-2xl">
-                    <div className="px-4 py-3 bg-[#202c33] flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                  <div className="absolute inset-0 bg-emerald-100/60 rounded-3xl blur-2xl scale-110" />
+                  <div className="relative bg-white rounded-2xl overflow-hidden w-[320px] shadow-xl border border-slate-200">
+                    <div className="px-4 py-3 bg-emerald-500 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-white">Autozen Business</p>
-                        <p className="text-xs text-emerald-400">en ligne</p>
+                        <p className="text-xs text-emerald-100">en ligne</p>
                       </div>
                     </div>
-                    <div className="px-4 py-5 space-y-3 min-h-[280px]">
+                    <div className="px-4 py-5 space-y-3 min-h-[280px] bg-slate-50">
                       {[
                         { from: "Sophie M.", msg: "Bonjour, vous avez des tarifs pour un devis peinture ?", me: false, time: "14:02" },
                         { from: "Autozen", msg: "Bonjour Sophie ! Voici notre grille tarifaire 2024 :\n🎨 Peinture intérieure : 25–40 €/m²\n🏠 Ravalement façade : 35–60 €/m²\nSouhaitez-vous un devis personnalisé ?", me: true, time: "14:02", auto: true },
@@ -538,11 +538,11 @@ export default function Home() {
                         { from: "Autozen", msg: "Je vous envoie le lien pour choisir un créneau : calendly.com/artisan 📅", me: true, time: "14:03", auto: true },
                       ].map((m, i) => (
                         <div key={i} className={`flex ${m.me ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[220px] rounded-xl px-3 py-2 text-xs leading-relaxed relative ${m.me ? "bg-[#005c4b] text-white rounded-tr-sm" : "bg-[#202c33] text-slate-200 rounded-tl-sm"}`} style={{ whiteSpace: "pre-line" }}>
+                          <div className={`max-w-[220px] rounded-xl px-3 py-2 text-xs leading-relaxed relative ${m.me ? "bg-emerald-500 text-white rounded-tr-sm" : "bg-white text-slate-700 rounded-tl-sm border border-slate-200 shadow-sm"}`} style={{ whiteSpace: "pre-line" }}>
                             {m.msg}
                             <div className="flex items-center justify-end gap-1 mt-1">
                               <span className="text-[10px] opacity-60">{m.time}</span>
-                              {m.me && m.auto && <span className="text-[10px] text-emerald-400 opacity-80">⚡ auto</span>}
+                              {m.me && m.auto && <span className="text-[10px] text-emerald-100 opacity-80">⚡ auto</span>}
                             </div>
                           </div>
                         </div>

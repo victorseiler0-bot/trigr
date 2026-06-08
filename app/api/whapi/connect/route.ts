@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { whapiChannel, getUserWhapiMeta, setUserWhapiMeta, clearUserWhapiMeta } from "@/lib/whapi";
 
@@ -37,8 +37,8 @@ async function deleteChannel(channelId: string) {
 
 // GET — statut de connexion WA de l'utilisateur
 export async function GET(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   let { token, channelId } = await getUserWhapiMeta(userId);
 
@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
 
 // DELETE — déconnecter et supprimer le channel de l'utilisateur
 export async function DELETE(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const { token, channelId } = await getUserWhapiMeta(userId);
   if (token && channelId) {
@@ -98,8 +98,8 @@ export async function DELETE(req: NextRequest) {
 
 // POST — valider et sauvegarder un token manuel (admin/dev)
 export async function POST(req: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const { token } = await req.json();
   if (!token?.trim()) return NextResponse.json({ error: "Token requis" }, { status: 400 });

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import fs from "fs";
 import path from "path";
@@ -6,8 +6,8 @@ import path from "path";
 // Écrit une variable dans .env.local — uniquement en dev local
 // En production Vercel : retourne ok: false avec instructions CLI
 export async function POST(req: NextRequest) {
-  const { isAuthenticated } = await auth();
-  if (!isAuthenticated) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const { key, value } = await req.json();
   if (!key || !value) return NextResponse.json({ error: "key et value requis" }, { status: 400 });

@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
 type WaMessage = { incoming: boolean; read: boolean };
 
 export async function GET() {
-  const { isAuthenticated, userId } = await auth();
-  if (!isAuthenticated || !userId) return NextResponse.json({ waUnread: 0, emailUnread: 0 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ waUnread: 0, emailUnread: 0 });
 
   try {
     const client = await clerkClient();
