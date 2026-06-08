@@ -120,7 +120,7 @@ export async function createAppleEvent(
     const calendars = await client.fetchCalendars();
     if (!calendars.length) return false;
 
-    const uid = `Autozen-${Date.now()}@icloud.com`;
+    const uid = `Orbe-${Date.now()}@icloud.com`;
     const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
     const startFmt = toIcalDate(event.start);
     const endFmt = toIcalDate(event.end);
@@ -129,7 +129,7 @@ export async function createAppleEvent(
     const ical = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Autozen//FR",
+      "PRODID:-//Orbe//FR",
       "BEGIN:VEVENT",
       `UID:${uid}`,
       `DTSTAMP:${now}`,

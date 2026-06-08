@@ -84,13 +84,13 @@ export async function upsertN8nWorkflow(workflowDef: {
 // Build WhatsApp Send workflow (via Whapi)
 export function buildWaSendWorkflow() {
   return {
-    name: "Autozen — WA Send (Whapi)",
+    name: "Orbe — WA Send (Whapi)",
     nodes: [
       {
         id: "ws-1", name: "Webhook", type: "n8n-nodes-base.webhook",
         typeVersion: 2.1, position: [0, 0],
-        webhookId: "Autozen-wa-send",
-        parameters: { httpMethod: "POST", path: "Autozen-wa-send", responseMode: "lastNode", options: {} },
+        webhookId: "Orbe-wa-send",
+        parameters: { httpMethod: "POST", path: "Orbe-wa-send", responseMode: "lastNode", options: {} },
       },
       {
         id: "ws-2", name: "Envoyer via Whapi", type: "n8n-nodes-base.httpRequest",
@@ -121,13 +121,13 @@ export function buildWaSendWorkflow() {
 // Build WhatsApp Read workflow (via Whapi)
 export function buildWaReadWorkflow() {
   return {
-    name: "Autozen — WA Read (Whapi)",
+    name: "Orbe — WA Read (Whapi)",
     nodes: [
       {
         id: "wr-1", name: "Webhook", type: "n8n-nodes-base.webhook",
         typeVersion: 2.1, position: [0, 0],
-        webhookId: "Autozen-wa-read",
-        parameters: { httpMethod: "POST", path: "Autozen-wa-read", responseMode: "lastNode", options: {} },
+        webhookId: "Orbe-wa-read",
+        parameters: { httpMethod: "POST", path: "Orbe-wa-read", responseMode: "lastNode", options: {} },
       },
       {
         id: "wr-2", name: "Lire Chats Whapi", type: "n8n-nodes-base.httpRequest",
@@ -158,13 +158,13 @@ export function buildWaReadWorkflow() {
 // Build Instagram DM workflow (Meta Graph API)
 export function buildInstagramWorkflow() {
   return {
-    name: "Autozen — Instagram DMs",
+    name: "Orbe — Instagram DMs",
     nodes: [
       {
         id: "ig-1", name: "Webhook", type: "n8n-nodes-base.webhook",
         typeVersion: 2.1, position: [0, 0],
-        webhookId: "Autozen-ig",
-        parameters: { httpMethod: "POST", path: "Autozen-ig", responseMode: "lastNode", options: {} },
+        webhookId: "Orbe-ig",
+        parameters: { httpMethod: "POST", path: "Orbe-ig", responseMode: "lastNode", options: {} },
       },
       {
         id: "ig-2", name: "Router action", type: "n8n-nodes-base.switch",

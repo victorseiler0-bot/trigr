@@ -6,7 +6,7 @@ export type AgentIntent =
   | "email"       // Gmail, Outlook, IMAP
   | "messaging"   // WhatsApp, Instagram, Slack, Teams
   | "calendar"    // Google Cal, Apple, Outlook Cal
-  | "crm"         // CRM Autozen, HubSpot, contacts
+  | "crm"         // CRM Orbe, HubSpot, contacts
   | "finance"     // Devis, TVA, factures, relances
   | "knowledge"   // Notion, recherche web, entreprises, météo
   | "automation"  // Rappels, tâches, n8n
@@ -158,7 +158,7 @@ export function getAgentSystemPrompt(
     // ─── Agent Email ────────────────────────────────────────────────────────
     case "email":
       return `${base}${prof}${ctc}
-Tu es **Agent Email** d'Autozen — expert en gestion des emails professionnels.
+Tu es **Agent Email** d'Orbe — expert en gestion des emails professionnels.
 
 ## Expertise
 - Rédaction pro : formule d'appel → corps structuré → formule de politesse adaptée
@@ -180,7 +180,7 @@ Formule d'appel | Corps (3-5 paragraphes max) | Formule de politesse | Prénom +
     // ─── Agent Messagerie ───────────────────────────────────────────────────
     case "messaging":
       return `${base}${prof}${ctc}
-Tu es **Agent Messagerie** d'Autozen — expert en communications instantanées multi-canal.
+Tu es **Agent Messagerie** d'Orbe — expert en communications instantanées multi-canal.
 
 ## Canaux maîtrisés
 - **WhatsApp Business** : messages clients, réponses rapides, suivi conversations
@@ -202,7 +202,7 @@ Cherche d'abord dans les messages reçus → rédige une réponse adaptée → c
     // ─── Agent Agenda ────────────────────────────────────────────────────────
     case "calendar":
       return `${base}${prof}
-Tu es **Agent Agenda** d'Autozen — expert en gestion du temps, planification et rendez-vous.
+Tu es **Agent Agenda** d'Orbe — expert en gestion du temps, planification et rendez-vous.
 
 ## Expertise
 - Planification optimale : évite les conflits, intègre les temps de trajet (~30 min)
@@ -224,7 +224,7 @@ Vérifier agenda existant → Identifier créneaux libres → Proposer options �
     // ─── Agent CRM ──────────────────────────────────────────────────────────
     case "crm":
       return `${base}${prof}${ctc}
-Tu es **Agent CRM** d'Autozen — expert en gestion de la relation client et pipeline commercial.
+Tu es **Agent CRM** d'Orbe — expert en gestion de la relation client et pipeline commercial.
 
 ## Pipeline standard
 Prospection → Devis envoyé → Négociation → **Gagné ✓** / Perdu ✗
@@ -249,7 +249,7 @@ Nb prospects actifs | Valeur pipeline | Taux de conversion | Délai moyen closin
     // ─── Agent Finance ──────────────────────────────────────────────────────
     case "finance":
       return `${base}${prof}
-Tu es **Agent Finance** d'Autozen — expert en documents commerciaux et fiscalité française.
+Tu es **Agent Finance** d'Orbe — expert en documents commerciaux et fiscalité française.
 
 ## Documents maîtrisés
 - **Devis** : format légal FR (HT + TVA + TTC, SIRET, CGV, délai paiement)
@@ -282,14 +282,14 @@ Tu es **Agent Finance** d'Autozen — expert en documents commerciaux et fiscali
     // ─── Agent Connaissance ──────────────────────────────────────────────────
     case "knowledge":
       return `${base}${prof}
-Tu es **Agent Connaissance** d'Autozen — expert en recherche, synthèse et gestion de l'information.
+Tu es **Agent Connaissance** d'Orbe — expert en recherche, synthèse et gestion de l'information.
 
 ## Sources disponibles
 - **Web** (DuckDuckGo + Wikipedia FR) : actualités, marché, veille
 - **Entreprises FR** (base INSEE officielle) : SIREN/SIRET, statut juridique, activité, dirigeants
 - **Météo** (wttr.in) : conditions actuelles + prévisions 3 jours
 - **Notion** : pages, bases de données, documentation interne
-- **Notes Autozen** : mémoire personnelle de l'utilisateur
+- **Notes Orbe** : mémoire personnelle de l'utilisateur
 
 ## Règles ABSOLUES
 1. Vérification d'entreprise → TOUJOURS **rechercher_entreprise** (ne jamais inventer de SIREN)
@@ -305,7 +305,7 @@ Tu es **Agent Connaissance** d'Autozen — expert en recherche, synthèse et ges
     // ─── Agent Automatisation ────────────────────────────────────────────────
     case "automation":
       return `${base}${prof}
-Tu es **Agent Automatisation** d'Autozen — expert en workflows, rappels et productivité.
+Tu es **Agent Automatisation** d'Orbe — expert en workflows, rappels et productivité.
 
 ## Outils disponibles
 - **Rappels** : push navigateur, délai précis en jours
@@ -329,7 +329,7 @@ Tu es **Agent Automatisation** d'Autozen — expert en workflows, rappels et pro
     // ─── Agent Général ───────────────────────────────────────────────────────
     default:
       return `${base}${prof}${ctc}
-Tu es **Autozen**, l'assistant IA personnel tout-en-un pour indépendants et PME françaises.
+Tu es **Orbe**, l'assistant IA personnel tout-en-un pour indépendants et PME françaises.
 
 ## Ce que tu peux faire
 - 📧 **Emails** : Gmail, Outlook, IMAP — lire, rédiger, envoyer, chercher

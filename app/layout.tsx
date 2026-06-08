@@ -13,19 +13,19 @@ import PushInit from "@/components/PushInit";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Autozen — Assistant IA pour indépendants et PME · RGPD-friendly",
+  title: "Orbe — Assistant IA pour indépendants et PME · RGPD-friendly",
   description: "Ton assistant IA personnel : Gmail, WhatsApp Business, Google Calendar, Notion. RGPD-friendly, 5× moins cher que Lindy. Essai gratuit sans carte.",
   keywords: ["assistant IA", "automatisation", "Gmail", "WhatsApp Business", "indépendant", "PME", "France", "RGPD", "workflow"],
   openGraph: {
-    title: "Autozen — Ton assistant IA en français",
+    title: "Orbe — Ton assistant IA en français",
     description: "Gmail, WhatsApp, Agenda — automatise tout à ta place. RGPD-friendly, sans engagement, 9€/mois.",
     type: "website",
     locale: "fr_FR",
-    siteName: "Autozen",
+    siteName: "Orbe",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Autozen — Assistant IA RGPD-friendly pour les pros FR",
+    title: "Orbe — Assistant IA RGPD-friendly pour les pros FR",
     description: "Gmail, WhatsApp, Agenda automatisés en français. 5× moins cher que Lindy.",
   },
   robots: { index: true, follow: true },
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Autozen",
+    title: "Orbe",
   },
   viewport: {
     width: "device-width",

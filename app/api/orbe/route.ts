@@ -1,5 +1,5 @@
 /**
- * Autozen AI — IA Générative Custom
+ * Orbe AI — IA Générative Custom
  * Cerveau : Groq/Gemini avec tool-calling
  * Muscles : n8n workflows + intégrations directes
  */
@@ -82,17 +82,17 @@ async function executeTool(
   // ── n8n Workflows (muscles de l'IA) ──────────────────────────────────────
   if (name === "lancer_workflow") {
     const { workflow, donnees } = args as { workflow: string; donnees?: Record<string, unknown> };
-    return callN8nWorkflow(workflow, { ...(donnees ?? {}), source: "autozen-ai", userId });
+    return callN8nWorkflow(workflow, { ...(donnees ?? {}), source: "orbe-ai", userId });
   }
 
   if (name === "automatiser") {
     const { action, parametres } = args as { action: string; parametres?: Record<string, unknown> };
     // Routing intelligent vers le bon workflow n8n
     const routingMap: Record<string, string> = {
-      "relance_client":     "autozen-relance-client",
-      "rapport_hebdo":      "Trigr — Rapport Hebdo Business",
-      "brief_matin":        "autozen-brief-matin",
-      "envoyer_newsletter": "autozen-newsletter",
+      "relance_client":     "orbe-relance-client",
+      "rapport_hebdo":      "Orbe — Rapport Hebdo Business",
+      "brief_matin":        "orbe-brief-matin",
+      "envoyer_newsletter": "orbe-newsletter",
     };
     const webhook = routingMap[action] ?? action;
     return callN8nWorkflow(webhook, { action, ...(parametres ?? {}), userId });
@@ -316,13 +316,13 @@ async function executeTool(
   if (name === "recherche_web") {
     const { query } = args as { query: string };
     try {
-      const r    = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`, { headers: { "User-Agent": "Autozen/2.0" } });
+      const r    = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`, { headers: { "User-Agent": "Orbe/2.0" } });
       const data = await r.json() as Record<string, unknown>;
       const parts: string[] = [];
       if (data.AbstractText) parts.push(String(data.AbstractText));
       if (data.Answer)       parts.push(`**Réponse directe:** ${data.Answer}`);
       if (!parts.length) {
-        const wr = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`, { headers: { "User-Agent": "Autozen/2.0" } });
+        const wr = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`, { headers: { "User-Agent": "Orbe/2.0" } });
         if (wr.ok) { const wd = await wr.json() as { extract?: string; title?: string }; if (wd.extract) parts.push(`**${wd.title}** — ${wd.extract.slice(0, 400)}`); }
       }
       return parts.join("\n\n") || `Aucun résultat pour "${query}".`;
@@ -332,7 +332,7 @@ async function executeTool(
   if (name === "meteo") {
     const { ville } = args as { ville: string };
     try {
-      const r    = await fetch(`https://wttr.in/${encodeURIComponent(ville)}?format=j1`, { headers: { "User-Agent": "Autozen/2.0" } });
+      const r    = await fetch(`https://wttr.in/${encodeURIComponent(ville)}?format=j1`, { headers: { "User-Agent": "Orbe/2.0" } });
       const data = await r.json() as Record<string, unknown>;
       const cur  = (data.current_condition as Record<string, unknown>[])?.[0];
       if (!cur) return `Météo indisponible pour "${ville}".`;
@@ -368,7 +368,7 @@ function buildTools(hasGoogle: boolean, hasWa: boolean): OpenAI.Chat.ChatComplet
   const tools: OpenAI.Chat.ChatCompletionTool[] = [
     // n8n — Muscles de l'IA
     T("lancer_workflow", "Déclencher un workflow n8n par son nom de webhook. Utilise pour les automatisations avancées.", {
-      workflow:  { type: "string", description: "Nom du webhook n8n (ex: autozen-relance-client)" },
+      workflow:  { type: "string", description: "Nom du webhook n8n (ex: orbe-relance-client)" },
       donnees:   { type: "object", description: "Données à envoyer au workflow" },
     }, ["workflow"]),
     T("automatiser", "Lancer une automatisation prédéfinie (relance client, rapport, newsletter, etc.)", {
@@ -377,7 +377,7 @@ function buildTools(hasGoogle: boolean, hasWa: boolean): OpenAI.Chat.ChatComplet
     }, ["action"]),
 
     // Contacts & CRM
-    T("mes_contacts",   "Voir tous les contacts enregistrés dans Autozen.", {}),
+    T("mes_contacts",   "Voir tous les contacts enregistrés dans Orbe.", {}),
     T("ajouter_contact", "Ajouter un contact.", { nom: { type: "string" }, telephone: { type: "string" }, email: { type: "string" }, notes: { type: "string" } }, ["nom"]),
     T("mon_pipeline",   "Voir le pipeline commercial et les deals.", {}),
     T("creer_deal",     "Créer un deal dans le pipeline.", { titre: { type: "string" }, montant: { type: "number" }, contact: { type: "string" }, etape: { type: "string", enum: ["prospection", "propose", "negociation", "gagne", "perdu"] } }, ["titre"]),
@@ -412,7 +412,7 @@ function buildTools(hasGoogle: boolean, hasWa: boolean): OpenAI.Chat.ChatComplet
 // ── System prompt ─────────────────────────────────────────────────────────────
 
 function buildSystemPrompt(date: string): string {
-  return `Tu es **Autozen**, une IA générative personnelle créée pour gérer la vie pro d'un indépendant ou PME française.
+  return `Tu es **Orbe**, une IA générative personnelle créée pour gérer la vie pro d'un indépendant ou PME française.
 
 📅 ${date}
 
@@ -574,7 +574,7 @@ export async function POST(req: NextRequest) {
       : NextResponse.json({ response: text, remaining, model: usedModel });
 
   } catch (err) {
-    console.error("[autozen]", err);
+    console.error("[orbe]", err);
     const errMsg = (err as Error)?.message ?? String(err);
     const isQuota = errMsg.includes("rate_limit") || errMsg.includes("429") || errMsg.includes("quota");
     return NextResponse.json({

@@ -31,7 +31,7 @@ function WorkflowToggle({ wf, onToggle, toggling }: { wf: N8nWorkflow; onToggle:
       <div className="flex items-center gap-3 min-w-0">
         <span className={`w-2 h-2 rounded-full shrink-0 ${wf.active ? "status-connected" : "status-disconnected"}`} />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-900 truncate">{wf.name.replace("Autozen — ", "")}</p>
+          <p className="text-sm font-medium text-slate-900 truncate">{wf.name.replace("Orbe — ", "")}</p>
           <p className="text-xs text-slate-400">{wf.id}</p>
         </div>
       </div>
@@ -369,13 +369,13 @@ function TwentyCrmSection() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("autozen_twenty");
+      const stored = localStorage.getItem("orbe_twenty");
       if (stored) { const d = JSON.parse(stored); setUrl(d.url ?? ""); setKey(d.key ?? ""); }
     } catch { /* ignore */ }
   }, []);
 
   function save() {
-    localStorage.setItem("autozen_twenty", JSON.stringify({ url, key }));
+    localStorage.setItem("orbe_twenty", JSON.stringify({ url, key }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -473,7 +473,7 @@ function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
                   }}
                   className="flex-1 text-xs bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl transition-all font-medium"
                 >
-                  Utiliser avec Autozen
+                  Utiliser avec Orbe
                 </button>
               </div>
             </div>
@@ -483,7 +483,7 @@ function TemplatesTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
       <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-5 text-center">
         <p className="text-sm text-slate-500 mb-1">💡 Conseil</p>
-        <p className="text-xs text-slate-400">Dans l&apos;assistant, vous pouvez demander <span className="text-blue-600 font-medium">&ldquo;Rédige-moi un devis pour [client]&rdquo;</span> et Autozen adaptera automatiquement le modèle à votre contexte.</p>
+        <p className="text-xs text-slate-400">Dans l&apos;assistant, vous pouvez demander <span className="text-blue-600 font-medium">&ldquo;Rédige-moi un devis pour [client]&rdquo;</span> et Orbe adaptera automatiquement le modèle à votre contexte.</p>
       </div>
     </div>
   );
@@ -890,7 +890,7 @@ export default function SettingsPage() {
                 {/* Profil business */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                   <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Personnalisation de l&apos;assistant</h2>
-                  <p className="text-xs text-slate-400 mb-5">Ces informations permettent à Autozen de vous répondre de façon plus pertinente.</p>
+                  <p className="text-xs text-slate-400 mb-5">Ces informations permettent à Orbe de vous répondre de façon plus pertinente.</p>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="text-xs font-medium text-slate-600 mb-1 block">Votre métier / poste</label>

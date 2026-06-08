@@ -32,7 +32,7 @@ const PLANS = [
     name: "Gratuit",
     price: "0€",
     period: "",
-    description: "Pour tester Autozen",
+    description: "Pour tester Orbe",
     features: [
       "2 intégrations",
       "10 actions par jour",
@@ -216,7 +216,7 @@ export default function PricingPage() {
             {[
               {
                 q: "C'est quoi la différence avec Lindy ou Zapier ?",
-                a: "Lindy coûte 50$/mois (minimum), est 100% en anglais et stocke vos données aux États-Unis. Autozen démarre à 9€, est conçu pour les pros francophones et vous permet de self-hoster (vos données restent chez vous). Zapier est un outil d'automatisation sans IA native — Autozen combine IA conversationnelle + automatisations en une seule interface.",
+                a: "Lindy coûte 50$/mois (minimum), est 100% en anglais et stocke vos données aux États-Unis. Orbe démarre à 9€, est conçu pour les pros francophones et vous permet de self-hoster (vos données restent chez vous). Zapier est un outil d'automatisation sans IA native — Orbe combine IA conversationnelle + automatisations en une seule interface.",
               },
               {
                 q: "Mes données sont-elles en sécurité ?",
@@ -227,7 +227,7 @@ export default function PricingPage() {
                 a: "Oui, sans préavis ni pénalité. Vous accédez à votre espace Stripe directement depuis les paramètres et annulez en 1 clic. Votre accès reste actif jusqu'à la fin de la période payée.",
               },
               {
-                q: "Autozen fonctionne-t-il avec mon iPhone / Mac ?",
+                q: "Orbe fonctionne-t-il avec mon iPhone / Mac ?",
                 a: "Oui. L'assistant est accessible depuis n'importe quel navigateur, et WhatsApp est disponible sur mobile. Le plan Solo inclut Apple iCloud (Calendrier + Contacts) via CalDAV.",
               },
               {
@@ -246,7 +246,7 @@ export default function PricingPage() {
 
         {/* Comparatif concurrents */}
         <div className="mt-20">
-          <h2 className="text-2xl font-bold text-white text-center mb-3">Autozen vs la concurrence</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-3">Orbe vs la concurrence</h2>
           <p className="text-zinc-500 text-center text-sm mb-10">Pourquoi payer 5× plus pour moins de fonctionnalités ?</p>
           <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
             <table className="w-full text-sm">
@@ -254,7 +254,7 @@ export default function PricingPage() {
                 <tr className="border-b border-white/[0.06]">
                   <th className="text-left px-5 py-4 text-zinc-400 font-medium w-1/4">Fonctionnalité</th>
                   {[
-                    { name: "Autozen", sub: "9€/mois", highlight: true },
+                    { name: "Orbe", sub: "9€/mois", highlight: true },
                     { name: "Lindy", sub: "49$/mois", highlight: false },
                     { name: "Make", sub: "9$/mois", highlight: false },
                     { name: "Zapier", sub: "19$/mois", highlight: false },
@@ -268,18 +268,18 @@ export default function PricingPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: "En français natif", autozen: "✅", lindy: "⚠️ partiel", make: "❌", zapier: "❌" },
-                  { feature: "RGPD / Données FR", autozen: "✅", lindy: "❌ US", make: "❌ US", zapier: "❌ US" },
-                  { feature: "Gmail + Calendar", autozen: "✅", lindy: "✅", make: "✅", zapier: "✅" },
-                  { feature: "WhatsApp Business", autozen: "✅", lindy: "✅", make: "⚠️ payant", zapier: "❌" },
-                  { feature: "Devis + TVA auto", autozen: "✅", lindy: "⚠️ basique", make: "❌", zapier: "❌" },
-                  { feature: "CRM intégré", autozen: "✅", lindy: "❌", make: "❌", zapier: "❌" },
-                  { feature: "Sans code", autozen: "✅", lindy: "✅", make: "❌", zapier: "⚠️ partiel" },
-                  { feature: "Auto-hébergeable", autozen: "✅", lindy: "❌", make: "❌", zapier: "❌" },
+                  { feature: "En français natif", orbe: "✅", lindy: "⚠️ partiel", make: "❌", zapier: "❌" },
+                  { feature: "RGPD / Données FR", orbe: "✅", lindy: "❌ US", make: "❌ US", zapier: "❌ US" },
+                  { feature: "Gmail + Calendar", orbe: "✅", lindy: "✅", make: "✅", zapier: "✅" },
+                  { feature: "WhatsApp Business", orbe: "✅", lindy: "✅", make: "⚠️ payant", zapier: "❌" },
+                  { feature: "Devis + TVA auto", orbe: "✅", lindy: "⚠️ basique", make: "❌", zapier: "❌" },
+                  { feature: "CRM intégré", orbe: "✅", lindy: "❌", make: "❌", zapier: "❌" },
+                  { feature: "Sans code", orbe: "✅", lindy: "✅", make: "❌", zapier: "⚠️ partiel" },
+                  { feature: "Auto-hébergeable", orbe: "✅", lindy: "❌", make: "❌", zapier: "❌" },
                 ].map((row, i) => (
                   <tr key={i} className={`border-b border-white/[0.04] ${i % 2 === 0 ? "bg-white/[0.01]" : ""}`}>
                     <td className="px-5 py-3.5 text-zinc-300 font-medium">{row.feature}</td>
-                    <td className="px-4 py-3.5 text-center font-semibold text-blue-400">{row.autozen}</td>
+                    <td className="px-4 py-3.5 text-center font-semibold text-blue-400">{row.orbe}</td>
                     <td className="px-4 py-3.5 text-center text-zinc-500">{row.lindy}</td>
                     <td className="px-4 py-3.5 text-center text-zinc-500">{row.make}</td>
                     <td className="px-4 py-3.5 text-center text-zinc-500">{row.zapier}</td>
@@ -291,7 +291,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-xs text-zinc-700 mt-12">
-          Une question ? <a href="mailto:hello@Autozen.app" className="text-blue-400 hover:underline">hello@Autozen.app</a>
+          Une question ? <a href="mailto:hello@Orbe.app" className="text-blue-400 hover:underline">hello@Orbe.app</a>
         </p>
       </main>
       <Footer />

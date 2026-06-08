@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
               messaging_product: "whatsapp",
               to: waNumber,
               type: "text",
-              text: { body: `⏰ *Rappel Autozen*\n${r.title}${r.note ? `\n${r.note}` : ""}` },
+              text: { body: `⏰ *Rappel Orbe*\n${r.title}${r.note ? `\n${r.note}` : ""}` },
             }),
           });
         }

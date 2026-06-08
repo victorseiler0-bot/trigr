@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { upsertN8nWorkflow, buildWaSendWorkflow, buildWaReadWorkflow, buildInstagramWorkflow } from "@/lib/n8n";
 
-// POST /api/n8n/setup — crée ou met à jour les 3 workflows Autozen dans n8n
+// POST /api/n8n/setup — crée ou met à jour les 3 workflows Orbe dans n8n
 export async function POST() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

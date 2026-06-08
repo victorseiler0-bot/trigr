@@ -201,7 +201,7 @@ export default function CrmPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">CRM <span className="text-blue-600">Autozen</span></h1>
+            <h1 className="text-3xl font-bold tracking-tight">CRM <span className="text-blue-600">Orbe</span></h1>
             <p className="text-slate-500 mt-1 text-sm">Tes contacts, stockés dans ton Google Drive.</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -467,7 +467,7 @@ export default function CrmPage() {
                 className="text-sm px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-600 hover:bg-blue-100 transition-all flex items-center gap-1.5"
               >
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Contacter avec Autozen
+                Contacter avec Orbe
               </button>
               {selected.telephone && (
                 <button

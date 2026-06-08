@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 export const maxDuration = 60;
 
-const ADMIN_KEY = process.env.CRON_SECRET || "autozen-internal";
+const ADMIN_KEY = process.env.CRON_SECRET || "orbe-internal";
 const SITE_URL  = process.env.NEXT_PUBLIC_SITE_URL || "https://trigr-eight.vercel.app";
 
 function getAI() {
@@ -53,9 +53,9 @@ const AGENTS = ["email", "messaging", "calendar", "crm", "finance", "knowledge",
 
 // ── Prompts des 5 agents ──────────────────────────────────────────────────────
 
-const CHEF_PROMPT = `Tu es Chef de Projet IA chez Autozen. Tu coordonnes la création d'agents IA parfaits pour PME françaises.
+const CHEF_PROMPT = `Tu es Chef de Projet IA chez Orbe. Tu coordonnes la création d'agents IA parfaits pour PME françaises.
 
-MISSION : Définir les objectifs précis de chaque agent spécialisé de l'assistant Autozen.
+MISSION : Définir les objectifs précis de chaque agent spécialisé de l'assistant Orbe.
 
 Pour chaque agent, retourne un JSON avec clé = agent_id :
 {
@@ -120,7 +120,7 @@ Retourne JSON :
 // ── Handler POST ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const key = req.headers.get("x-autozen-internal");
+  const key = req.headers.get("x-orbe-internal");
   if (key !== ADMIN_KEY) {
     return NextResponse.json({ error: "Clé admin requise" }, { status: 401 });
   }
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
     // Appel à /api/agent-config pour sauvegarder
     const deployRes = await fetch(`${SITE_URL}/api/agent-config`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-autozen-internal": ADMIN_KEY },
+      headers: { "Content-Type": "application/json", "x-orbe-internal": ADMIN_KEY },
       body: JSON.stringify({ configs, pipeline_run_id: runId }),
     });
     const deployData = await deployRes.json();
@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
       steps,
       eval_summary:     evalResult,
       deploy_result:    deployData,
-      message: `Pipeline terminé — ${deployCount}/7 agents déployés, score moyen ${avgScore}/100. L'IA Autozen a été améliorée.`,
+      message: `Pipeline terminé — ${deployCount}/7 agents déployés, score moyen ${avgScore}/100. L'IA Orbe a été améliorée.`,
     });
 
   } catch (err) {
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
 
 // GET — statut du pipeline
 export async function GET(req: NextRequest) {
-  const key = req.headers.get("x-autozen-internal");
+  const key = req.headers.get("x-orbe-internal");
   if (key !== ADMIN_KEY) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }

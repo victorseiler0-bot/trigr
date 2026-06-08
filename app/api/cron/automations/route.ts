@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
           const completion = await ai.chat.completions.create({
             model,
             messages: [
-              { role: "system", content: `Tu es Autozen, assistant IA. Date: ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}. Réponds en français, concis.` },
+              { role: "system", content: `Tu es Orbe, assistant IA. Date: ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}. Réponds en français, concis.` },
               { role: "user", content: auto.prompt },
             ],
             max_tokens: 500,

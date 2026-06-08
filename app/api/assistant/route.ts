@@ -61,7 +61,7 @@ type UserProfile = { businessName?: string; profession?: string; city?: string; 
 function buildSystemPrompt(compact = false, contacts: SavedContact[] = [], profile: UserProfile = {}, intent = "general") {
   const date = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
   if (compact) {
-    return `Tu es Autozen, assistant IA. Réponds en français, concis. Date: ${date}. Jamais de placeholder. Demande si info manquante.`;
+    return `Tu es Orbe, assistant IA. Réponds en français, concis. Date: ${date}. Jamais de placeholder. Demande si info manquante.`;
   }
   return getAgentSystemPrompt(intent as import("@/lib/agents").AgentIntent, date, contacts, profile);
 }
@@ -593,7 +593,7 @@ async function executeTool(
       return JSON.stringify({ conversations: threads });
     }
     // Fallback n8n + token direct Meta
-    const result = await triggerN8nWebhook("Autozen-ig", { action: "read", token: igMeta!.token, pageId: igMeta!.pageId });
+    const result = await triggerN8nWebhook("Orbe-ig", { action: "read", token: igMeta!.token, pageId: igMeta!.pageId });
     return JSON.stringify(result);
   }
 
@@ -624,7 +624,7 @@ async function executeTool(
       return r?.message_id ? JSON.stringify({ success: true }) : JSON.stringify({ error: r?.error ?? "Erreur envoi" });
     }
     // Fallback n8n
-    const result = await triggerN8nWebhook("Autozen-ig", { action: "send", token: igMeta!.token, pageId: igMeta!.pageId, recipientId, message: text });
+    const result = await triggerN8nWebhook("Orbe-ig", { action: "send", token: igMeta!.token, pageId: igMeta!.pageId, recipientId, message: text });
     return JSON.stringify(result);
   }
 
@@ -636,14 +636,14 @@ async function executeTool(
       const q = prenom.toLowerCase().trim();
       const results: { nom: string; email?: string; telephone?: string; source: string }[] = [];
 
-      // 1. Contacts Autozen (CRM local) — toujours disponible
+      // 1. Contacts Orbe (CRM local) — toujours disponible
       try {
         const clerkInst = await clerkClient();
         const u = await clerkInst.users.getUser(userId);
         const crmContacts = ((u.privateMetadata as Record<string, unknown>).userContacts as SavedContact[]) ?? [];
         for (const c of crmContacts) {
           if (c.name.toLowerCase().includes(q)) {
-            results.push({ nom: c.name, email: c.email, telephone: c.phone, source: "CRM Autozen" });
+            results.push({ nom: c.name, email: c.email, telephone: c.phone, source: "CRM Orbe" });
           }
         }
       } catch { /* ignore */ }
@@ -761,7 +761,7 @@ async function executeTool(
     const { query } = args as { query: string };
     try {
       const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
-      const r = await fetch(ddgUrl, { headers: { "User-Agent": "Autozen/1.0" } });
+      const r = await fetch(ddgUrl, { headers: { "User-Agent": "Orbe/1.0" } });
       const data = await r.json() as Record<string, unknown>;
       const results: string[] = [];
       if (data.AbstractText) results.push(`**Résumé :** ${data.AbstractText}`);
@@ -778,7 +778,7 @@ async function executeTool(
       if (results.length === 0) {
         try {
           const wikiUrl = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-          const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Autozen/1.0" } });
+          const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Orbe/1.0" } });
           if (wr.ok) {
             const wd = await wr.json() as { extract?: string; title?: string; content_urls?: { desktop?: { page?: string } } };
             if (wd.extract) {
@@ -800,7 +800,7 @@ async function executeTool(
     const { query } = args as { query: string };
     try {
       const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=3`;
-      const r = await fetch(url, { headers: { "User-Agent": "Autozen/1.0", Accept: "application/json" } });
+      const r = await fetch(url, { headers: { "User-Agent": "Orbe/1.0", Accept: "application/json" } });
       if (!r.ok) return JSON.stringify({ error: "API entreprise indisponible." });
       const data = await r.json() as Record<string, unknown>;
       const results = (data.results as Array<Record<string, unknown>>) ?? [];
@@ -830,7 +830,7 @@ async function executeTool(
     const { ville } = args as { ville: string };
     try {
       const loc = encodeURIComponent(ville || "Paris");
-      const r = await fetch(`https://wttr.in/${loc}?format=j1`, { headers: { "User-Agent": "Autozen/1.0", Accept: "application/json" } });
+      const r = await fetch(`https://wttr.in/${loc}?format=j1`, { headers: { "User-Agent": "Orbe/1.0", Accept: "application/json" } });
       if (!r.ok) return `Météo indisponible pour "${ville}".`;
       const data = await r.json() as Record<string, unknown>;
       const current = (data.current_condition as Record<string, unknown>[])?.[0];
@@ -859,7 +859,7 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     try {
       const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/reminders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-Autozen-internal": process.env.CRON_SECRET ?? "" },
+        headers: { "Content-Type": "application/json", "x-Orbe-internal": process.env.CRON_SECRET ?? "" },
         body: JSON.stringify({ title: titre, note, dueAt, channel: canal ?? "push" }),
       });
       if (!r.ok) throw new Error(await r.text());
@@ -872,7 +872,7 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
   if (name === "voir_rappels") {
     try {
       const r = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/reminders`, {
-        headers: { "x-Autozen-internal": process.env.CRON_SECRET ?? "" },
+        headers: { "x-Orbe-internal": process.env.CRON_SECRET ?? "" },
       });
       const d = await r.json() as { reminders: { title: string; dueAt: string; note?: string }[] };
       if (!d.reminders?.length) return "Aucun rappel en attente.";
@@ -905,7 +905,7 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
     } catch { return "Erreur lors de la recherche dans les emails."; }
   }
 
-  // ── CRM Autozen (Clerk direct) ──
+  // ── CRM Orbe (Clerk direct) ──
   if (name === "voir_contacts_crm") {
     const clerk = await clerkClient();
     const u = await clerk.users.getUser(userId);
@@ -1069,7 +1069,7 @@ Sois concis et actionnable. Maximum 200 mots.`;
     const googleToken = await clerkClient().then(c => c.users.getUserOauthAccessToken(userId, "google")).then(d => d.data[0]?.token ?? null);
     if (!googleToken) return "Gmail non connecté. Va dans /settings pour connecter ton compte Google.";
     try {
-      const subject = `Devis Autozen — ${new Date().toLocaleDateString("fr-FR")}`;
+      const subject = `Devis Orbe — ${new Date().toLocaleDateString("fr-FR")}`;
       const body = `Bonjour${nomDest ? ` ${nomDest}` : ""},\n\nVeuillez trouver ci-joint notre devis.\n\n${devis}\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement`;
       const email = [`To: ${emailDest}`, `Subject: ${subject}`, `Content-Type: text/plain; charset=utf-8`, ``, body].join("\n");
       const encoded = btoa(unescape(encodeURIComponent(email))).replace(/\+/g, "-").replace(/\//g, "_");
@@ -1220,7 +1220,7 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
   if (hasGitHub) {
     tools.push(
       { type: "function", function: { name: "voir_repos_github", description: "Lister les repos GitHub de l'utilisateur (triés par dernière mise à jour).", parameters: { type: "object" as const, properties: {} } } },
-      { type: "function", function: { name: "lire_issues_github", description: "Lister les issues GitHub. Sans repo = toutes les issues assignées à l'utilisateur.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo, ex: victorseiler0-bot/Autozen" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } } } } },
+      { type: "function", function: { name: "lire_issues_github", description: "Lister les issues GitHub. Sans repo = toutes les issues assignées à l'utilisateur.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo, ex: victorseiler0-bot/Orbe" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } } } } },
       { type: "function", function: { name: "creer_issue_github", description: "Créer une issue dans un repo GitHub.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo" }, title: { type: "string" }, body: { type: "string" }, labels: { type: "array", items: { type: "string" } } }, required: ["repo", "title"] } } },
       { type: "function", function: { name: "voir_prs_github", description: "Lister les pull requests d'un repo GitHub.", parameters: { type: "object" as const, properties: { repo: { type: "string", description: "owner/repo" }, state: { type: "string", enum: ["open", "closed", "all"] }, limit: { type: "number" } }, required: ["repo"] } } }
     );
@@ -1257,12 +1257,12 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
 
   // Recherche contact par nom — always available
   tools.push(
-    { type: "function", function: { name: "rechercher_contact_par_nom", description: "Chercher un contact par prénom ou nom dans le CRM Autozen, Google Contacts et les échanges Gmail récents. UTILISER OBLIGATOIREMENT quand l'utilisateur mentionne un prénom sans email ni numéro.", parameters: { type: "object" as const, properties: { prenom: { type: "string", description: "Le prénom ou nom à rechercher" } }, required: ["prenom"] } } }
+    { type: "function", function: { name: "rechercher_contact_par_nom", description: "Chercher un contact par prénom ou nom dans le CRM Orbe, Google Contacts et les échanges Gmail récents. UTILISER OBLIGATOIREMENT quand l'utilisateur mentionne un prénom sans email ni numéro.", parameters: { type: "object" as const, properties: { prenom: { type: "string", description: "Le prénom ou nom à rechercher" } }, required: ["prenom"] } } }
   );
 
   // Notes — always available
   tools.push(
-    { type: "function", function: { name: "sauvegarder_note", description: "Sauvegarder une note, une idée, un résumé ou un document dans Autozen.", parameters: { type: "object" as const, properties: { titre: { type: "string" }, contenu: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "Ex: ['client', 'réunion', 'devis']" } }, required: ["titre", "contenu"] } } },
+    { type: "function", function: { name: "sauvegarder_note", description: "Sauvegarder une note, une idée, un résumé ou un document dans Orbe.", parameters: { type: "object" as const, properties: { titre: { type: "string" }, contenu: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "Ex: ['client', 'réunion', 'devis']" } }, required: ["titre", "contenu"] } } },
     { type: "function", function: { name: "voir_mes_notes", description: "Voir les notes sauvegardées.", parameters: { type: "object" as const, properties: {} } } }
   );
 
@@ -1273,10 +1273,10 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
     { type: "function", function: { name: "trouver_disponibilite", description: "Trouver des créneaux libres dans l'agenda Google Calendar pour planifier une réunion ou un RDV.", parameters: { type: "object" as const, properties: { dureeMinutes: { type: "number", description: "Durée en minutes (défaut: 60)" }, dansJours: { type: "number", description: "Horizon de recherche en jours (défaut: 5)" } } } } }
   );
 
-  // CRM Autozen — always available
+  // CRM Orbe — always available
   tools.push(
-    { type: "function", function: { name: "voir_contacts_crm", description: "Voir les contacts dans le CRM Autozen (nom, email, téléphone, entreprise, statut).", parameters: { type: "object" as const, properties: {} } } },
-    { type: "function", function: { name: "creer_contact_crm", description: "Ajouter un nouveau contact dans le CRM Autozen.", parameters: { type: "object" as const, properties: { nom: { type: "string" }, email: { type: "string" }, telephone: { type: "string", description: "Numéro sans + ni espaces" }, entreprise: { type: "string" }, statut: { type: "string", enum: ["prospect", "client", "partenaire", "inactif"] }, notes: { type: "string" } }, required: ["nom"] } } },
+    { type: "function", function: { name: "voir_contacts_crm", description: "Voir les contacts dans le CRM Orbe (nom, email, téléphone, entreprise, statut).", parameters: { type: "object" as const, properties: {} } } },
+    { type: "function", function: { name: "creer_contact_crm", description: "Ajouter un nouveau contact dans le CRM Orbe.", parameters: { type: "object" as const, properties: { nom: { type: "string" }, email: { type: "string" }, telephone: { type: "string", description: "Numéro sans + ni espaces" }, entreprise: { type: "string" }, statut: { type: "string", enum: ["prospect", "client", "partenaire", "inactif"] }, notes: { type: "string" } }, required: ["nom"] } } },
     { type: "function", function: { name: "voir_pipeline_crm", description: "Voir tous les deals du pipeline commercial (prospection, devis, négociation, gagné, perdu).", parameters: { type: "object" as const, properties: {} } } },
     { type: "function", function: { name: "creer_deal_crm", description: "Créer un deal dans le pipeline commercial.", parameters: { type: "object" as const, properties: { titre: { type: "string" }, contactName: { type: "string" }, amount: { type: "number", description: "Montant en euros" }, stage: { type: "string", enum: ["prospection", "propose", "negociation", "gagne", "perdu"] }, notes: { type: "string" } }, required: ["titre"] } } }
   );

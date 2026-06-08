@@ -81,7 +81,7 @@ export default function LoginPage() {
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
           <div className="text-center mb-7">
             <h1 className="text-xl font-bold text-slate-900 mb-1">Se connecter</h1>
-            <p className="text-sm text-slate-500">Bienvenue sur Autozen</p>
+            <p className="text-sm text-slate-500">Bienvenue sur Orbe</p>
           </div>
 
           {/* Google */}

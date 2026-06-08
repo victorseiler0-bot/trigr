@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   if (!subs.length) return NextResponse.json({ sent: 0 });
 
-  const payload = JSON.stringify({ title: title ?? "Autozen", body: body ?? "", url: url ?? "/dashboard", tag });
+  const payload = JSON.stringify({ title: title ?? "Orbe", body: body ?? "", url: url ?? "/dashboard", tag });
 
   const results = await Promise.allSettled(
     subs.map(sub => webpush.sendNotification(sub, payload))

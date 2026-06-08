@@ -3,8 +3,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata = {
-  title: "Politique de confidentialité — Autozen",
-  description: "Comment Autozen collecte, utilise et protège vos données personnelles. Conformément au RGPD.",
+  title: "Politique de confidentialité — Orbe",
+  description: "Comment Orbe collecte, utilise et protège vos données personnelles. Conformément au RGPD.",
 };
 
 export default function PrivacyPage() {
@@ -23,11 +23,11 @@ export default function PrivacyPage() {
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">1. Responsable du traitement</h2>
-              <p>Le responsable du traitement des données collectées via le service Autozen est :</p>
+              <p>Le responsable du traitement des données collectées via le service Orbe est :</p>
               <div className="mt-3 glass rounded-xl p-4 text-zinc-400">
                 <p><strong className="text-zinc-200">Victor Seiler</strong></p>
                 <p>Email : victorseiler0@gmail.com</p>
-                <p>Site : Autozen-eight.vercel.app</p>
+                <p>Site : Orbe-eight.vercel.app</p>
               </div>
             </section>
 
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
                   },
                   {
                     title: "Données de facturation",
-                    desc: "En cas d'abonnement payant, la facturation est gérée par Stripe. Autozen ne stocke jamais vos données bancaires directement."
+                    desc: "En cas d'abonnement payant, la facturation est gérée par Stripe. Orbe ne stocke jamais vos données bancaires directement."
                   },
                 ].map((item) => (
                   <div key={item.title} className="border-l-2 border-blue-500/30 pl-4">
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
               <h2 className="text-lg font-semibold text-white mb-3">4. Base légale</h2>
               <p>Nous traitons vos données sur les bases légales suivantes (conformément à l&apos;article 6 du RGPD) :</p>
               <ul className="mt-3 space-y-2">
-                <li><strong className="text-zinc-200">Exécution du contrat</strong> — traitement nécessaire pour vous fournir le service Autozen.</li>
+                <li><strong className="text-zinc-200">Exécution du contrat</strong> — traitement nécessaire pour vous fournir le service Orbe.</li>
                 <li><strong className="text-zinc-200">Consentement</strong> — pour les cookies analytiques et les communications marketing (révocable à tout moment).</li>
                 <li><strong className="text-zinc-200">Intérêt légitime</strong> — sécurité, prévention des fraudes, amélioration du service.</li>
                 <li><strong className="text-zinc-200">Obligation légale</strong> — conservation des données comptables et fiscales.</li>
@@ -129,7 +129,7 @@ export default function PrivacyPage() {
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">6. Sous-traitants et transferts</h2>
-              <p className="mb-3">Autozen fait appel aux sous-traitants suivants pour fournir le service :</p>
+              <p className="mb-3">Orbe fait appel aux sous-traitants suivants pour fournir le service :</p>
               <div className="space-y-2">
                 {[
                   { name: "Anthropic", role: "Modèles IA (Claude)", lieu: "États-Unis", garantie: "Clauses contractuelles types UE" },
@@ -172,14 +172,14 @@ export default function PrivacyPage() {
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">8. Cookies</h2>
-              <p className="mb-3">Autozen utilise trois catégories de cookies :</p>
+              <p className="mb-3">Orbe utilise trois catégories de cookies :</p>
               <div className="space-y-3">
                 {[
                   {
                     type: "Cookies essentiels",
                     couleur: "green",
                     desc: "Nécessaires au fonctionnement du service (session, authentification). Ne peuvent pas être refusés.",
-                    exemples: "autozen_session, autozen_auth"
+                    exemples: "orbe_session, orbe_auth"
                   },
                   {
                     type: "Cookies analytiques",
@@ -191,7 +191,7 @@ export default function PrivacyPage() {
                     type: "Cookies de préférences",
                     couleur: "blue",
                     desc: "Mémorisent vos préférences (thème, langue, consentement cookies). Supprimés à la fin de session ou après 13 mois.",
-                    exemples: "autozen_cookie_consent"
+                    exemples: "orbe_cookie_consent"
                   },
                 ].map((c) => (
                   <div key={c.type} className="border-l-2 border-blue-500/30 pl-4">

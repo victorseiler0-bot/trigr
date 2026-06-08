@@ -28,7 +28,7 @@ async function setReminders(userId: string, reminders: Reminder[]) {
 
 export async function GET(req: NextRequest) {
   // Internal call from assistant (server-side)
-  const internal = req.headers.get("x-Autozen-internal");
+  const internal = req.headers.get("x-Orbe-internal");
   if (internal && internal === process.env.CRON_SECRET) {
     // Return all non-done reminders across all users — not applicable for GET per user
     // Fall through to normal auth

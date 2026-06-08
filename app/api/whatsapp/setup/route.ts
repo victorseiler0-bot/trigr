@@ -10,7 +10,7 @@ export async function POST() {
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "https://Autozen-eight.vercel.app";
+    : "https://Orbe-eight.vercel.app";
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (!token || !phoneId) {

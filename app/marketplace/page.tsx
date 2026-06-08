@@ -167,7 +167,7 @@ const TEMPLATES: Template[] = [
   {
     id: "devis-artisan",
     name: "Devis Artisan Instantané",
-    desc: "Client WhatsApp décrit sa demande → Autozen génère un devis PDF et l'envoie par email en 30s.",
+    desc: "Client WhatsApp décrit sa demande → Orbe génère un devis PDF et l'envoie par email en 30s.",
     category: "Artisans",
     plan: "pro",
     icon: "🔧",
@@ -307,7 +307,7 @@ export default function MarketplacePage() {
             {TEMPLATES.length} automatisations disponibles
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Marketplace <span className="text-blue-600">Autozen</span>
+            Marketplace <span className="text-blue-600">Orbe</span>
           </h1>
           <p className="text-lg text-slate-500 max-w-2xl mx-auto">
             Automatisations prêtes à l'emploi pour freelancers et PMEs. Active en 1 clic, fonctionne immédiatement.

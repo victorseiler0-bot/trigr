@@ -8,7 +8,7 @@ type ServiceStatus = { name: string; status: "ok" | "degraded" | "down" | "check
 
 const SERVICES_INITIAL: ServiceStatus[] = [
   { name: "Assistant IA (Groq)", status: "checking" },
-  { name: "API Autozen", status: "checking" },
+  { name: "API Orbe", status: "checking" },
   { name: "Authentification (Clerk)", status: "checking" },
   { name: "WhatsApp Business", status: "checking" },
   { name: "Gmail / Google", status: "checking" },
@@ -38,14 +38,14 @@ export default function StatusPage() {
     async function check() {
       const updated = [...SERVICES_INITIAL];
 
-      // API Autozen
+      // API Orbe
       try {
         const t = Date.now();
         const r = await fetch("/api/health");
         const latency = Date.now() - t;
-        if (r.ok) updated[1] = { name: "API Autozen", status: "ok", latency };
-        else updated[1] = { name: "API Autozen", status: "degraded", latency };
-      } catch { updated[1] = { name: "API Autozen", status: "down" }; }
+        if (r.ok) updated[1] = { name: "API Orbe", status: "ok", latency };
+        else updated[1] = { name: "API Orbe", status: "degraded", latency };
+      } catch { updated[1] = { name: "API Orbe", status: "down" }; }
 
       // Groq
       try {

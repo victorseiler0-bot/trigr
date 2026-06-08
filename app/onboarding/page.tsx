@@ -108,7 +108,7 @@ export default function OnboardingPage() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">Bonjour {firstName} !</h1>
           <p className="text-sm text-zinc-400 leading-relaxed mb-6">
-            Autozen est ton assistant IA personnel en français. En 2 minutes, il sera prêt à gérer tes emails, agenda et messages à ta place.
+            Orbe est ton assistant IA personnel en français. En 2 minutes, il sera prêt à gérer tes emails, agenda et messages à ta place.
           </p>
           <div className="grid grid-cols-3 gap-3 mb-8">
             {[

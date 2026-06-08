@@ -21,7 +21,7 @@ const WORKFLOWS = [
     id: "nouveau-prospect",
     icon: "🎯",
     name: "Nouveau prospect automatique",
-    desc: "Quand un prospect remplit un formulaire, Autozen génère un email de bienvenue personnalisé par IA et l'enregistre dans votre CRM.",
+    desc: "Quand un prospect remplit un formulaire, Orbe génère un email de bienvenue personnalisé par IA et l'enregistre dans votre CRM.",
     tags: ["Email IA", "CRM", "Automatique"],
     color: "from-blue-500/10 to-cyan-500/10",
     border: "border-blue-200",
@@ -38,7 +38,7 @@ const WORKFLOWS = [
     color: "from-emerald-500/10 to-teal-500/10",
     border: "border-emerald-200",
     trigger: "Cron — chaque lundi à 8h00",
-    steps: ["Se déclenche chaque lundi matin", "Appelle l'API Autozen", "Génère le rapport de la semaine"],
+    steps: ["Se déclenche chaque lundi matin", "Appelle l'API Orbe", "Génère le rapport de la semaine"],
     webhookPath: null,
   },
   {

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Produit introuvable." }, { status: 400 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://Autozen-eight.vercel.app";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://Orbe-eight.vercel.app";
     const stripe = getStripe();
 
     const lineItems = [

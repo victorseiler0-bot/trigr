@@ -5,7 +5,7 @@ const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 const DRIVE_API  = "https://www.googleapis.com/drive/v3";
 const PEOPLE_API = "https://people.googleapis.com/v1";
 
-const SHEET_TITLE = "Autozen CRM";
+const SHEET_TITLE = "Orbe CRM";
 const COLUMNS = ["ID","Nom","Email","Entreprise","Téléphone","Statut","Tags","Dernière interaction","Notes","Créé le"];
 
 type GContact = {

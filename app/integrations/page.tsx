@@ -246,7 +246,7 @@ export default function IntegrationsPage() {
                 Connectez vos outils
               </h1>
               <p className="text-slate-500 text-base">
-                Connexion OAuth sécurisée — vos identifiants ne transitent jamais par Autozen.
+                Connexion OAuth sécurisée — vos identifiants ne transitent jamais par Orbe.
               </p>
             </div>
             {/* Stats */}
@@ -412,8 +412,8 @@ export default function IntegrationsPage() {
           <div>
             <p className="text-sm font-semibold text-slate-900 mb-1">Connexions 100 % sécurisées</p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Chaque connexion passe par OAuth 2.0 officiel — vous vous authentifiez directement sur le service (Google, Slack, etc.), jamais sur Autozen.
-              Les tokens sont chiffrés par Pipedream Connect et stockés sous votre identifiant anonymisé. Autozen ne voit jamais vos mots de passe.
+              Chaque connexion passe par OAuth 2.0 officiel — vous vous authentifiez directement sur le service (Google, Slack, etc.), jamais sur Orbe.
+              Les tokens sont chiffrés par Pipedream Connect et stockés sous votre identifiant anonymisé. Orbe ne voit jamais vos mots de passe.
             </p>
           </div>
         </div>

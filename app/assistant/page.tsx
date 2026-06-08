@@ -239,16 +239,16 @@ function saveSession(msgs: Msg[]) {
   const title = msgs.find(m => m.role === "user")?.content.slice(0, 55) ?? "Conversation";
   const session: ConvSession = { id: Date.now().toString(), title, messages: msgs.slice(-30), ts: Date.now() };
   try {
-    const stored = localStorage.getItem("autozen_sessions");
+    const stored = localStorage.getItem("orbe_sessions");
     const sessions: ConvSession[] = stored ? JSON.parse(stored) : [];
     sessions.unshift(session);
-    localStorage.setItem("autozen_sessions", JSON.stringify(sessions.slice(0, 15)));
+    localStorage.setItem("orbe_sessions", JSON.stringify(sessions.slice(0, 15)));
   } catch { /* ignore */ }
 }
 
 function loadSessions(): ConvSession[] {
   try {
-    const stored = localStorage.getItem("autozen_sessions");
+    const stored = localStorage.getItem("orbe_sessions");
     return stored ? JSON.parse(stored) : [];
   } catch { return []; }
 }
@@ -257,9 +257,9 @@ function loadSessions(): ConvSession[] {
 function exportConversation(msgs: Msg[]) {
   if (msgs.length === 0) return;
   const date = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
-  const lines: string[] = ["Conversation Autozen — " + date, "=".repeat(40), ""];
+  const lines: string[] = ["Conversation Orbe — " + date, "=".repeat(40), ""];
   for (const m of msgs) {
-    lines.push(m.role === "user" ? "Vous :" : "Autozen :");
+    lines.push(m.role === "user" ? "Vous :" : "Orbe :");
     lines.push(m.content);
     lines.push("");
   }
@@ -267,7 +267,7 @@ function exportConversation(msgs: Msg[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "Autozen-conversation-" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.download = "Orbe-conversation-" + new Date().toISOString().slice(0, 10) + ".txt";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -298,7 +298,7 @@ export default function AssistantPage() {
   // Load sessions + history on mount + ?prefill= URL param
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("autozen_history");
+      const saved = localStorage.getItem("orbe_history");
       if (saved) {
         const parsed = JSON.parse(saved) as Msg[];
         if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
@@ -307,7 +307,7 @@ export default function AssistantPage() {
     setSessions(loadSessions());
     setHistoryLoaded(true);
 
-    // Pre-fill input from URL param (e.g. from CRM "Contacter avec Autozen")
+    // Pre-fill input from URL param (e.g. from CRM "Contacter avec Orbe")
     const params = new URLSearchParams(window.location.search);
     const prefill = params.get("prefill");
     if (prefill) {
@@ -319,7 +319,7 @@ export default function AssistantPage() {
   // Save history to localStorage on change
   useEffect(() => {
     if (!historyLoaded) return;
-    try { localStorage.setItem("autozen_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
+    try { localStorage.setItem("orbe_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
   }, [messages, historyLoaded]);
 
   // Detect connected integrations (server-side check more reliable)
@@ -359,7 +359,7 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      const r = await fetch("/api/autozen", {
+      const r = await fetch("/api/orbe", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),
@@ -476,23 +476,23 @@ export default function AssistantPage() {
     }
     setMessages([]);
     setActiveSessionId(null);
-    try { localStorage.removeItem("autozen_history"); } catch { /* */ }
+    try { localStorage.removeItem("orbe_history"); } catch { /* */ }
   }
 
   function handleLoadSession(s: ConvSession) {
     if (messages.length > 0) { saveSession(messages); refreshSessions(); }
     setMessages(s.messages);
     setActiveSessionId(s.id);
-    try { localStorage.setItem("autozen_history", JSON.stringify(s.messages)); } catch { /* */ }
+    try { localStorage.setItem("orbe_history", JSON.stringify(s.messages)); } catch { /* */ }
   }
 
   function handleDeleteSession(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     try {
-      const stored = localStorage.getItem("autozen_sessions");
+      const stored = localStorage.getItem("orbe_sessions");
       const arr: ConvSession[] = stored ? JSON.parse(stored) : [];
       const updated = arr.filter(s => s.id !== id);
-      localStorage.setItem("autozen_sessions", JSON.stringify(updated));
+      localStorage.setItem("orbe_sessions", JSON.stringify(updated));
       setSessions(updated);
       if (activeSessionId === id) { setMessages([]); setActiveSessionId(null); }
     } catch { /* */ }
@@ -809,7 +809,7 @@ export default function AssistantPage() {
         </form>
 
         <p className="text-xs text-slate-400 text-center mt-3">
-          Autozen peut faire des erreurs. Vérifie les infos importantes.
+          Orbe peut faire des erreurs. Vérifie les infos importantes.
         </p>
       </main>
       </div>

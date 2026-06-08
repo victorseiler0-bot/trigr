@@ -60,7 +60,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-100">
-          <p className="text-slate-400 text-xs">© 2026 Autozen — Fait en France 🇫🇷</p>
+          <p className="text-slate-400 text-xs">© 2026 Orbe — Fait en France 🇫🇷</p>
           <p className="text-slate-400 text-xs">Données hébergées chez vous · Conforme RGPD</p>
         </div>
       </div>

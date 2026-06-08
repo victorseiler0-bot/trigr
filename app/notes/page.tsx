@@ -93,7 +93,7 @@ export default function NotesPage() {
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center gap-4">
               <span className="text-5xl">📝</span>
-              <h2 className="text-lg font-semibold text-slate-900">Tes notes Autozen</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Tes notes Orbe</h2>
               <p className="text-sm text-slate-500 max-w-sm">Dis à l&apos;assistant "Prends une note sur..." et retrouve tout ici. Tes notes restent privées et chiffrées.</p>
               <Link href="/assistant?prefill=Prends une note : " className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all">
                 Créer ma première note →

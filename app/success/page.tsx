@@ -54,7 +54,7 @@ function SuccessContent() {
   // Marketplace one-time purchase
   const productName = product ?? "ton automatisation";
   const whatsappMsg = encodeURIComponent(
-    `Bonjour, je viens d'acheter "${productName}" sur Autozen. Pouvez-vous me livrer le fichier ?`
+    `Bonjour, je viens d'acheter "${productName}" sur Orbe. Pouvez-vous me livrer le fichier ?`
   );
 
   return (

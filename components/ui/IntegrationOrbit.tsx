@@ -46,7 +46,7 @@ export default function IntegrationOrbit() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">en un seul endroit</span>
           </h2>
           <p className="text-zinc-400 text-base mb-8 max-w-md">
-            Gmail, WhatsApp, Notion, Slack, GitHub, Stripe — Autozen unifie ton stack et automatise à ta place. RGPD-friendly, hébergé en Europe.
+            Gmail, WhatsApp, Notion, Slack, GitHub, Stripe — Orbe unifie ton stack et automatise à ta place. RGPD-friendly, hébergé en Europe.
           </p>
           <div className="flex flex-wrap gap-3">
             <a href="/assistant" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-all text-sm shadow-[0_0_20px_rgba(59,130,246,0.3)]">

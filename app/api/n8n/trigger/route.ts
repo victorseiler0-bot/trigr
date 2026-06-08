@@ -4,9 +4,9 @@ import { triggerN8nWebhook } from "@/lib/n8n";
 
 // Workflow slug → n8n webhook path
 const WEBHOOKS: Record<string, string> = {
-  wa_read: "Autozen-wa-read",
-  wa_send: "Autozen-wa-send",
-  ig: "Autozen-ig",
+  wa_read: "Orbe-wa-read",
+  wa_send: "Orbe-wa-send",
+  ig: "Orbe-ig",
 };
 
 export async function POST(req: NextRequest) {

@@ -1,10 +1,10 @@
 {
-  "name": "Autozen — Assistant IA",
-  "short_name": "Autozen",
+  "name": "Orbe — Assistant IA",
+  "short_name": "Orbe",
   "description": "Ton assistant IA personnel : Gmail, WhatsApp, Agenda — RGPD-friendly",
   "start_url": "/assistant",
   "display": "standalone",
-  "background_color": "#09090b",
+  "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "orientation": "portrait",
   "icons": [

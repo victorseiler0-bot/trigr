@@ -1,5 +1,5 @@
 /**
- * Autozen AI Engine — IA Générative Custom
+ * Orbe AI Engine — IA Générative Custom
  * Architecture 2026 : fallback chain multi-modèle + mémoire sémantique + RAG
  *
  * Inspiré des meilleures pratiques : Claude (instructions), GPT-4 (few-shot),
@@ -293,7 +293,7 @@ export async function summarizeConversation(
 
   const conversationText = messages
     .slice(-10)
-    .map(m => `${m.role === "user" ? "Utilisateur" : "Autozen"}: ${m.content}`)
+    .map(m => `${m.role === "user" ? "Utilisateur" : "Orbe"}: ${m.content}`)
     .join("\n");
 
   try {
