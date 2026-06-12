@@ -17,6 +17,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/agent-config",
   "/api/cron/(.*)",
   "/api/whatsapp",
+  "/api/data-deletion",
+  "/data-deletion(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
