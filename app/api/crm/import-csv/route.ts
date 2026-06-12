@@ -85,9 +85,19 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "Fichier requis" }, { status: 400 });
 
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+  if (file.size > MAX_SIZE) {
+    return NextResponse.json({ error: "Fichier trop volumineux (max 5 Mo)" }, { status: 413 });
+  }
+
   const text = await file.text();
   const rows = parseCSV(text);
   if (rows.length < 2) return NextResponse.json({ error: "CSV vide ou invalide" }, { status: 400 });
+
+  const MAX_ROWS = 10_000;
+  if (rows.length > MAX_ROWS + 1) {
+    return NextResponse.json({ error: `Trop de lignes (max ${MAX_ROWS})` }, { status: 413 });
+  }
 
   const [headerRow, ...dataRows] = rows;
   const colMap = detectColumns(headerRow);

@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         : "✅ Configuration correcte",
     });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    console.error("[debug-wa]", err);
+    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
   }
 }

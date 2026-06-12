@@ -19,14 +19,15 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
 
   const appSecret = process.env.WHATSAPP_APP_SECRET;
-  if (appSecret) {
-    const sig      = req.headers.get("x-hub-signature-256") ?? "";
-    const expected = "sha256=" + createHmac("sha256", appSecret).update(rawBody).digest("hex");
-    const sigBuf   = Buffer.from(sig.padEnd(expected.length));
-    const expBuf   = Buffer.from(expected);
-    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  if (!appSecret) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const sig      = req.headers.get("x-hub-signature-256") ?? "";
+  const expected = "sha256=" + createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const sigBuf   = Buffer.from(sig.padEnd(expected.length));
+  const expBuf   = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;

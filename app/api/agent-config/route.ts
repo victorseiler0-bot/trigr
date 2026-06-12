@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
-const ADMIN_KEY = process.env.CRON_SECRET || "orbe-internal";
+const ADMIN_KEY = process.env.CRON_SECRET;
 
 // GET — lire les configs d'agents (publique si auth, interne si clé admin)
 export async function GET(req: NextRequest) {
   const adminKey = req.headers.get("x-orbe-internal");
-  if (adminKey !== ADMIN_KEY) {
+  const isAdmin = ADMIN_KEY && adminKey === ADMIN_KEY;
+  if (!isAdmin) {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
 // POST — sauvegarder les configs générées par le pipeline IA
 export async function POST(req: NextRequest) {
   const adminKey = req.headers.get("x-orbe-internal");
-  if (adminKey !== ADMIN_KEY) {
+  if (!ADMIN_KEY || adminKey !== ADMIN_KEY) {
     return NextResponse.json({ error: "Clé admin requise" }, { status: 401 });
   }
 

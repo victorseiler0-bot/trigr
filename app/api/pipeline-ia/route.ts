@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 export const maxDuration = 60;
 
-const ADMIN_KEY = process.env.CRON_SECRET || "orbe-internal";
+const ADMIN_KEY = process.env.CRON_SECRET;
 const SITE_URL  = process.env.NEXT_PUBLIC_SITE_URL || "https://trigr-eight.vercel.app";
 
 function getAI() {
@@ -121,7 +121,7 @@ Retourne JSON :
 
 export async function POST(req: NextRequest) {
   const key = req.headers.get("x-orbe-internal");
-  if (key !== ADMIN_KEY) {
+  if (!ADMIN_KEY || key !== ADMIN_KEY) {
     return NextResponse.json({ error: "Clé admin requise" }, { status: 401 });
   }
 
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
     // Appel à /api/agent-config pour sauvegarder
     const deployRes = await fetch(`${SITE_URL}/api/agent-config`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-orbe-internal": ADMIN_KEY },
+      headers: { "Content-Type": "application/json", "x-orbe-internal": ADMIN_KEY! },
       body: JSON.stringify({ configs, pipeline_run_id: runId }),
     });
     const deployData = await deployRes.json();
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
 // GET — statut du pipeline
 export async function GET(req: NextRequest) {
   const key = req.headers.get("x-orbe-internal");
-  if (key !== ADMIN_KEY) {
+  if (!ADMIN_KEY || key !== ADMIN_KEY) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   return NextResponse.json({

@@ -7,7 +7,7 @@ import { storeWaMessage } from "@/lib/whatsapp-meta";
 
 export async function POST(req: NextRequest) {
   const expectedToken = process.env.WHAPI_WEBHOOK_TOKEN;
-  if (expectedToken && req.headers.get("x-whapi-token") !== expectedToken) {
+  if (!expectedToken || req.headers.get("x-whapi-token") !== expectedToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
