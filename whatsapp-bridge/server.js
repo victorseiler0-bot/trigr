@@ -121,6 +121,27 @@ function storeMessage(jid, m) {
   if (messages[jid].length > 50) messages[jid] = messages[jid].slice(-50);
 }
 
+async function pushToN8n(m, jid) {
+  const n8nUrl = process.env.N8N_WEBHOOK_URL || "http://localhost:5678";
+  const text =
+    m.message?.conversation ??
+    m.message?.extendedTextMessage?.text ??
+    m.message?.imageMessage?.caption ?? "";
+  if (!text) return;
+  const phone = jid.split("@")[0];
+  try {
+    await nodeFetch(`${n8nUrl}/webhook/autozen-wa-agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, message: text, jid, timestamp: Number(m.messageTimestamp ?? 0) }),
+      signal: AbortSignal.timeout(5000),
+    });
+    console.log("[Bridge] → n8n:", phone, text.slice(0, 50));
+  } catch (e) {
+    console.error("[Bridge] n8n push error:", e.message);
+  }
+}
+
 let pairingCode = null;
 let reconnectDelay = 3000;
 
@@ -181,7 +202,10 @@ async function startWhatsApp() {
     if (type !== "notify" && type !== "append") return;
     l.forEach((m) => {
       const jid = jidNormalizedUser(m.key.remoteJid ?? "");
-      if (!isJidBroadcast(jid)) storeMessage(jid, m);
+      if (!isJidBroadcast(jid)) {
+        storeMessage(jid, m);
+        if (!m.key.fromMe && type === "notify") pushToN8n(m, jid);
+      }
     });
   });
   sock.ev.on("messaging-history.set", ({ chats: hC, contacts: hCo, messages: hM, isLatest }) => {
