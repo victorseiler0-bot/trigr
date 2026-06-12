@@ -42,6 +42,17 @@ export async function POST(req: NextRequest) {
           incoming: true,
           read:     false,
         }).catch(() => {});
+
+        // Forward vers l'agent IA n8n (si texte et N8N_WEBHOOK_URL configuré)
+        const n8nUrl = process.env.N8N_WEBHOOK_URL;
+        if (n8nUrl && (m.type === "text" || typeof text === "string")) {
+          fetch(`${n8nUrl}/webhook/autozen-wa-agent`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body }),
+            signal: AbortSignal.timeout(5000),
+          }).catch(() => {});
+        }
       }
     }
 
