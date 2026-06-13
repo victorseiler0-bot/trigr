@@ -412,6 +412,15 @@ export default function AssistantPage() {
             } else if (evt.type === "tool_result") {
               setActiveTool(null);
             } else if (evt.type === "final") {
+              const finalText = evt.text as string;
+              if (finalText) {
+                if (!streamStarted) {
+                  streamStarted = true;
+                  setMessages(prev => [...prev, { role: "assistant", content: finalText }]);
+                } else {
+                  setMessages(prev => { const c = [...prev]; c[c.length - 1] = { role: "assistant", content: finalText }; return c; });
+                }
+              }
               if (typeof evt.remaining === "number") setRemaining(evt.remaining as number);
               setActiveTool(null);
             } else if (evt.type === "done") {
