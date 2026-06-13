@@ -1452,20 +1452,23 @@ export async function POST(req: NextRequest) {
 
             if (!msg.tool_calls?.length || choice.finish_reason === "stop") {
               const text = msg.content ?? "";
-              const CHUNK = 6;
+              const CHUNK = 8;
               for (let j = 0; j < text.length; j += CHUNK) {
-                send({ c: text.slice(j, j + CHUNK) });
+                send({ type: "text_delta", text: text.slice(j, j + CHUNK) });
               }
-              send({ done: true, clientActions, remaining });
+              send({ type: "final", text, clientActions, remaining });
+              send({ type: "done" });
               controller.close();
               return;
             }
 
             messages.push(msg as OpenAI.Chat.ChatCompletionMessageParam);
 
-            // Signaler les outils appelés au client
-            for (const tc of msg.tool_calls) {
-              send({ tool: tc.function?.name ?? "" });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const tc of (msg.tool_calls as any[])) {
+              let args: Record<string, unknown> = {};
+              try { const p = JSON.parse(tc.function?.arguments ?? "{}"); if (p && typeof p === "object") args = p; } catch {}
+              send({ type: "tool_call", name: tc.function?.name ?? "", input: args });
             }
 
             const toolResults = await Promise.all(
@@ -1475,15 +1478,16 @@ export async function POST(req: NextRequest) {
                 try { const p = JSON.parse(tc.function?.arguments ?? "{}"); if (p && typeof p === "object" && !Array.isArray(p)) args = p; } catch {}
                 const name: string = tc.function?.name ?? "";
                 const result = await executeTool(name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId, imapConfig, igMeta);
-                send({ tool_done: name });
+                send({ type: "tool_result", name, result: String(result) });
                 return { tool_call_id: tc.id, role: "tool" as const, content: result };
               })
             );
             messages.push(...toolResults);
           }
 
-          send({ c: "Désolé, je n'ai pas pu terminer cette action." });
-          send({ done: true, clientActions, remaining: 0 });
+          const fallback = "Désolé, je n'ai pas pu terminer cette action.";
+          send({ type: "final", text: fallback, clientActions, remaining: 0 });
+          send({ type: "done" });
           controller.close();
         } catch (err) {
           console.error("[assistant]", err);
@@ -1491,8 +1495,8 @@ export async function POST(req: NextRequest) {
           const friendly = errMsg?.includes("rate_limit") || errMsg?.includes("429")
             ? "Je suis temporairement surchargé. Réessaie dans quelques secondes."
             : "Une erreur inattendue s'est produite. Réessaie.";
-          send({ c: friendly });
-          send({ done: true, clientActions: [], remaining: 0 });
+          send({ type: "final", text: friendly, clientActions: [], remaining: 0 });
+          send({ type: "done" });
           controller.close();
         }
       }
