@@ -290,6 +290,7 @@ export default function AssistantPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [feedbackSent, setFeedbackSent] = useState<Set<number>>(new Set());
+  const [activeTool, setActiveTool] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -359,7 +360,7 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      const r = await fetch("/api/orbe", {
+      const r = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),
@@ -400,6 +401,7 @@ export default function AssistantPage() {
               accumulated += evt.c;
               if (!streamStarted) {
                 streamStarted = true;
+                setActiveTool(null);
                 setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
               } else {
                 setMessages(prev => {
@@ -408,8 +410,13 @@ export default function AssistantPage() {
                   return copy;
                 });
               }
+            } else if (evt.tool) {
+              setActiveTool(evt.tool);
+            } else if (evt.tool_done) {
+              setActiveTool(null);
             } else if (evt.done) {
               if (typeof evt.remaining === "number") setRemaining(evt.remaining);
+              setActiveTool(null);
             }
           } catch { /* ignore malformed chunks */ }
         }
@@ -421,6 +428,7 @@ export default function AssistantPage() {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setLoading(false);
+      setActiveTool(null);
     }
   }
 
@@ -730,14 +738,21 @@ export default function AssistantPage() {
                 </div>
               );
             })}
-            {loading && messages[messages.length - 1]?.role !== "assistant" && (
+            {loading && (activeTool || messages[messages.length - 1]?.role !== "assistant") && (
               <div className="flex gap-3 animate-fade-up">
                 <BotAvatar />
-                <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex gap-1.5">
-                  {[0, 150, 300].map(d => (
-                    <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                  ))}
-                </div>
+                {activeTool ? (
+                  <div className="bg-white border border-blue-100 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex items-center gap-2">
+                    <span className="block w-3 h-3 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin shrink-0" />
+                    <span className="text-xs text-blue-600 font-medium">{activeTool.replace(/_/g, " ")}…</span>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex gap-1.5">
+                    {[0, 150, 300].map(d => (
+                      <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -15,17 +15,16 @@ import { classifyIntent, getAgentSystemPrompt, filterTools } from "@/lib/agents"
 
 export const maxDuration = 60;
 
-// Gemini si dispo, sinon Groq
-const USE_GEMINI    = !!process.env.GEMINI_API_KEY;
-const PRIMARY_MODEL = USE_GEMINI ? "gemini-2.0-flash"         : "llama-3.3-70b-versatile";
-const FALLBACK_MODEL= USE_GEMINI ? "gemini-2.0-flash"         : "llama-3.1-8b-instant"; // 500k tokens/jour sur Groq
+const PRIMARY_MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free";
+const FALLBACK_MODEL = "google/gemma-4-31b-it:free";
 
 let _ai: OpenAI | null = null;
 function getAI(): OpenAI {
   if (!_ai) {
-    _ai = USE_GEMINI
-      ? new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/" })
-      : new OpenAI({ apiKey: process.env.GROQ_API_KEY,   baseURL: "https://api.groq.com/openai/v1" });
+    _ai = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY ?? "",
+      baseURL: "https://openrouter.ai/api/v1",
+    });
   }
   return _ai;
 }
@@ -979,7 +978,7 @@ Min / Max du jour : ${minTemp}°C / ${maxTemp}°C`;
       context?: string;
     };
     const ai = getAI();
-    const model = USE_GEMINI ? "gemini-2.0-flash" : "llama-3.3-70b-versatile";
+    const model = PRIMARY_MODEL;
     const prompt = `Tu prépares un brief de réunion professionnelle.
 Sujet : ${sujet}
 ${participants?.length ? `Participants : ${participants.join(", ")}` : ""}
@@ -1305,25 +1304,9 @@ function buildTools(hasGoogle: boolean, hasMicrosoft: boolean, hasWhatsApp: bool
 
 // ── Handler principal ──────────────────────────────────────────────────────────
 
-function streamText(text: string, clientActions: ClientAction[], remaining: number): Response {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    start(controller) {
-      const CHUNK = 6;
-      for (let i = 0; i < text.length; i += CHUNK) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ c: text.slice(i, i + CHUNK) })}\n\n`));
-      }
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, clientActions, remaining })}\n\n`));
-      controller.close();
-    }
-  });
-  return new Response(stream, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
-}
-
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  const useStream = (req.headers.get("accept") ?? "").includes("text/event-stream");
 
   try {
     const body = await req.json();
@@ -1343,7 +1326,7 @@ export async function POST(req: NextRequest) {
       upgrade: true,
     }, { status: 429 });
 
-    // Récupère tous les tokens en parallèle
+    // Récupère tous les tokens avant de démarrer le stream
     let googleToken: string | null = null;
     let msToken: string | null = null;
     let whapiToken: string | null = process.env.WHAPI_TOKEN || null;
@@ -1383,7 +1366,6 @@ export async function POST(req: NextRequest) {
       userContacts = (pm.userContacts as SavedContact[]) ?? [];
       userProfile = (pm.userProfile as UserProfile) ?? {};
 
-      // Auto-subscribe WABA au webhook Meta si pas encore fait et token Meta dispo
       if (waMetaToken && waPhoneId && !pm.wabaSubscribed) {
         autoSubscribeWaba(waMetaToken, waPhoneId, userId, client).catch(() => {});
       }
@@ -1400,104 +1382,131 @@ export async function POST(req: NextRequest) {
     const hasImap = !!imapConfig;
     const allTools = buildTools(!!googleToken, hasMicrosoft, hasWhatsApp, hasInstagram, hasApple, hasNotion, hasSlack, hasHubSpot, hasGitHub, hasImap);
 
-    // ── Routing multi-agent : classification d'intent (instantané, 0 LLM call) ──
     const intent = classifyIntent(message, history);
     const agentTools = filterTools(allTools, intent);
 
-    let compact = false;
-    const buildMessages = (): OpenAI.Chat.ChatCompletionMessageParam[] => [
-      { role: "system", content: buildSystemPrompt(compact, userContacts, userProfile, intent) },
-      ...history.slice(compact ? -2 : -16).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      { role: "user", content: message },
-    ];
+    // Stream SSE avec events outils en temps réel
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        const send = (obj: object) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+        };
 
-    const clientActions: ClientAction[] = [];
-    let currentModel = PRIMARY_MODEL;
-    let messages = buildMessages();
+        const clientActions: ClientAction[] = [];
+        let currentModel = PRIMARY_MODEL;
+        let compact = false;
 
-    // Boucle tool-calling (max 5 tours)
-    for (let i = 0; i < 5; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let completion: any;
-      // Outils actifs : mode compact → subset minimal | sinon → outils de l'agent spécialisé
-      const activeTools = compact ? compactTools(agentTools) : (agentTools.length > 0 ? agentTools : undefined);
-      for (let attempt = 0; attempt < 4; attempt++) {
+        const buildMessages = (): OpenAI.Chat.ChatCompletionMessageParam[] => [
+          { role: "system", content: buildSystemPrompt(compact, userContacts, userProfile, intent) },
+          ...history.slice(compact ? -2 : -16).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          { role: "user", content: message },
+        ];
+
+        let messages = buildMessages();
+
         try {
-          completion = await getAI().chat.completions.create({
-            model: currentModel,
-            messages,
-            tools: activeTools,
-            tool_choice: activeTools && activeTools.length > 0 ? "auto" : undefined,
-            max_tokens: 1024,
-            temperature: 0.3,
-          });
-          break;
-        } catch (err: unknown) {
-          const e = err as Record<string, unknown>;
-          const status = e?.status as number | undefined;
+          for (let i = 0; i < 5; i++) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let completion: any;
+            const activeTools = compact ? compactTools(agentTools) : (agentTools.length > 0 ? agentTools : undefined);
 
-          // 413 = contexte trop grand → passer en mode compact et réessayer
-          if (status === 413 && !compact) {
-            compact = true;
-            messages = buildMessages();
-            continue;
+            for (let attempt = 0; attempt < 4; attempt++) {
+              try {
+                completion = await getAI().chat.completions.create({
+                  model: currentModel,
+                  messages,
+                  tools: activeTools,
+                  tool_choice: activeTools && activeTools.length > 0 ? "auto" : undefined,
+                  max_tokens: 1024,
+                  temperature: 0.3,
+                });
+                break;
+              } catch (err: unknown) {
+                const e = err as Record<string, unknown>;
+                const status = e?.status as number | undefined;
+                if (status === 413 && !compact) {
+                  compact = true;
+                  messages = buildMessages();
+                  continue;
+                }
+                if ((status !== 429 && status !== 413) || attempt >= 3) throw err;
+                const h = e?.headers;
+                const retryAfterRaw: string | null =
+                  h && typeof (h as { get?: unknown }).get === "function"
+                    ? (h as { get: (k: string) => string | null }).get("retry-after")
+                    : ((h as Record<string, string>)?.["retry-after"] ?? null);
+                const retryAfterSec = parseFloat(retryAfterRaw ?? "0");
+                const isTPD = retryAfterSec > 15 || (e?.code as string) === "rate_limit_exceeded";
+                if (isTPD && currentModel !== FALLBACK_MODEL) {
+                  currentModel = FALLBACK_MODEL;
+                  continue;
+                }
+                await new Promise(r => setTimeout(r, Math.min(retryAfterSec * 1000 || 3000, 6000)));
+              }
+            }
+
+            if (!completion) break;
+            const choice = completion.choices[0];
+            const msg = choice.message;
+
+            if (!msg.tool_calls?.length || choice.finish_reason === "stop") {
+              const text = msg.content ?? "";
+              const CHUNK = 6;
+              for (let j = 0; j < text.length; j += CHUNK) {
+                send({ c: text.slice(j, j + CHUNK) });
+              }
+              send({ done: true, clientActions, remaining });
+              controller.close();
+              return;
+            }
+
+            messages.push(msg as OpenAI.Chat.ChatCompletionMessageParam);
+
+            // Signaler les outils appelés au client
+            for (const tc of msg.tool_calls) {
+              send({ tool: tc.function?.name ?? "" });
+            }
+
+            const toolResults = await Promise.all(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              msg.tool_calls.map(async (tc: any) => {
+                let args: Record<string, unknown> = {};
+                try { const p = JSON.parse(tc.function?.arguments ?? "{}"); if (p && typeof p === "object" && !Array.isArray(p)) args = p; } catch {}
+                const name: string = tc.function?.name ?? "";
+                const result = await executeTool(name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId, imapConfig, igMeta);
+                send({ tool_done: name });
+                return { tool_call_id: tc.id, role: "tool" as const, content: result };
+              })
+            );
+            messages.push(...toolResults);
           }
 
-          if ((status !== 429 && status !== 413) || attempt >= 3) throw err;
-
-          // Lire retry-after (Headers Fetch API ou objet plain)
-          const h = e?.headers;
-          const retryAfterRaw: string | null =
-            h && typeof (h as { get?: unknown }).get === "function"
-              ? (h as { get: (k: string) => string | null }).get("retry-after")
-              : ((h as Record<string, string>)?.["retry-after"] ?? null);
-          const retryAfterSec = parseFloat(retryAfterRaw ?? "0");
-
-          // Quota journalier (retry-after long) OU code rate_limit_exceeded → fallback model
-          const isTPD = retryAfterSec > 15 || (e?.code as string) === "rate_limit_exceeded";
-          if (isTPD && currentModel !== FALLBACK_MODEL) {
-            currentModel = FALLBACK_MODEL;
-            continue;
-          }
-          // RPM → attendre et réessayer (max 6s)
-          await new Promise(r => setTimeout(r, Math.min(retryAfterSec * 1000 || 3000, 6000)));
+          send({ c: "Désolé, je n'ai pas pu terminer cette action." });
+          send({ done: true, clientActions, remaining: 0 });
+          controller.close();
+        } catch (err) {
+          console.error("[assistant]", err);
+          const errMsg = (err as Record<string, unknown>)?.message as string | undefined;
+          const friendly = errMsg?.includes("rate_limit") || errMsg?.includes("429")
+            ? "Je suis temporairement surchargé. Réessaie dans quelques secondes."
+            : "Une erreur inattendue s'est produite. Réessaie.";
+          send({ c: friendly });
+          send({ done: true, clientActions: [], remaining: 0 });
+          controller.close();
         }
       }
+    });
 
-      const choice = completion.choices[0];
-      const msg = choice.message;
-
-      if (!msg.tool_calls?.length || choice.finish_reason === "stop") {
-        const text = msg.content ?? "";
-        return useStream
-          ? streamText(text, clientActions, remaining)
-          : NextResponse.json({ response: text, clientActions, remaining });
-      }
-
-      messages.push(msg as OpenAI.Chat.ChatCompletionMessageParam);
-      const toolResults = await Promise.all(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        msg.tool_calls.map(async (tc: any) => {
-          let args: Record<string, unknown> = {};
-          try { const p = JSON.parse(tc.function?.arguments ?? "{}"); if (p && typeof p === "object" && !Array.isArray(p)) args = p; } catch {}
-          const name: string = tc.function?.name ?? "";
-          const result = await executeTool(name, args, googleToken, msToken, whapiToken, bridgeData, clientActions, appleCredentials, notionToken, slackToken, hubspotToken, pdAccountIds, userId, waStoredMessages, waMetaToken, waPhoneId, imapConfig, igMeta);
-          return { tool_call_id: tc.id, role: "tool" as const, content: result };
-        })
-      );
-      messages.push(...toolResults);
-    }
-
-    const fallback = "Désolé, je n'ai pas pu terminer cette action.";
-    return useStream
-      ? streamText(fallback, clientActions, 0)
-      : NextResponse.json({ response: fallback, clientActions });
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (err) {
-    console.error("[assistant]", err);
-    const msg = (err as Record<string, unknown>)?.message as string | undefined;
-    const friendly = msg?.includes("rate_limit") || msg?.includes("429")
-      ? "Je suis temporairement surchargé. Réessaie dans quelques secondes."
-      : "Une erreur inattendue s'est produite. Réessaie.";
-    return NextResponse.json({ response: friendly }, { status: 200 });
+    console.error("[assistant outer]", err);
+    return NextResponse.json({ response: "Une erreur inattendue s'est produite. Réessaie." }, { status: 200 });
   }
 }
