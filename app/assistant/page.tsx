@@ -1,132 +1,229 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import Navbar from "@/components/Navbar";
+import { useToast } from "@/components/Toast";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-type TraceEv =
-  | { type: "tool_call"; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; name: string; result: string }
-  | { type: "thinking"; text: string };
+type Msg = { role: "user" | "assistant"; content: string };
 
-type Turn = {
-  id: string;
-  userMsg: string;
-  trace: TraceEv[];
-  liveText: string;
-  finalText: string;
-  done: boolean;
-};
-
-type SavedSession = { id: string; name: string; ts: number };
-
-const SESS_KEY = "orbe_ae_sessions_v1";
-
-// ── Markdown renderer ──────────────────────────────────────────────────────────
-function renderMarkdown(raw: string): string {
-  // Extract code blocks first to avoid escaping their content
-  const blocks: string[] = [];
-  let text = raw.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
-    const esc = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    blocks.push(
-      `<div style="margin:12px 0;border-radius:8px;overflow:hidden;border:1px solid #2a3040">` +
-      `<div style="display:flex;align-items:center;padding:6px 14px;background:#1a1e25;border-bottom:1px solid #2a3040">` +
-      `<span style="font-family:monospace;font-size:11px;color:#4a5568">${lang || "plaintext"}</span></div>` +
-      `<pre style="margin:0;padding:14px;overflow-x:auto;background:#0d1117;font-family:monospace;font-size:13px;line-height:1.55;color:#e2e8f0;white-space:pre-wrap;word-break:break-word">${esc}</pre></div>`
-    );
-    return `\x00BLK${blocks.length - 1}\x00`;
-  });
-
-  // Escape rest
-  text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  // Inline code
-  text = text.replace(/`([^`]+)`/g, '<code style="font-family:monospace;font-size:13px;background:#1a1e25;border:1px solid #2a3040;padding:1px 5px;border-radius:4px">$1</code>');
-  // Headers
-  text = text.replace(/^### (.+)$/gm, '<h3 style="font-size:15px;font-weight:650;margin:18px 0 7px">$1</h3>');
-  text = text.replace(/^## (.+)$/gm, '<h2 style="font-size:16px;font-weight:650;margin:20px 0 8px">$1</h2>');
-  text = text.replace(/^# (.+)$/gm, '<h1 style="font-size:18px;font-weight:700;margin:22px 0 10px">$1</h1>');
-  // Bold / italic
-  text = text.replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:650">$1</strong>');
-  text = text.replace(/\*(.+?)\*/g, '<em style="color:#c8d8f0">$1</em>');
-  // HR
-  text = text.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #1f2530;margin:20px 0">');
-  // Lists
-  text = text.replace(/^[-*•] (.+)$/gm, '<li style="margin:4px 0;line-height:1.6;padding-left:2px">$1</li>');
-  text = text.replace(/(<li[^>]*>[\s\S]*?<\/li>\n?)+/g, m => `<ul style="margin:10px 0;padding-left:20px;list-style:disc">${m}</ul>`);
-  text = text.replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0;line-height:1.6">$1</li>');
-  // Tables: basic
-  text = text.replace(/\|(.+)\|\n\|[-: |]+\|\n((?:\|.+\|\n?)*)/g, (_m, header, rows) => {
-    const th = header.split("|").filter(Boolean).map((c: string) => `<th style="background:#1a1e25;padding:8px 12px;text-align:left;border:1px solid #2a3040;font-weight:600">${c.trim()}</th>`).join("");
-    const trs = rows.trim().split("\n").map((row: string) =>
-      `<tr>${row.split("|").filter(Boolean).map((c: string) => `<td style="padding:7px 12px;border:1px solid #1f2530">${c.trim()}</td>`).join("")}</tr>`
-    ).join("");
-    return `<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
-  });
-  // Paragraphs
-  text = text.replace(/\n\n/g, '</p><p style="margin:10px 0;line-height:1.7">');
-  text = `<p style="margin:0;line-height:1.7">${text}</p>`;
-  // Restore code blocks
-  text = text.replace(/\x00BLK(\d+)\x00/g, (_m, i) => blocks[parseInt(i)]);
-  return text;
+// ── Inline markdown renderer ───────────────────────────────────────────────────
+function renderInline(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  let last = 0, m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[2]) parts.push(<strong key={key++} className="font-semibold text-slate-900">{m[2]}</strong>);
+    else if (m[3]) parts.push(<em key={key++}>{m[3]}</em>);
+    else if (m[4]) parts.push(<code key={key++} className="bg-slate-100 text-blue-700 text-xs px-1 py-0.5 rounded font-mono">{m[4]}</code>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }
 
-// ── Trace item component ───────────────────────────────────────────────────────
-function TraceItem({ ev }: { ev: TraceEv }) {
-  const [open, setOpen] = useState(false);
+function MarkdownText({ content, streaming }: { content: string; streaming?: boolean }) {
+  const lines = content.split("\n");
+  const nodes: ReactNode[] = [];
+  let listBuf: string[] = [];
+  let isOrdered = false;
+  let k = 0;
 
-  if (ev.type === "thinking") {
-    const [expanded, setExpanded] = useState(false);
+  const flushList = () => {
+    if (!listBuf.length) return;
+    nodes.push(
+      isOrdered
+        ? <ol key={k++} className="list-decimal pl-5 space-y-0.5 my-1.5 text-sm">{listBuf.map((t, i) => <li key={i}>{renderInline(t)}</li>)}</ol>
+        : <ul key={k++} className="space-y-1 my-1.5">{listBuf.map((t, i) => <li key={i} className="flex gap-2 text-sm"><span className="text-slate-400 shrink-0 mt-0.5 select-none">•</span><span>{renderInline(t)}</span></li>)}</ul>
+    );
+    listBuf = [];
+  };
+
+  lines.forEach((line, i) => {
+    const isLast = i === lines.length - 1;
+    if (/^#{1,3} /.test(line)) {
+      flushList();
+      const level = (line.match(/^#+/) ?? [""])[0].length;
+      const txt = line.replace(/^#+\s*/, "");
+      const cls = level === 1 ? "text-base font-bold mt-2 mb-1" : "text-sm font-semibold mt-2 mb-0.5";
+      nodes.push(<p key={k++} className={cls}>{renderInline(txt)}{streaming && isLast && <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-0.5 align-middle" />}</p>);
+    } else if (/^[-*•]\s+/.test(line)) {
+      if (listBuf.length > 0 && isOrdered) flushList();
+      isOrdered = false;
+      listBuf.push(line.replace(/^[-*•]\s+/, ""));
+    } else if (/^\d+\.\s+/.test(line)) {
+      if (listBuf.length > 0 && !isOrdered) flushList();
+      isOrdered = true;
+      listBuf.push(line.replace(/^\d+\.\s+/, ""));
+    } else if (line.trim() === "---") {
+      flushList();
+      nodes.push(<hr key={k++} className="border-slate-200 my-2" />);
+    } else if (line.trim() === "") {
+      flushList();
+      if (nodes.length) nodes.push(<div key={k++} className="h-2" />);
+    } else {
+      flushList();
+      nodes.push(
+        <p key={k++} className="text-sm leading-relaxed">
+          {renderInline(line)}
+          {streaming && isLast && <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-0.5 align-middle" />}
+        </p>
+      );
+    }
+  });
+  flushList();
+  return <>{nodes}</>;
+}
+
+// ── Quick suggestions ──────────────────────────────────────────────────────────
+const QUICK_SUGGESTIONS = [
+  { icon: "✉️", category: "Email", prompts: [
+    { label: "Mes emails non lus", prompt: "Montre-moi mes emails non lus" },
+    { label: "Résumé de la matinée", prompt: "Fais-moi un résumé de mes emails importants du jour" },
+    { label: "Urgences", prompt: "Y a-t-il des emails urgents dans ma boîte ?" },
+  ]},
+  { icon: "📅", category: "Agenda", prompts: [
+    { label: "Mon agenda du jour", prompt: "Quel est mon agenda aujourd'hui ?" },
+    { label: "Demain", prompt: "Qu'est-ce que j'ai prévu demain ?" },
+    { label: "Prochaine réunion", prompt: "Quelle est ma prochaine réunion ?" },
+  ]},
+  { icon: "✍️", category: "Rédaction", prompts: [
+    { label: "Email pro", prompt: "Aide-moi à composer un email professionnel" },
+    { label: "Follow-up client", prompt: "Aide-moi à rédiger un email de suivi client" },
+    { label: "Refus poli", prompt: "Aide-moi à décliner poliment une invitation" },
+  ]},
+  { icon: "⚡", category: "Briefing", prompts: [
+    { label: "Briefing du matin", prompt: "Donne-moi mon briefing complet : emails, agenda, messages" },
+    { label: "Résumé journée", prompt: "Fais-moi un résumé de ma journée et ce qui reste à faire" },
+    { label: "Préparer demain", prompt: "Aide-moi à préparer ma journée de demain" },
+  ]},
+  { icon: "🔍", category: "Recherche", prompts: [
+    { label: "Actualités", prompt: "Quelles sont les dernières actualités importantes en France ?" },
+    { label: "Météo du jour", prompt: "Donne-moi la météo à Paris aujourd'hui" },
+    { label: "Infos entreprise", prompt: "Recherche des informations sur une entreprise" },
+  ]},
+  { icon: "🏢", category: "Entreprises FR", prompts: [
+    { label: "Infos société (SIREN)", prompt: "Cherche les informations officielles (SIREN, adresse, activité) de l'entreprise " },
+    { label: "Vérifier un fournisseur", prompt: "Vérifie si cette entreprise est bien active et en règle : " },
+    { label: "Secteur d'activité", prompt: "Quel est le code NAF et l'activité principale de cette société : " },
+  ]},
+];
+
+// ── Avatar AI ──────────────────────────────────────────────────────────────────
+function BotAvatar() {
+  return (
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0 shadow-sm">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+// ── User Avatar (initials) ─────────────────────────────────────────────────────
+function UserAvatar({ initials }: { initials: string }) {
+  return (
+    <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center shrink-0 text-slate-700 font-semibold text-xs">
+      {initials || "?"}
+    </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 shrink-0"
+      title="Copier"
+    >
+      {copied
+        ? <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 7l3 3 6-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        : <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="9" y="9" width="10" height="10" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeLinecap="round"/></svg>
+      }
+    </button>
+  );
+}
+
+// ── Smart action detection ─────────────────────────────────────────────────────
+type SmartActionType = { type: "email"; subject: string } | { type: "devis" } | { type: "document" } | null;
+
+function detectSmartAction(content: string): SmartActionType {
+  const subjectMatch = content.match(/Objet\s*:\s*([^\n]+)/i);
+  if (subjectMatch || /Cordialement[,\s]|Bien cordialement|Veuillez agréer/.test(content)) {
+    return { type: "email", subject: subjectMatch?.[1]?.trim() ?? "" };
+  }
+  if (/TOTAL TTC|sous-total HT|TVA 20%/.test(content)) {
+    return { type: "devis" };
+  }
+  if (/Article \d+|Clause \d+|CONTRAT|CONDITIONS GÉNÉRALES/i.test(content)) {
+    return { type: "document" };
+  }
+  return null;
+}
+
+function SmartActionBar({ content }: { content: string }) {
+  const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
+  const action = detectSmartAction(content);
+  if (!action) return null;
+
+  function copyWithLabel(label: string) {
+    navigator.clipboard.writeText(content);
+    setCopiedLabel(label);
+    setTimeout(() => setCopiedLabel(null), 2000);
+  }
+
+  function downloadTxt(filename: string) {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const greenBtn = "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100";
+  const blueBtn  = "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100";
+  const slateBtn = "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100";
+
+  if (action.type === "email") {
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(action.subject)}&body=${encodeURIComponent(content)}`;
     return (
-      <div style={{ position: "relative", padding: "6px 0 6px 22px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.5, background: "rgba(110,168,254,.06)", margin: "3px 0", borderRadius: "0 6px 6px 0", animation: "fadein .25s ease" }}>
-        <span style={{ position: "absolute", left: -4, top: 13, width: 7, height: 7, borderRadius: "50%", background: "#6ea8fe", display: "block" }} />
-        <span style={{ color: "#4a5568", textTransform: "uppercase" as const, letterSpacing: ".1em", fontSize: 10, marginRight: 7 }}>réflexion</span>
-        <div style={{ color: "#a8c4f0", fontStyle: "italic", fontSize: 12, lineHeight: 1.55, maxHeight: expanded ? 600 : 80, overflow: "hidden", transition: "max-height .3s" }}>
-          {ev.text}
-        </div>
-        {ev.text.length > 100 && (
-          <span onClick={() => setExpanded(e => !e)} style={{ color: "#6ea8fe", cursor: "pointer", fontSize: 10, textDecoration: "underline", textUnderlineOffset: 2, display: "block", marginTop: 3 }}>
-            {expanded ? "voir moins" : "voir plus"}
-          </span>
-        )}
+      <div className="flex gap-2 mt-2 flex-wrap ml-0.5">
+        <button onClick={() => copyWithLabel("email")} className={greenBtn}>
+          {copiedLabel === "email" ? "✅ Copié !" : "📋 Copier l'email"}
+        </button>
+        <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className={blueBtn}>
+          ✉️ Ouvrir dans Gmail
+        </a>
       </div>
     );
   }
 
-  if (ev.type === "tool_call") {
-    const args = JSON.stringify(ev.input, null, 2);
+  if (action.type === "devis") {
     return (
-      <div style={{ position: "relative", padding: "6px 0 6px 22px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.5, animation: "fadein .25s ease" }}>
-        <span style={{ position: "absolute", left: -4, top: 13, width: 7, height: 7, borderRadius: "50%", background: "#f6a623", boxShadow: "0 0 6px #f6a623", display: "block" }} />
-        <span style={{ color: "#4a5568", textTransform: "uppercase" as const, letterSpacing: ".1em", fontSize: 10, marginRight: 7 }}>appel</span>
-        <span style={{ color: "#f6a623", fontWeight: 700 }}>{ev.name}</span>
-        {ev.input && Object.keys(ev.input).length > 0 && (
-          <span style={{ display: "block", marginTop: 4, padding: "6px 10px", background: "rgba(246,166,35,.08)", border: "1px solid rgba(246,166,35,.2)", borderRadius: 6, color: "#8892a4", whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 11.5 }}>
-            {args}
-          </span>
-        )}
+      <div className="flex gap-2 mt-2 flex-wrap ml-0.5">
+        <button onClick={() => copyWithLabel("devis")} className={greenBtn}>
+          {copiedLabel === "devis" ? "✅ Copié !" : "📋 Copier le devis"}
+        </button>
+        <button onClick={() => downloadTxt("devis.txt")} className={slateBtn}>
+          ⬇️ Télécharger .txt
+        </button>
       </div>
     );
   }
 
-  if (ev.type === "tool_result") {
-    const isErr = ev.result?.toLowerCase().includes('"error"') || ev.result?.toLowerCase().includes("erreur");
-    const hasContent = ev.result && ev.result.length > 0;
+  if (action.type === "document") {
     return (
-      <div style={{ position: "relative", padding: "6px 0 6px 22px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.5, animation: "fadein .25s ease" }}>
-        <span style={{ position: "absolute", left: -4, top: 13, width: 7, height: 7, borderRadius: "50%", background: isErr ? "#f87171" : "#4ade80", display: "block" }} />
-        <span style={{ color: "#4a5568", textTransform: "uppercase" as const, letterSpacing: ".1em", fontSize: 10, marginRight: 7 }}>{isErr ? "échec" : "résultat"}</span>
-        <span style={{ color: isErr ? "#f87171" : "#4ade80" }}>{ev.name}</span>
-        {hasContent && (
-          <span onClick={() => setOpen(o => !o)} style={{ color: "#4a5568", textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer", marginLeft: 8, fontSize: 10 }}>
-            {open ? "cacher ▴" : "voir ▾"}
-          </span>
-        )}
-        {open && hasContent && (
-          <div style={{ maxHeight: 300, overflow: "auto", padding: "7px 10px", marginTop: 4, background: "#0a0c10", border: "1px solid #2a3040", borderRadius: 6, fontSize: 11.5, color: "#8892a4", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-            {ev.result}
-          </div>
-        )}
+      <div className="flex gap-2 mt-2 flex-wrap ml-0.5">
+        <button onClick={() => copyWithLabel("doc")} className={greenBtn}>
+          {copiedLabel === "doc" ? "✅ Copié !" : "📋 Copier le document"}
+        </button>
+        <button onClick={() => downloadTxt("document.txt")} className={slateBtn}>
+          ⬇️ Télécharger .txt
+        </button>
       </div>
     );
   }
@@ -134,329 +231,620 @@ function TraceItem({ ev }: { ev: TraceEv }) {
   return null;
 }
 
-// ── Turn view ──────────────────────────────────────────────────────────────────
-function TurnView({ turn, userInitial }: { turn: Turn; userInitial: string }) {
-  return (
-    <div style={{ padding: "24px 0", borderBottom: "1px solid #1f2530", animation: "fadein .25s ease" }}>
-      {/* User message */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#f6a623,#e07b10)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#0d0f12", flexShrink: 0, marginTop: 2 }}>
-          {userInitial}
-        </div>
-        <div style={{ fontSize: 15, lineHeight: 1.6, paddingTop: 4, flex: 1, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-          {turn.userMsg}
-        </div>
-      </div>
+// ── Session history ─────────────────────────────────────────────────────────────
+type ConvSession = { id: string; title: string; messages: Msg[]; ts: number };
 
-      {/* Trace */}
-      {turn.trace.length > 0 && (
-        <div style={{ marginLeft: 42, borderLeft: "1px solid #1f2530" }}>
-          {turn.trace.map((ev, i) => <TraceItem key={i} ev={ev} />)}
-        </div>
-      )}
-
-      {/* Live streaming */}
-      {turn.liveText && !turn.finalText && (
-        <div style={{ marginLeft: 42, fontSize: 15, lineHeight: 1.7, color: "#e2e8f0", whiteSpace: "pre-wrap", wordBreak: "break-word", minHeight: 24 }}>
-          {turn.liveText}<span style={{ color: "#f6a623", animation: "blink 1s step-end infinite" }}>▌</span>
-        </div>
-      )}
-
-      {/* Working indicator */}
-      {!turn.done && !turn.finalText && !turn.liveText && (
-        <div style={{ marginLeft: 42, display: "flex", alignItems: "center", gap: 10, fontFamily: "monospace", fontSize: 12, color: "#f6a623" }}>
-          <div style={{ display: "flex", gap: 3 }}>
-            {[0, 0.12, 0.24, 0.36].map((delay, i) => (
-              <i key={i} style={{ display: "block", width: 3, height: 11, background: "#f6a623", borderRadius: 2, animation: `eq 1s ease-in-out ${delay}s infinite`, opacity: 0.8 }} />
-            ))}
-          </div>
-          <span>Réflexion en cours…</span>
-        </div>
-      )}
-
-      {/* Final answer */}
-      {turn.finalText && (
-        <div style={{ marginLeft: 42 }}>
-          <div style={{ fontSize: 15, lineHeight: 1.7, animation: "fadein .3s ease" }}
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.finalText) }} />
-          <CopyBtn text={turn.finalText} />
-        </div>
-      )}
-    </div>
-  );
+function saveSession(msgs: Msg[]) {
+  if (msgs.length === 0) return;
+  const title = msgs.find(m => m.role === "user")?.content.slice(0, 55) ?? "Conversation";
+  const session: ConvSession = { id: Date.now().toString(), title, messages: msgs.slice(-30), ts: Date.now() };
+  try {
+    const stored = localStorage.getItem("orbe_sessions");
+    const sessions: ConvSession[] = stored ? JSON.parse(stored) : [];
+    sessions.unshift(session);
+    localStorage.setItem("orbe_sessions", JSON.stringify(sessions.slice(0, 15)));
+  } catch { /* ignore */ }
 }
 
-function CopyBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={() => { navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
-      style={{ marginTop: 12, background: "none", border: "1px solid #2a3040", color: copied ? "#4ade80" : "#4a5568", fontFamily: "monospace", fontSize: 11, padding: "5px 12px", borderRadius: 6, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, transition: "all .15s" }}>
-      {copied ? "✓ Copié !" : "⎘ Copier la réponse"}
-    </button>
-  );
+function loadSessions(): ConvSession[] {
+  try {
+    const stored = localStorage.getItem("orbe_sessions");
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
+
+function exportConversation(msgs: Msg[]) {
+  if (msgs.length === 0) return;
+  const date = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+  const lines: string[] = ["Conversation Orbe — " + date, "=".repeat(40), ""];
+  for (const m of msgs) {
+    lines.push(m.role === "user" ? "Vous :" : "Orbe :");
+    lines.push(m.content);
+    lines.push("");
+  }
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "Orbe-conversation-" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AssistantPage() {
   const { user } = useUser();
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const toast = useToast();
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [sessions, setSessions] = useState<SavedSession[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [connectedCount, setConnectedCount] = useState(0);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const chatRef = useRef<HTMLDivElement>(null);
+  const [listening, setListening] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  const [sessions, setSessions] = useState<ConvSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState<Set<number>>(new Set());
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const busyRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+
+  // Load sessions + history on mount + ?prefill= URL param
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("orbe_history");
+      if (saved) {
+        const parsed = JSON.parse(saved) as Msg[];
+        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+      }
+    } catch { /* ignore */ }
+    setSessions(loadSessions());
+    setHistoryLoaded(true);
+
+    // Pre-fill input from URL param (e.g. from CRM "Contacter avec Orbe")
+    const params = new URLSearchParams(window.location.search);
+    const prefill = params.get("prefill");
+    if (prefill) {
+      setInput(decodeURIComponent(prefill));
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, []);
+
+  // Save history to localStorage on change
+  useEffect(() => {
+    if (!historyLoaded) return;
+    try { localStorage.setItem("orbe_history", JSON.stringify(messages.slice(-30))); } catch { /* ignore */ }
+  }, [messages, historyLoaded]);
+
+  // Detect connected integrations (server-side check more reliable)
+  const hasGoogle = !!user?.externalAccounts.find(a => a.provider === "google" || (a.provider as string) === "oauth_google");
 
   useEffect(() => {
-    try { setSessions(JSON.parse(localStorage.getItem(SESS_KEY) || "[]")); } catch {}
-  }, []);
-
-  const scroll = useCallback(() => {
-    requestAnimationFrame(() => {
-      if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    if (!user) return;
+    Promise.all([
+      fetch("/api/pipedream/accounts").then(r => r.json()).catch(() => ({ connected: {} })),
+      fetch("/api/google/status").then(r => r.json()).catch(() => ({ connected: false })),
+    ]).then(([pd, gs]) => {
+      const googleOk = gs.connected || hasGoogle;
+      setConnectedCount((googleOk ? 1 : 0) + Object.keys(pd.connected ?? {}).length);
     });
-  }, []);
+  }, [user, hasGoogle]);
 
-  function newSession() {
-    setTurns([]);
-    inputRef.current?.focus();
-  }
+  // Auto-scroll on new message
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
 
-  async function send() {
-    const text = input.trim();
-    if (!text || busyRef.current) return;
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, [input]);
 
-    busyRef.current = true;
-    setBusy(true);
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+    setError(null);
+    const next: Msg[] = [...messages, { role: "user", content: trimmed }];
+    setMessages(next);
     setInput("");
-
-    const turnId = `t_${Date.now()}`;
-    const newTurn: Turn = { id: turnId, userMsg: text, trace: [], liveText: "", finalText: "", done: false };
-
-    let prevTurns: Turn[] = [];
-    setTurns(prev => { prevTurns = prev; return [...prev, newTurn]; });
-
-    // Save session on first message
-    if (prevTurns.length === 0) {
-      const existing: SavedSession[] = (() => { try { return JSON.parse(localStorage.getItem(SESS_KEY) || "[]"); } catch { return []; } })();
-      const updated = [{ id: turnId, name: text.slice(0, 55), ts: Date.now() }, ...existing].slice(0, 30);
-      localStorage.setItem(SESS_KEY, JSON.stringify(updated));
-      setSessions(updated);
-    }
-
-    const history = prevTurns.filter(t => t.done).flatMap(t => [
-      { role: "user" as const, content: t.userMsg },
-      { role: "assistant" as const, content: t.finalText || t.liveText },
-    ]);
-
-    abortRef.current = new AbortController();
-    const upd = (fn: (t: Turn) => Turn) => setTurns(prev => prev.map(t => t.id === turnId ? fn(t) : t));
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/assistant", {
+      const r = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ message: text, history }),
-        signal: abortRef.current.signal,
+        body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),
       });
 
-      if (res.status === 429) {
-        const d = await res.json().catch(() => ({}));
-        upd(t => ({ ...t, finalText: d.error || "Limite journalière atteinte.", done: true }));
+      if (r.status === 429) {
+        const data = await r.json();
+        setError(`${data.error} → <upgrade>`);
         return;
       }
-      if (!res.ok) {
-        upd(t => ({ ...t, finalText: "Erreur serveur.", done: true }));
+      if (!r.ok) throw new Error("Erreur serveur");
+
+      const contentType = r.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/event-stream")) {
+        const data = await r.json();
+        setMessages([...next, { role: "assistant", content: data.response || "(réponse vide)" }]);
         return;
       }
 
-      const reader = res.body!.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
+      // SSE streaming
+      const reader = r.body!.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
       let accumulated = "";
+      let streamStarted = false;
 
       while (true) {
-        const { value, done } = await reader.read();
+        const { done, value } = await reader.read();
         if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split("\n\n");
-        buf = parts.pop() ?? "";
-
-        for (const part of parts) {
-          const line = part.replace(/^data: /, "").trim();
-          if (!line) continue;
-          let ev: Record<string, unknown>;
-          try { ev = JSON.parse(line); } catch { continue; }
-
-          if (ev.type === "text_delta") {
-            accumulated += ev.text as string;
-            upd(t => ({ ...t, liveText: accumulated }));
-            scroll();
-          } else if (ev.type === "tool_call") {
-            upd(t => ({ ...t, trace: [...t.trace, { type: "tool_call" as const, name: ev.name as string, input: (ev.input ?? {}) as Record<string, unknown> }] }));
-            scroll();
-          } else if (ev.type === "tool_result") {
-            upd(t => ({ ...t, trace: [...t.trace, { type: "tool_result" as const, name: ev.name as string, result: ev.result as string }] }));
-            scroll();
-          } else if (ev.type === "final") {
-            const finalText = (ev.text as string) || accumulated;
-            upd(t => ({ ...t, liveText: "", finalText, done: true }));
-            if (typeof ev.remaining === "number") setRemaining(ev.remaining as number);
-            scroll();
-          } else if (ev.type === "done") {
-            upd(t => t.done ? t : { ...t, done: true });
-          }
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+            // Nouveau format AgentEngine
+            if (evt.type === "text_delta") {
+              accumulated += evt.text as string;
+              if (!streamStarted) {
+                streamStarted = true;
+                setActiveTool(null);
+                setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
+              } else {
+                setMessages(prev => { const c = [...prev]; c[c.length - 1] = { role: "assistant", content: accumulated }; return c; });
+              }
+            } else if (evt.type === "tool_call") {
+              setActiveTool(evt.name as string);
+            } else if (evt.type === "tool_result") {
+              setActiveTool(null);
+            } else if (evt.type === "final") {
+              if (typeof evt.remaining === "number") setRemaining(evt.remaining as number);
+              setActiveTool(null);
+            } else if (evt.type === "done") {
+              setActiveTool(null);
+            }
+            // Ancien format (rétrocompatibilité)
+            else if (evt.c) {
+              accumulated += evt.c;
+              if (!streamStarted) {
+                streamStarted = true;
+                setActiveTool(null);
+                setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
+              } else {
+                setMessages(prev => { const c = [...prev]; c[c.length - 1] = { role: "assistant", content: accumulated }; return c; });
+              }
+            } else if (evt.tool) {
+              setActiveTool(evt.tool);
+            } else if (evt.tool_done) {
+              setActiveTool(null);
+            } else if (evt.done) {
+              if (typeof evt.remaining === "number") setRemaining(evt.remaining);
+              setActiveTool(null);
+            }
+          } catch { /* ignore malformed chunks */ }
         }
       }
-    } catch (e) {
-      if ((e as Error).name !== "AbortError") {
-        upd(t => ({ ...t, finalText: "Erreur de connexion.", done: true }));
-      } else {
-        upd(t => ({ ...t, liveText: "", finalText: t.liveText || t.finalText, done: true }));
+      if (!streamStarted) {
+        setMessages(prev => [...prev, { role: "assistant", content: "(réponse vide)" }]);
       }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
-      busyRef.current = false;
-      setBusy(false);
-      abortRef.current = null;
-      setTurns(prev => prev.map(t => t.id === turnId && !t.done ? { ...t, done: true, finalText: t.liveText } : t));
-      scroll();
+      setLoading(false);
+      setActiveTool(null);
     }
   }
 
-  const seeds = [
-    "Lis mes derniers emails non lus",
-    "Qu'est-ce que j'ai à faire aujourd'hui ?",
-    "Génère un devis professionnel",
-    "Cherche les dernières infos sur l'IA",
-    "Montre mon pipeline commercial",
-    "Envoie un message WhatsApp à [contact]",
-  ];
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(input);
+    }
+  }
 
-  const userInitial = user?.firstName?.[0]?.toUpperCase() || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || "U";
+  function toggleVoice() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { toast("La reconnaissance vocale n'est pas supportée par ce navigateur.", "error"); return; }
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SR();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (evt: any) => {
+      const transcript = evt.results[0][0].transcript as string;
+      setInput(prev => (prev ? prev + " " + transcript : transcript));
+      inputRef.current?.focus();
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  }
+
+  const hasMessages = messages.length > 0;
+  const initials = (user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "");
+  const displayName = user?.firstName || user?.primaryEmailAddress?.emailAddress?.split("@")[0];
+
+  // Helpers sidebar
+  function refreshSessions() { setSessions(loadSessions()); }
+
+  function handleNewConversation() {
+    if (messages.length > 0) {
+      saveSession(messages);
+      refreshSessions();
+    }
+    setMessages([]);
+    setActiveSessionId(null);
+    try { localStorage.removeItem("orbe_history"); } catch { /* */ }
+  }
+
+  function handleLoadSession(s: ConvSession) {
+    if (messages.length > 0) { saveSession(messages); refreshSessions(); }
+    setMessages(s.messages);
+    setActiveSessionId(s.id);
+    try { localStorage.setItem("orbe_history", JSON.stringify(s.messages)); } catch { /* */ }
+  }
+
+  function handleDeleteSession(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      const stored = localStorage.getItem("orbe_sessions");
+      const arr: ConvSession[] = stored ? JSON.parse(stored) : [];
+      const updated = arr.filter(s => s.id !== id);
+      localStorage.setItem("orbe_sessions", JSON.stringify(updated));
+      setSessions(updated);
+      if (activeSessionId === id) { setMessages([]); setActiveSessionId(null); }
+    } catch { /* */ }
+  }
+
+  const filteredSessions = sessions.filter(s =>
+    !searchQuery || s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Group sessions by date
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const yesterdayStr = new Date(now.getTime() - 86400_000).toDateString();
+  const groups: { label: string; items: ConvSession[] }[] = [];
+  const todayItems = filteredSessions.filter(s => new Date(s.ts).toDateString() === todayStr);
+  const yesterdayItems = filteredSessions.filter(s => new Date(s.ts).toDateString() === yesterdayStr);
+  const olderItems = filteredSessions.filter(s => new Date(s.ts).toDateString() !== todayStr && new Date(s.ts).toDateString() !== yesterdayStr);
+  if (todayItems.length) groups.push({ label: "Aujourd'hui", items: todayItems });
+  if (yesterdayItems.length) groups.push({ label: "Hier", items: yesterdayItems });
+  if (olderItems.length) groups.push({ label: "Plus ancien", items: olderItems });
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0d0f12", color: "#e2e8f0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 flex flex-col">
+      {!focusMode && <Navbar />}
 
-      {/* ── Sidebar ── */}
-      <aside style={{ width: sidebarOpen ? 260 : 0, minWidth: sidebarOpen ? 260 : 0, background: "#090b0e", borderRight: sidebarOpen ? "1px solid #1f2530" : "none", display: "flex", flexDirection: "column", transition: "all .22s cubic-bezier(.4,0,.2,1)", overflow: "hidden", zIndex: 20 }}>
-        <div style={{ padding: "14px 12px 10px", borderBottom: "1px solid #1f2530", flexShrink: 0 }}>
-          <button onClick={newSession} style={{ width: "100%", padding: "9px 14px", background: "#14171c", border: "1px solid #2a3040", color: "#e2e8f0", fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, borderRadius: 8, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
-            + Nouvelle conversation
-          </button>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
-          {sessions.map(s => (
-            <div key={s.id} style={{ padding: "8px 10px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, color: "#8892a4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}
-              title={s.name}>
-              {s.name}
+      <div className={`flex flex-1 ${focusMode ? "pt-0" : "pt-16"}`}>
+
+        {/* ── SIDEBAR GAUCHE ──────────────────────────────────────────────────── */}
+        <aside className={`${sidebarOpen ? "w-64" : "w-0"} shrink-0 transition-all duration-300 overflow-hidden`}>
+          <div className="w-64 h-[calc(100vh-4rem)] sticky top-16 flex flex-col bg-white border-r border-slate-200 overflow-hidden">
+            {/* Header sidebar */}
+            <div className="p-3 border-b border-slate-100">
+              <button
+                onClick={handleNewConversation}
+                className="w-full flex items-center gap-2 px-3 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl transition-all shadow-sm"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 1v12M1 7h12" strokeLinecap="round"/></svg>
+                Nouvelle conversation
+              </button>
             </div>
-          ))}
-        </div>
-        {remaining !== null && (
-          <div style={{ padding: "10px 14px", borderTop: "1px solid #1f2530", fontSize: 11, color: "#4a5568", fontFamily: "monospace" }}>
-            {remaining} actions restantes
-          </div>
-        )}
-      </aside>
 
-      {/* ── Main ── */}
-      <div style={{ flex: 1, display: "grid", gridTemplateRows: "auto 1fr auto", height: "100vh", overflow: "hidden", minWidth: 0 }}>
+            {/* Search */}
+            <div className="px-3 py-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5">
+                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400 shrink-0" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="flex-1 text-xs bg-transparent text-slate-700 placeholder:text-slate-400 focus:outline-none min-w-0"
+                />
+              </div>
+            </div>
 
-        {/* Header */}
-        <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 18px", borderBottom: "1px solid #1f2530", background: "#14171c", flexShrink: 0 }}>
-          <button onClick={() => setSidebarOpen(s => !s)} style={{ background: "none", border: "none", color: "#8892a4", fontSize: 17, cursor: "pointer", padding: "4px 6px", borderRadius: 6 }}>☰</button>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 14, letterSpacing: "-.02em" }}>Orbe</span>
-            <span style={{ fontFamily: "monospace", fontSize: 10, color: "#4a5568", textTransform: "uppercase", letterSpacing: ".18em" }}>assistant</span>
-          </div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
-            {busy && (
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f6a623", boxShadow: "0 0 8px #f6a623", animation: "pulsate 1.2s ease-in-out infinite" }} />
-            )}
-            {user && <span style={{ fontFamily: "monospace", fontSize: 11, color: "#4a5568" }}>{user.firstName || userInitial}</span>}
-            <Link href="/dashboard" style={{ fontFamily: "monospace", fontSize: 11, color: "#4a5568", textDecoration: "none" }}>← dashboard</Link>
-          </div>
-        </header>
-
-        {/* Chat area */}
-        <div ref={chatRef} style={{ overflowY: "auto", padding: "0 0 32px", scrollBehavior: "smooth" }}>
-          <div style={{ maxWidth: 820, margin: "0 auto", padding: "0 20px" }}>
-
-            {/* Welcome screen */}
-            {turns.length === 0 && (
-              <div style={{ maxWidth: 820, margin: "80px auto 0" }}>
-                <h2 style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, letterSpacing: "-.03em", marginBottom: 10 }}>Donne-lui un objectif.</h2>
-                <p style={{ color: "#8892a4", fontSize: 14.5, lineHeight: 1.6, maxWidth: 520 }}>
-                  L'agent utilise tes outils connectés (Gmail, WhatsApp, Notion, CRM…) et résout le problème de bout en bout. Chaque étape est visible en temps réel.
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 24 }}>
-                  {seeds.map(seed => (
-                    <button key={seed} onClick={() => { setInput(seed); setTimeout(() => inputRef.current?.focus(), 0); }}
-                      style={{ fontFamily: "monospace", fontSize: 12, color: "#8892a4", border: "1px solid #2a3040", background: "#14171c", padding: "9px 13px", borderRadius: 8, cursor: "pointer", lineHeight: 1.4, transition: "all .15s" }}>
-                      {seed}
+            {/* Sessions list */}
+            <div className="flex-1 overflow-y-auto py-2">
+              {groups.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center mt-8 px-4">Aucune conversation</p>
+              ) : groups.map(group => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">{group.label}</p>
+                  {group.items.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleLoadSession(s)}
+                      className={`w-full text-left px-3 py-2 group flex items-start gap-2 hover:bg-slate-50 transition-colors rounded-lg mx-1 ${activeSessionId === s.id ? "bg-blue-50 text-blue-700" : ""}`}
+                    >
+                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400 shrink-0 mt-0.5" viewBox="0 0 24 24">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium truncate ${activeSessionId === s.id ? "text-blue-700" : "text-slate-700"}`}>{s.title}</p>
+                        <p className="text-[10px] text-slate-400">{new Date(s.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                      </div>
+                      <button
+                        onClick={e => handleDeleteSession(s.id, e)}
+                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 p-0.5 rounded"
+                        title="Supprimer"
+                      >
+                        <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 2l7 7M9 2l-7 7" strokeLinecap="round"/></svg>
+                      </button>
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
 
-            {turns.map(turn => (
-              <TurnView key={turn.id} turn={turn} userInitial={userInitial} />
-            ))}
+            {/* Footer sidebar */}
+            <div className="p-3 border-t border-slate-100">
+              <Link href="/settings" className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                <span className={`w-2 h-2 rounded-full ${connectedCount > 0 ? "status-connected" : "status-disconnected"}`} />
+                {connectedCount} intégration{connectedCount !== 1 ? "s" : ""} connectée{connectedCount !== 1 ? "s" : ""}
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── MAIN CHAT ───────────────────────────────────────────────────────── */}
+      <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-8 pb-6 flex flex-col">
+
+        {/* Header */}
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              title={sidebarOpen ? "Masquer l'historique" : "Afficher l'historique"}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18" strokeLinecap="round"/>
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                {hasMessages ? (activeSessionId ? sessions.find(s => s.id === activeSessionId)?.title?.slice(0, 40) ?? "Conversation" : "Conversation") : `Bonjour ${displayName ?? ""} 👋`}
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasMessages && (
+              <button
+                onClick={() => exportConversation(messages)}
+                className="text-xs text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-all"
+                title="Exporter (.txt)"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path d="M12 15l-3-3m3 3l3-3m-3 3V9M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={() => { setFocusMode(f => !f); setSidebarOpen(false); }}
+              className={`p-2 rounded-lg transition-all text-xs font-medium ${focusMode ? "bg-blue-100 text-blue-600" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+              title={focusMode ? "Quitter le mode Focus" : "Mode Focus (plein écran)"}
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                {focusMode
+                  ? <path d="M9 9L4 4M4 4h5M4 4v5M15 9l5-5M20 4h-5M20 4v5M9 15l-5 5M4 20h5M4 20v-5M15 15l5 5M20 20h-5M20 20v-5" strokeLinecap="round"/>
+                  : <path d="M4 8V6a2 2 0 012-2h2M4 16v2a2 2 0 002 2h2M14 4h2a2 2 0 012 2v2M14 20h2a2 2 0 002-2v-2" strokeLinecap="round"/>
+                }
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* Footer / Composer */}
-        <footer style={{ borderTop: "1px solid #1f2530", background: "#14171c", padding: "14px 20px", flexShrink: 0 }}>
-          <div style={{ maxWidth: 820, margin: "0 auto" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={e => {
-                  setInput(e.target.value);
-                  e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 180) + "px";
-                }}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                placeholder="Envoie un message… (Entrée pour envoyer, Maj+Entrée pour saut de ligne)"
-                rows={1}
-                style={{ flex: 1, resize: "none", minHeight: 46, maxHeight: 180, background: "#0d0f12", border: "1px solid #2a3040", color: "#e2e8f0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 15, lineHeight: 1.5, padding: "12px 14px", borderRadius: 10, outline: "none", transition: "border-color .15s" }}
-              />
-              <div style={{ display: "flex", gap: 8 }}>
-                {busy && (
-                  <button onClick={() => abortRef.current?.abort()}
-                    style={{ background: "none", border: "1px solid #f87171", color: "#f87171", fontFamily: "monospace", fontSize: 12, height: 46, padding: "0 14px", borderRadius: 10, cursor: "pointer", transition: "all .15s" }}>
-                    ■ Stop
-                  </button>
-                )}
-                <button onClick={send} disabled={busy || !input.trim()}
-                  style={{ background: busy || !input.trim() ? "rgba(246,166,35,.2)" : "#f6a623", color: busy || !input.trim() ? "#4a5568" : "#1a0f00", border: "none", fontFamily: "monospace", fontWeight: 700, fontSize: 13, padding: "0 18px", height: 46, borderRadius: 10, cursor: busy || !input.trim() ? "not-allowed" : "pointer", transition: "all .15s" }}>
-                  Envoyer ↵
-                </button>
-              </div>
+        {/* État sans connexions */}
+        {!hasMessages && connectedCount === 0 && (
+          <div className="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+            <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+              <svg width="16" height="16" fill="none" stroke="#d97706" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+              </svg>
             </div>
-            <p style={{ textAlign: "center", fontFamily: "monospace", fontSize: 10, color: "#4a5568", marginTop: 8 }}>
-              Entrée pour envoyer · Shift+Entrée pour nouvelle ligne
-            </p>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">Aucune intégration connectée</p>
+              <p className="text-xs text-amber-700 mt-0.5">Connecte Gmail, Slack ou Notion pour que l&apos;assistant puisse vraiment t&apos;aider.</p>
+            </div>
+            <Link href="/settings" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all">
+              Connecter
+            </Link>
           </div>
-        </footer>
-      </div>
+        )}
 
-      {/* Global keyframe animations */}
-      <style>{`
-        @keyframes pulsate { 0%,100%{box-shadow:0 0 8px #f6a623} 50%{box-shadow:0 0 16px #f6a623} }
-        @keyframes fadein { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:none} }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes eq { 0%,100%{transform:scaleY(.35)} 50%{transform:scaleY(1)} }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 3px; }
-      `}</style>
+        {/* Suggestions (sans messages) */}
+        {!hasMessages && !loading && (
+          <div className="mb-6 flex-1 flex flex-col items-center justify-center gap-6 py-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                <span className="text-white font-black text-2xl">A</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Comment puis-je t&apos;aider ?</h2>
+              <p className="text-sm text-slate-500 mt-1">Pose-moi n&apos;importe quelle question ou demande-moi d&apos;agir pour toi.</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+              {QUICK_SUGGESTIONS.flatMap(cat => cat.prompts.slice(0, 2)).map(p => (
+                <button key={p.label} onClick={() => send(p.prompt)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-blue-200 bg-white text-xs font-medium text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all shadow-sm">
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Chat zone */}
+        {hasMessages && (
+          <div ref={scrollRef}
+            className="flex-1 min-h-[40vh] max-h-[60vh] overflow-y-auto space-y-5 mb-5 px-1">
+            {messages.map((m, i) => {
+              const isStreamingMsg = loading && i === messages.length - 1 && m.role === "assistant";
+              return (
+                <div key={i} className={`flex gap-3 animate-fade-up ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+                  {m.role === "user" ? <UserAvatar initials={initials} /> : <BotAvatar />}
+                  <div className={`group relative max-w-[78%] flex items-start gap-0 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+                    <div className={`px-4 py-2.5 rounded-2xl ${
+                      m.role === "user"
+                        ? "bg-blue-600 text-white rounded-tr-md text-sm leading-relaxed"
+                        : "bg-white border border-slate-200 text-slate-800 rounded-tl-md shadow-sm"
+                    }`}>
+                      {m.role === "user"
+                        ? m.content
+                        : <MarkdownText content={m.content} streaming={isStreamingMsg} />
+                      }
+                    </div>
+                    {m.role === "assistant" && !isStreamingMsg && m.content && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <CopyButton text={m.content} />
+                        {!feedbackSent.has(i) ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageIndex: i, rating: "up", content: m.content.slice(0, 200) }) });
+                                setFeedbackSent(prev => new Set([...prev, i]));
+                              }}
+                              className="p-1 rounded-md hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-all" title="Bonne réponse"
+                            >👍</button>
+                            <button
+                              onClick={() => {
+                                fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageIndex: i, rating: "down", content: m.content.slice(0, 200) }) });
+                                setFeedbackSent(prev => new Set([...prev, i]));
+                              }}
+                              className="p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all" title="Mauvaise réponse"
+                            >👎</button>
+                          </>
+                        ) : <span className="text-xs text-slate-400 ml-1">Merci ✓</span>}
+                      </div>
+                    )}
+                  </div>
+                  {m.role === "assistant" && !isStreamingMsg && m.content && (
+                    <SmartActionBar content={m.content} />
+                  )}
+                </div>
+              );
+            })}
+            {loading && (activeTool || messages[messages.length - 1]?.role !== "assistant") && (
+              <div className="flex gap-3 animate-fade-up">
+                <BotAvatar />
+                {activeTool ? (
+                  <div className="bg-white border border-blue-100 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex items-center gap-2">
+                    <span className="block w-3 h-3 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin shrink-0" />
+                    <span className="text-xs text-blue-600 font-medium">{activeTool.replace(/_/g, " ")}…</span>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex gap-1.5">
+                    {[0, 150, 300].map(d => (
+                      <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Errors */}
+        {error && (
+          error.includes("<upgrade>") ? (
+            <div className="mb-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-blue-700 font-medium">{error.replace(" → <upgrade>", "")}</p>
+              <Link href="/pricing" className="shrink-0 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-all">
+                Passer Pro →
+              </Link>
+            </div>
+          ) : (
+            <div className="mb-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>
+          )
+        )}
+
+        {/* Input — glassmorphism style */}
+        <form onSubmit={e => { e.preventDefault(); send(input); }}
+          className="relative bg-white/80 backdrop-blur-md border border-blue-200/60 rounded-2xl shadow-[0_4px_24px_rgba(59,130,246,0.12)] focus-within:border-blue-400 focus-within:shadow-[0_4px_32px_rgba(59,130,246,0.22)] transition-all">
+          <div className="flex items-end gap-2 px-4 py-3">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={connectedCount > 0 ? "Demande-moi n'importe quoi…" : "Connecte un compte d'abord pour commencer…"}
+              disabled={loading}
+              rows={1}
+              className="flex-1 resize-none bg-transparent border-0 focus:outline-none text-sm text-slate-900 placeholder:text-slate-400 py-1 max-h-[200px]"
+            />
+            <button
+              type="button"
+              onClick={toggleVoice}
+              title={listening ? "Arrêter l'écoute" : "Dicter un message"}
+              className={`shrink-0 p-2 rounded-xl transition-all ${listening ? "bg-red-100 text-red-500 animate-pulse" : "text-slate-400 hover:text-blue-500 hover:bg-blue-50"}`}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="9" y="2" width="6" height="11" rx="3"/>
+                <path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button type="submit" disabled={loading || !input.trim()}
+              className="shrink-0 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-sm">
+              {loading
+                ? <span className="block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12l14-7-7 14-2-5-5-2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              }
+            </button>
+          </div>
+          <div className="px-4 pb-2.5 flex items-center justify-between text-xs text-slate-400">
+            <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours…</span> : "⏎ envoyer · ⇧⏎ nouvelle ligne"}</span>
+            <div className="flex items-center gap-3">
+              {remaining !== null && remaining !== -1 && remaining < 20 && (
+                <span className={remaining === 0 ? "text-red-500 font-medium" : "text-amber-500"}>
+                  {remaining} action{remaining > 1 ? "s" : ""} restante{remaining > 1 ? "s" : ""}
+                </span>
+              )}
+              {hasMessages && (
+                <button type="button" onClick={handleNewConversation}
+                  className="text-blue-500 hover:text-blue-700 transition-colors font-medium">
+                  + Nouvelle
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+
+        <p className="text-xs text-slate-400 text-center mt-3">
+          Orbe peut faire des erreurs. Vérifie les infos importantes.
+        </p>
+      </main>
+      </div>
     </div>
   );
 }
