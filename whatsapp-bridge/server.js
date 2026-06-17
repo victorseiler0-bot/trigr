@@ -130,7 +130,7 @@ async function pushToN8n(m, jid) {
   if (!text) return;
   const phone = jid.split("@")[0];
   try {
-    await nodeFetch(`${n8nUrl}/webhook/autozen-wa-agent`, {
+    await nodeFetch(`${n8nUrl}/webhook/trigr-wa-agent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone, message: text, jid, timestamp: Number(m.messageTimestamp ?? 0) }),
@@ -156,7 +156,7 @@ async function startWhatsApp() {
 
   sock = makeWASocket({
     version, logger, auth: state,
-    browser: ["Autozen", "Chrome", "120.0"],
+    browser: ["Trigr", "Chrome", "120.0"],
     syncFullHistory: false,
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
@@ -341,7 +341,7 @@ function parseVCards(text) {
 
 // ── Routes WhatsApp ───────────────────────────────────────────────────────────
 
-app.get("/", (_, res) => res.json({ service: "Autozen Bridge", wa: waStatus, apple: !!appleConfig }));
+app.get("/", (_, res) => res.json({ service: "Trigr Bridge", wa: waStatus, apple: !!appleConfig }));
 
 app.get("/status", (_, res) => {
   const user = sock?.user;
@@ -533,9 +533,9 @@ app.post("/apple/calendar/create", async (req, res) => {
   try {
     const home = await discoverCalDavHome(appleConfig);
     const toIcal = (dt) => dt.replace(/[^0-9T]/g, "").replace("T", "T").slice(0, 15) + "Z";
-    const uid = `Autozen-${Date.now()}@Autozen.app`;
+    const uid = `Trigr-${Date.now()}@Trigr.app`;
     const ical = [
-      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Autozen//FR",
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trigr//FR",
       "BEGIN:VEVENT",
       `UID:${uid}`,
       `DTSTART:${toIcal(start)}`,

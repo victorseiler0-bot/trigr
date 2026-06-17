@@ -1,4 +1,4 @@
-// Tunnel SSH pour exposer n8n (port 5678) via localhost.run
+﻿// Tunnel SSH pour exposer n8n (port 5678) via localhost.run
 // pm2 start n8n-tunnel.js --name n8n-tunnel
 
 const { spawn, execSync } = require("child_process");
@@ -10,7 +10,7 @@ function updateVercelN8nUrl(tunnelUrl) {
   if (lastUrl === tunnelUrl) return;
   lastUrl = tunnelUrl;
   console.log("[n8n-tunnel] Tunnel actif:", tunnelUrl);
-  console.log("[n8n-tunnel] Webhook n8n:", tunnelUrl + "/webhook/autozen-wa-meta-forward");
+  console.log("[n8n-tunnel] Webhook n8n:", tunnelUrl + "/webhook/trigr-wa-meta-forward");
   try {
     execSync(
       `echo "${tunnelUrl}" | vercel env add N8N_WEBHOOK_URL production --force`,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { clerkClient } from "@clerk/nextjs/server";
 import { storeWaMessage, sendMetaWaMessage, markWaRead, type WaMessage } from "@/lib/whatsapp-meta";
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const n8nUrl = process.env.N8N_WEBHOOK_URL;
     if (n8nUrl) {
       try {
-        await fetch(`${n8nUrl}/webhook/autozen-wa-meta-forward`, {
+        await fetch(`${n8nUrl}/webhook/trigr-wa-meta-forward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone: from, message: text, name: fromName }),

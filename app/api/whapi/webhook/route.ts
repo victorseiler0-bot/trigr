@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { storeWaMessage } from "@/lib/whatsapp-meta";
 
 // Webhook de compatibilité (anciennement Whapi).
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     // Forward vers n8n cloud si configuré (bridge local pousse directement en dev)
     const n8nUrl = process.env.N8N_WEBHOOK_URL;
     if (n8nUrl) {
-      fetch(`${n8nUrl}/webhook/autozen-wa-agent`, {
+      fetch(`${n8nUrl}/webhook/trigr-wa-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -1,10 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata = {
-  title: "Suppression des données — Autozen",
-  description: "Comment supprimer vos données personnelles d'Autozen.",
+  title: "Suppression des données — Trigr",
+  description: "Comment supprimer vos données personnelles de Trigr.",
 };
 
 export default function DataDeletionPage({ searchParams }: { searchParams: { code?: string } }) {
@@ -28,8 +28,8 @@ export default function DataDeletionPage({ searchParams }: { searchParams: { cod
 
           <div className="space-y-8 text-zinc-300 text-sm leading-relaxed">
             <section>
-              <h2 className="text-lg font-semibold text-white mb-3">Supprimer votre compte Autozen</h2>
-              <p className="mb-4">Pour supprimer toutes vos données personnelles d&apos;Autozen :</p>
+              <h2 className="text-lg font-semibold text-white mb-3">Supprimer votre compte Trigr</h2>
+              <p className="mb-4">Pour supprimer toutes vos données personnelles de Trigr :</p>
               <ol className="space-y-3 list-decimal list-inside text-zinc-400">
                 <li>Connectez-vous à votre compte sur <a href="https://trigr-eight.vercel.app" className="text-blue-400 hover:text-blue-300">trigr-eight.vercel.app</a></li>
                 <li>Allez dans <strong className="text-zinc-200">Paramètres → Compte</strong></li>
@@ -41,7 +41,7 @@ export default function DataDeletionPage({ searchParams }: { searchParams: { cod
 
             <section>
               <h2 className="text-lg font-semibold text-white mb-3">Données collectées via Facebook / Meta</h2>
-              <p className="mb-3">Si vous avez utilisé Autozen via une intégration Meta (WhatsApp Business), les données suivantes peuvent avoir été collectées :</p>
+              <p className="mb-3">Si vous avez utilisé Trigr via une intégration Meta (WhatsApp Business), les données suivantes peuvent avoir été collectées :</p>
               <ul className="space-y-2 text-zinc-400">
                 <li>• Numéro de téléphone WhatsApp</li>
                 <li>• Contenu des messages échangés avec l&apos;assistant IA</li>

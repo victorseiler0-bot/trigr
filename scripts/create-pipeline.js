@@ -1,4 +1,4 @@
-// Pipeline Création IA — 5 agents qui créent, testent et déploient l'IA Autozen
+﻿// Pipeline Création IA — 5 agents qui créent, testent et déploient l'IA Trigr
 const N8N_KEY = process.env.N8N_API_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const SITE_URL = process.env.SITE_URL || 'https://trigr-eight.vercel.app';
@@ -6,7 +6,7 @@ const SITE_URL = process.env.SITE_URL || 'https://trigr-eight.vercel.app';
 // ════════════════════════════════════════════════════════════════════════
 // AGENT 1 — Chef de Projet : définit les objectifs et le contexte
 // ════════════════════════════════════════════════════════════════════════
-const chefDeProjetPrompt = `Tu es Chef de Projet IA chez Autozen. Tu coordonnes la création d'un assistant IA parfait pour PME françaises.
+const chefDeProjetPrompt = `Tu es Chef de Projet IA chez Trigr. Tu coordonnes la création d'un assistant IA parfait pour PME françaises.
 
 MISSION DU PIPELINE :
 - Créer des system prompts ultra-optimisés pour chaque agent spécialisé
@@ -30,7 +30,7 @@ Retourne un JSON avec une clé par agent_id.`;
 // ════════════════════════════════════════════════════════════════════════
 // AGENT 2 — Rédacteur : génère les system prompts
 // ════════════════════════════════════════════════════════════════════════
-const redacteurPrompt = `Tu es Rédacteur IA Senior chez Autozen, spécialisé en prompt engineering.
+const redacteurPrompt = `Tu es Rédacteur IA Senior chez Trigr, spécialisé en prompt engineering.
 
 Tu reçois les objectifs définis par le Chef de Projet et tu rédiges des system prompts parfaits.
 
@@ -50,7 +50,7 @@ Retourne JSON : { "agent_id": { "system_prompt": "...", "version": "2.0" } }`;
 // ════════════════════════════════════════════════════════════════════════
 // AGENT 3 — Testeur : simule des conversations pour tester
 // ════════════════════════════════════════════════════════════════════════
-const testeurPrompt = `Tu es Testeur QA IA chez Autozen. Tu testes chaque agent avec des scénarios réalistes.
+const testeurPrompt = `Tu es Testeur QA IA chez Trigr. Tu testes chaque agent avec des scénarios réalistes.
 
 Pour chaque agent, simule 3 conversations typiques et évalue si le system prompt fourni produirait de bonnes réponses.
 
@@ -69,7 +69,7 @@ Retourne JSON : { "agent_id": { "tests": [...], "avg_score": number, "critical_i
 // ════════════════════════════════════════════════════════════════════════
 // AGENT 4 — Évaluateur : score global et recommandations
 // ════════════════════════════════════════════════════════════════════════
-const evaluateurPrompt = `Tu es Évaluateur IA Senior chez Autozen. Tu analyses les résultats des tests et donnes un verdict final.
+const evaluateurPrompt = `Tu es Évaluateur IA Senior chez Trigr. Tu analyses les résultats des tests et donnes un verdict final.
 
 Tu reçois les résultats du Testeur et tu :
 1. Calcules un score global /100 pour chaque agent
@@ -233,7 +233,7 @@ const success = deployResult.success || false;
 return [{ json: {
   status: success ? '✅ Pipeline terminé' : '⚠️ Pipeline partiel',
   message: success
-    ? 'L\\'IA Autozen a été améliorée par ' + (deployResult.updated_agents || 0) + ' agents mis à jour sur ' + (deployResult.total_agents || 7) + '. La prochaine conversation utilisera les nouvelles configs.'
+    ? 'L'IA Trigr a été améliorée par ' + (deployResult.updated_agents || 0) + ' agents mis à jour sur ' + (deployResult.total_agents || 7) + '. La prochaine conversation utilisera les nouvelles configs.'
     : 'Le pipeline a terminé mais le déploiement a rencontré des problèmes.',
   run_id: deployResult.pipeline_run_id,
   details: deployResult
@@ -276,14 +276,14 @@ const [testPrep, testApi]     = groqNode('test',   '🧪 Testeur',          buil
 const [evalPrep, evalApi]     = groqNode('eval',   '⚖️ Évaluateur',        buildEvalBody,    2400, 0);
 
 const workflow = {
-  name: 'Autozen — Pipeline Création IA (5 Agents)',
+  name: 'Trigr — Pipeline Création IA (5 Agents)',
   nodes: [
     // Déclencheur
     {
       id: 'trigger', name: 'Webhook Déclencheur',
       type: 'n8n-nodes-base.webhook', typeVersion: 2.1, position: [0, 0],
-      webhookId: 'autozen-pipeline-ia',
-      parameters: { httpMethod: 'POST', path: 'autozen-pipeline-ia', responseMode: 'lastNode', options: {} }
+      webhookId: 'trigr-pipeline-ia',
+      parameters: { httpMethod: 'POST', path: 'trigr-pipeline-ia', responseMode: 'lastNode', options: {} }
     },
     // Agent 0 - Init
     {
@@ -308,13 +308,13 @@ const workflow = {
       parameters: { jsCode: deployBodyCode }
     },
     {
-      id: 'deploy-api', name: '🚀 Déployeur — Envoyer à Autozen',
+      id: 'deploy-api', name: '🚀 Déployeur — Envoyer à Trigr',
       type: 'n8n-nodes-base.httpRequest', typeVersion: 4.4, position: [3600, 0],
       parameters: {
         method: 'POST',
         url: `${SITE_URL}/api/agent-config`,
         sendHeaders: true,
-        headerParameters: { parameters: [{ name: 'x-autozen-internal', value: 'autozen-internal' }] },
+        headerParameters: { parameters: [{ name: 'x-trigr-internal', value: 'trigr-internal' }] },
         sendBody: true, contentType: 'json',
         jsonBody: '={{ $json }}',
         options: {}
@@ -338,8 +338,8 @@ const workflow = {
     '⚖️ Évaluateur — Préparer':     { main: [[{ node: '⚖️ Évaluateur — Groq', type: 'main', index: 0 }]] },
     '⚖️ Évaluateur — Groq':         { main: [[{ node: '🚀 Déployeur — Consolider', type: 'main', index: 0 }]] },
     '🚀 Déployeur — Consolider':    { main: [[{ node: '🚀 Déployeur — Préparer body', type: 'main', index: 0 }]] },
-    '🚀 Déployeur — Préparer body': { main: [[{ node: '🚀 Déployeur — Envoyer à Autozen', type: 'main', index: 0 }]] },
-    '🚀 Déployeur — Envoyer à Autozen': { main: [[{ node: '✅ Rapport Final', type: 'main', index: 0 }]] },
+    '🚀 Déployeur — Préparer body': { main: [[{ node: '🚀 Déployeur — Envoyer à Trigr', type: 'main', index: 0 }]] },
+    '🚀 Déployeur — Envoyer à Trigr': { main: [[{ node: '✅ Rapport Final', type: 'main', index: 0 }]] },
   },
   settings: { executionOrder: 'v1', timezone: 'Europe/Paris' }
 };
@@ -385,7 +385,7 @@ async function deploy() {
   console.log('╔══════════════════════════════════════════════════════╗');
   console.log('║  ✅ Pipeline Création IA — ACTIVÉ                    ║');
   console.log('║  ID:', wfId.padEnd(38), '║');
-  console.log('║  Webhook: http://localhost:5678/webhook/autozen-pipeline-ia  ║');
+  console.log('║  Webhook: http://localhost:5678/webhook/trigr-pipeline-ia  ║');
   console.log('╚══════════════════════════════════════════════════════╝');
   console.log('');
   console.log('Agents du pipeline :');
@@ -395,7 +395,7 @@ async function deploy() {
   console.log('  ⚖️  Évaluateur      → score et verdict final');
   console.log('  🚀 Déployeur       → envoie sur', '${SITE_URL}');
   console.log('');
-  console.log('Lance avec : curl -X POST http://localhost:5678/webhook/autozen-pipeline-ia -H "Content-Type: application/json" -d "{}"');
+  console.log('Lance avec : curl -X POST http://localhost:5678/webhook/trigr-pipeline-ia -H "Content-Type: application/json" -d "{}"');
 }
 
 deploy().catch(e => { console.error('FATAL:', e.message); process.exit(1); });

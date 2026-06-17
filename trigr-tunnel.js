@@ -1,6 +1,6 @@
-// Script PM2 : démarre le tunnel SSH serveo + met à jour WHATSAPP_BRIDGE_URL via Vercel CLI
-// Lance avec : pm2 start Autozen-tunnel.js --name Autozen-tunnel
-// Arrête avec : pm2 stop Autozen-tunnel
+﻿// Script PM2 : démarre le tunnel SSH serveo + met à jour WHATSAPP_BRIDGE_URL via Vercel CLI
+// Lance avec : pm2 start Trigr-tunnel.js --name Trigr-tunnel
+// Arrête avec : pm2 stop Trigr-tunnel
 
 const { spawn, execSync } = require("child_process");
 
@@ -15,19 +15,19 @@ function updateVercelBridgeUrl(bridgeUrl) {
       `echo "${bridgeUrl}" | vercel env add WHATSAPP_BRIDGE_URL production --force`,
       { cwd: __dirname, stdio: "pipe", timeout: 30000, windowsHide: true }
     );
-    console.log("[Autozen] WHATSAPP_BRIDGE_URL mis à jour sur Vercel :", bridgeUrl);
+    console.log("[Trigr] WHATSAPP_BRIDGE_URL mis à jour sur Vercel :", bridgeUrl);
 
     // Redéploiement automatique pour que le changement soit pris en compte
-    console.log("[Autozen] Déploiement Vercel en cours...");
+    console.log("[Trigr] Déploiement Vercel en cours...");
     execSync("vercel --prod --yes", { cwd: __dirname, stdio: "pipe", timeout: 180000, windowsHide: true });
-    console.log("[Autozen] Déploiement Vercel terminé ✓");
+    console.log("[Trigr] Déploiement Vercel terminé ✓");
   } catch (e) {
-    console.error("[Autozen] Erreur mise à jour Vercel :", e.message?.slice(0, 200));
+    console.error("[Trigr] Erreur mise à jour Vercel :", e.message?.slice(0, 200));
   }
 }
 
 function startTunnel() {
-  console.log("[Autozen] Démarrage du tunnel SSH serveo...");
+  console.log("[Trigr] Démarrage du tunnel SSH serveo...");
   let urlCaptured = false;
 
   const ssh = spawn("ssh", [
@@ -47,7 +47,7 @@ function startTunnel() {
       if (match) {
         urlCaptured = true;
         const tunnelUrl = match[0];
-        console.log("[Autozen] Tunnel actif :", tunnelUrl);
+        console.log("[Trigr] Tunnel actif :", tunnelUrl);
         // Lance la mise à jour en arrière-plan pour ne pas bloquer
         setImmediate(() => updateVercelBridgeUrl(tunnelUrl));
       }
@@ -58,13 +58,13 @@ function startTunnel() {
   ssh.stderr.on("data", onData);
 
   ssh.on("close", (code) => {
-    console.log("[Autozen] Tunnel fermé (code", code, "). Redémarrage dans 5s...");
+    console.log("[Trigr] Tunnel fermé (code", code, "). Redémarrage dans 5s...");
     urlCaptured = false;
     setTimeout(startTunnel, 5000);
   });
 
   ssh.on("error", (err) => {
-    console.error("[Autozen] Erreur SSH:", err.message);
+    console.error("[Trigr] Erreur SSH:", err.message);
     setTimeout(startTunnel, 10000);
   });
 }
