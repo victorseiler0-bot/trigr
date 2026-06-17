@@ -6,7 +6,11 @@ import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/components/Toast";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type TraceEv =
+  | { type: "tool_call"; name: string; input?: Record<string, unknown> }
+  | { type: "tool_result"; name: string; result?: string };
+
+type Msg = { role: "user" | "assistant"; content: string; trace?: TraceEv[] };
 
 // ── Inline markdown renderer ───────────────────────────────────────────────────
 function renderInline(text: string): ReactNode[] {
@@ -111,6 +115,139 @@ const QUICK_SUGGESTIONS = [
     { label: "Secteur d'activité", prompt: "Quel est le code NAF et l'activité principale de cette société : " },
   ]},
 ];
+
+// ── Skill definitions (visual only — AI uses all tools) ───────────────────────
+const SKILL_DEFS = [
+  { icon: "✉️", label: "Email",    tools: ["lire_emails","envoyer_email","chercher_emails","imap"] },
+  { icon: "📅", label: "Agenda",   tools: ["agenda","evenement","creer_evenement"] },
+  { icon: "💬", label: "Messages", tools: ["whatsapp","slack","sms","instagram"] },
+  { icon: "🏢", label: "CRM",      tools: ["hubspot","crm","contact"] },
+  { icon: "🌐", label: "Web",      tools: ["recherche_web","meteo","weather"] },
+  { icon: "📝", label: "Notes",    tools: ["notes","reminders","rappel"] },
+  { icon: "💰", label: "Finance",  tools: ["tva","devis","facture"] },
+  { icon: "🔗", label: "GitHub",   tools: ["github","git","repo"] },
+];
+
+function SkillChips({ activeTool }: { activeTool: string | null }) {
+  const active = activeTool?.toLowerCase() ?? "";
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {SKILL_DEFS.map(s => {
+        const isActive = active && s.tools.some(t => active.includes(t));
+        return (
+          <span key={s.label} className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium transition-all ${
+            isActive
+              ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300 scale-105"
+              : "bg-slate-100 text-slate-500"
+          }`}>
+            {s.icon} {s.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Trace timeline (réflexion style Claude) ────────────────────────────────────
+function TraceEventView({ ev, isLast }: { ev: TraceEv; isLast: boolean }) {
+  const [open, setOpen] = useState(false);
+  const isCall = ev.type === "tool_call";
+  const toolLabel = ev.name.replace(/_/g, " ");
+  const hasDetail = isCall
+    ? ev.input && Object.keys(ev.input).length > 0
+    : !!(ev as { type: "tool_result"; name: string; result?: string }).result;
+  const detail = isCall
+    ? JSON.stringify(ev.input, null, 2)
+    : (ev as { type: "tool_result"; name: string; result?: string }).result ?? "";
+
+  return (
+    <div className="relative flex gap-2.5 py-0.5">
+      {!isLast && <div className="absolute left-[5px] top-4 bottom-0 w-px bg-slate-200/80" />}
+      <div className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 z-10 ring-2 ring-white ${
+        isCall ? "bg-amber-400" : "bg-emerald-400"
+      }`} />
+      <div className="flex-1 min-w-0">
+        <button
+          className={`flex items-center gap-1.5 text-left w-full ${hasDetail ? "cursor-pointer hover:opacity-75" : "cursor-default"}`}
+          onClick={() => hasDetail && setOpen(v => !v)}
+        >
+          <span className={`text-[11px] font-medium leading-relaxed ${isCall ? "text-amber-700" : "text-emerald-700"}`}>
+            {isCall ? "Appel" : "Résultat"} · <span className="font-semibold">{toolLabel}</span>
+          </span>
+          {hasDetail && (
+            <svg className={`w-2.5 h-2.5 shrink-0 text-slate-400 transition-transform ml-0.5 ${open ? "rotate-90" : ""}`} viewBox="0 0 6 10" fill="none">
+              <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </button>
+        {open && hasDetail && (
+          <pre className="mt-1.5 text-[10px] leading-relaxed bg-slate-950/90 text-emerald-300 rounded-lg px-3 py-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all font-mono border border-slate-800">
+            {detail}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TraceView({ trace, streaming }: { trace: TraceEv[]; streaming?: boolean }) {
+  const [open, setOpen] = useState(!!streaming);
+  const steps = trace.filter(e => e.type === "tool_call").length;
+
+  // auto-expand while streaming, auto-collapse when done
+  useEffect(() => { if (streaming) setOpen(true); }, [streaming]);
+
+  if (!trace || trace.length === 0) {
+    if (!streaming) return null;
+    return (
+      <div className="mb-3 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+        <span className="flex gap-0.5">
+          {[0,120,240].map(d => <span key={d} className="w-1 h-1 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+        </span>
+        <span className="text-[11px] text-slate-500 font-medium">Réflexion en cours…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`mb-3 rounded-xl overflow-hidden border transition-all ${
+      streaming ? "border-blue-200 bg-blue-50/50" : "border-slate-200 bg-slate-50"
+    }`}>
+      <button
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-black/5 transition-colors"
+        onClick={() => setOpen(v => !v)}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className={streaming ? "text-blue-500" : "text-slate-400"} stroke="currentColor" strokeWidth="2">
+          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        {streaming ? (
+          <span className="flex items-center gap-1.5 flex-1">
+            <span className="text-[11px] font-semibold text-blue-600">Réflexion</span>
+            <span className="flex gap-0.5 ml-1">{[0,100,200].map(d => <span key={d} className="w-0.5 h-0.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</span>
+          </span>
+        ) : (
+          <span className="flex-1 text-[11px] font-semibold text-slate-600">
+            Réflexion terminée
+            <span className="font-normal text-slate-400 ml-1">· {steps} étape{steps > 1 ? "s" : ""}</span>
+          </span>
+        )}
+        <svg className={`w-3 h-3 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 10 6" fill="none">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-1">
+          {trace.map((ev, i) => <TraceEventView key={i} ev={ev} isLast={i === trace.length - 1} />)}
+          {streaming && (
+            <div className="flex items-center gap-2 mt-1 pl-5">
+              <span className="text-[11px] text-slate-400 italic">En train de réfléchir…</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Avatar AI ──────────────────────────────────────────────────────────────────
 function BotAvatar() {
@@ -295,6 +432,8 @@ export default function AssistantPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const currentTraceRef = useRef<TraceEv[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Load sessions + history on mount + ?prefill= URL param
   useEffect(() => {
@@ -359,11 +498,16 @@ export default function AssistantPage() {
     setInput("");
     setLoading(true);
 
+    currentTraceRef.current = [];
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
     try {
       const r = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ message: trimmed, history: next.slice(0, -1) }),
+        signal: ctrl.signal,
       });
 
       if (r.status === 429) {
@@ -397,28 +541,31 @@ export default function AssistantPage() {
           if (!line.startsWith("data: ")) continue;
           try {
             const evt = JSON.parse(line.slice(6));
+            const trace = () => [...currentTraceRef.current];
             // Nouveau format AgentEngine
             if (evt.type === "text_delta") {
               accumulated += evt.text as string;
               if (!streamStarted) {
                 streamStarted = true;
                 setActiveTool(null);
-                setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
+                setMessages(prev => [...prev, { role: "assistant", content: accumulated, trace: trace() }]);
               } else {
-                setMessages(prev => { const c = [...prev]; c[c.length - 1] = { role: "assistant", content: accumulated }; return c; });
+                setMessages(prev => { const c = [...prev]; c[c.length - 1] = { ...c[c.length - 1], content: accumulated, trace: trace() }; return c; });
               }
             } else if (evt.type === "tool_call") {
+              currentTraceRef.current = [...currentTraceRef.current, { type: "tool_call", name: evt.name as string, input: (evt.input ?? {}) as Record<string, unknown> }];
               setActiveTool(evt.name as string);
             } else if (evt.type === "tool_result") {
+              currentTraceRef.current = [...currentTraceRef.current, { type: "tool_result", name: evt.name as string, result: evt.result as string }];
               setActiveTool(null);
             } else if (evt.type === "final") {
               const finalText = evt.text as string;
               if (finalText) {
                 if (!streamStarted) {
                   streamStarted = true;
-                  setMessages(prev => [...prev, { role: "assistant", content: finalText }]);
+                  setMessages(prev => [...prev, { role: "assistant", content: finalText, trace: trace() }]);
                 } else {
-                  setMessages(prev => { const c = [...prev]; c[c.length - 1] = { role: "assistant", content: finalText }; return c; });
+                  setMessages(prev => { const c = [...prev]; c[c.length - 1] = { ...c[c.length - 1], content: finalText, trace: trace() }; return c; });
                 }
               }
               if (typeof evt.remaining === "number") setRemaining(evt.remaining as number);
@@ -432,13 +579,15 @@ export default function AssistantPage() {
               if (!streamStarted) {
                 streamStarted = true;
                 setActiveTool(null);
-                setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
+                setMessages(prev => [...prev, { role: "assistant", content: accumulated, trace: trace() }]);
               } else {
-                setMessages(prev => { const c = [...prev]; c[c.length - 1] = { role: "assistant", content: accumulated }; return c; });
+                setMessages(prev => { const c = [...prev]; c[c.length - 1] = { ...c[c.length - 1], content: accumulated, trace: trace() }; return c; });
               }
             } else if (evt.tool) {
+              currentTraceRef.current = [...currentTraceRef.current, { type: "tool_call", name: evt.tool as string }];
               setActiveTool(evt.tool);
             } else if (evt.tool_done) {
+              currentTraceRef.current = [...currentTraceRef.current, { type: "tool_result", name: evt.tool_done as string }];
               setActiveTool(null);
             } else if (evt.done) {
               if (typeof evt.remaining === "number") setRemaining(evt.remaining);
@@ -451,11 +600,22 @@ export default function AssistantPage() {
         setMessages(prev => [...prev, { role: "assistant", content: "(réponse vide)" }]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur réseau");
+      if (e instanceof Error && e.name === "AbortError") {
+        // stopped by user — not an error
+      } else {
+        setError(e instanceof Error ? e.message : "Erreur réseau");
+      }
     } finally {
       setLoading(false);
       setActiveTool(null);
+      abortRef.current = null;
     }
+  }
+
+  function stopGeneration() {
+    abortRef.current?.abort();
+    setLoading(false);
+    setActiveTool(null);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -731,7 +891,12 @@ export default function AssistantPage() {
                     }`}>
                       {m.role === "user"
                         ? m.content
-                        : <MarkdownText content={m.content} streaming={isStreamingMsg} />
+                        : <>
+                            {m.trace && m.trace.length > 0 && (
+                              <TraceView trace={m.trace} streaming={isStreamingMsg && !m.content} />
+                            )}
+                            {m.content && <MarkdownText content={m.content} streaming={isStreamingMsg} />}
+                          </>
                       }
                     </div>
                     {m.role === "assistant" && !isStreamingMsg && m.content && (
@@ -767,18 +932,20 @@ export default function AssistantPage() {
             {loading && (activeTool || messages[messages.length - 1]?.role !== "assistant") && (
               <div className="flex gap-3 animate-fade-up">
                 <BotAvatar />
-                {activeTool ? (
-                  <div className="bg-white border border-blue-100 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex items-center gap-2">
-                    <span className="block w-3 h-3 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin shrink-0" />
-                    <span className="text-xs text-blue-600 font-medium">{activeTool.replace(/_/g, " ")}…</span>
-                  </div>
-                ) : (
-                  <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm flex gap-1.5">
-                    {[0, 150, 300].map(d => (
-                      <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                    ))}
-                  </div>
-                )}
+                <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm min-w-[160px]">
+                  {activeTool ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                      <span className="text-xs text-amber-700 font-medium">{activeTool.replace(/_/g, " ")}…</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      {[0, 150, 300].map(d => (
+                        <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -823,16 +990,28 @@ export default function AssistantPage() {
                 <path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <button type="submit" disabled={loading || !input.trim()}
-              className="shrink-0 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-sm">
-              {loading
-                ? <span className="block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12l14-7-7 14-2-5-5-2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              }
-            </button>
+            {loading ? (
+              <button
+                type="button"
+                onClick={stopGeneration}
+                title="Arrêter la génération"
+                className="shrink-0 bg-red-100 hover:bg-red-200 text-red-600 p-2.5 rounded-xl transition-all border border-red-200"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2"/>
+                </svg>
+              </button>
+            ) : (
+              <button type="submit" disabled={!input.trim()}
+                className="shrink-0 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12l14-7-7 14-2-5-5-2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            )}
           </div>
-          <div className="px-4 pb-2.5 flex items-center justify-between text-xs text-slate-400">
-            <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours…</span> : "⏎ envoyer · ⇧⏎ nouvelle ligne"}</span>
+          <div className="px-4 pb-2.5 flex flex-col gap-2">
+            <SkillChips activeTool={activeTool} />
+            <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>{listening ? <span className="text-red-500 font-medium">🎙 Écoute en cours…</span> : loading ? <span className="text-amber-600 font-medium">Génération en cours…</span> : "⏎ envoyer · ⇧⏎ nouvelle ligne"}</span>
             <div className="flex items-center gap-3">
               {remaining !== null && remaining !== -1 && remaining < 20 && (
                 <span className={remaining === 0 ? "text-red-500 font-medium" : "text-amber-500"}>
@@ -845,6 +1024,7 @@ export default function AssistantPage() {
                   + Nouvelle
                 </button>
               )}
+            </div>
             </div>
           </div>
         </form>

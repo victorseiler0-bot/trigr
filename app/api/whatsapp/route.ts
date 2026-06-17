@@ -50,10 +50,18 @@ export async function POST(req: NextRequest) {
   await markWaRead(msgId).catch(() => {});
 
   if (message.type === "text" && text) {
-    const reply = await generateSmartResponse(text, from, fromName);
-    if (reply) {
-      await sendMetaWaMessage(from, reply);
-      await storeWaMessage({ id: `sent_${Date.now()}`, from: "me", fromName: "Orbe", text: reply, timestamp: Math.floor(Date.now() / 1000), incoming: false });
+    const n8nUrl = process.env.N8N_WEBHOOK_URL;
+    if (n8nUrl) {
+      try {
+        await fetch(`${n8nUrl}/webhook/autozen-wa-meta-forward`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: from, message: text, name: fromName }),
+          signal: AbortSignal.timeout(25000),
+        });
+      } catch {
+        // n8n unreachable — n8n handles all replies, stay silent
+      }
     }
   }
 

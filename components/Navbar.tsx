@@ -8,18 +8,12 @@ import { setWaUnread, setEmailUnread } from "@/lib/slices/notificationsSlice";
 
 const PUBLIC_NAV = [
   ["/#fonctions", "Fonctionnalités"],
-  ["/#comment", "Comment ça marche"],
-  ["/marketplace", "Marketplace"],
   ["/pricing", "Tarifs"],
 ];
 
 const APP_NAV = [
   ["/assistant", "Assistant"],
   ["/dashboard", "Dashboard"],
-  ["/crm", "CRM"],
-  ["/notes", "Notes"],
-  ["/workflows", "Workflows"],
-  ["/marketplace", "Marketplace"],
   ["/settings", "Paramètres"],
 ];
 

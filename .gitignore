@@ -50,3 +50,6 @@ whatsapp-bridge/.wa-auth-export.txt
 setup-railway.ps1
 
 .env*.local
+
+# clerk configuration (can include secrets)
+/.clerk/

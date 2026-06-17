@@ -1,618 +1,107 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
-import IntegrationOrbit from "@/components/ui/IntegrationOrbit";
 
-// ── Brand logos ────────────────────────────────────────────────────────────────
-const LOGOS = [
-  { name: "Gmail", svg: <svg viewBox="0 0 24 24" width="22" height="22"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.910 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg> },
-  { name: "Calendar", svg: <svg viewBox="0 0 24 24" width="22" height="22"><path d="M18.316 5.684H24v12.632h-5.684V5.684zm-12.632 0H24v5.684H5.684V5.684zM0 5.684h5.684v12.632H0V5.684zm5.684 12.632H18.316V24H5.684v-5.684z" fill="#4285F4"/></svg> },
-  { name: "WhatsApp", svg: <svg viewBox="0 0 24 24" width="22" height="22" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg> },
-  { name: "Notion", svg: <svg viewBox="0 0 24 24" width="20" height="20" fill="#191919"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466l1.824 1.447zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.934zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933l3.222-.187z"/></svg> },
-  { name: "Slack", svg: <svg viewBox="0 0 122.8 122.8" width="20" height="20"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0S90.5 5.8 90.5 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg> },
-  { name: "GitHub", svg: <svg viewBox="0 0 24 24" width="20" height="20" fill="#24292f"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> },
-  { name: "HubSpot", svg: <svg viewBox="0 0 512 512" width="20" height="20" fill="#FF7A59"><path d="M267.4 211.6c-25.1 17.2-42.5 47.8-42.5 83.1 0 26.7 10.1 51.2 26.8 69.9l-56.2 56.2c-6.5-3-13.9-4.7-21.6-4.7-27.4 0-49.6 22.2-49.6 49.6S146.5 515.3 173.9 515.3s49.6-22.2 49.6-49.6c0-7.9-1.9-15.3-5.1-21.9l55.5-55.5c19.3 17.4 44.7 28 72.7 28 60.5 0 109.7-49.1 109.7-109.7s-49.1-109.7-109.7-109.7c-28.5 0-54.6 10.8-74.3 28.7z"/><path d="M285.1 219.2v-60.3c9.3-4.3 15.8-13.7 15.8-24.6v-.8c0-14.9-12.1-27.1-27.1-27.1h-.8c-14.9 0-27.1 12.1-27.1 27.1v.8c0 10.9 6.4 20.3 15.8 24.6v60.3c-14.2 2.1-27.3 7.7-38.5 16.2L122.5 119.7c.9-3.1 1.4-6.4 1.4-9.8 0-20.3-16.5-36.8-36.8-36.8s-36.8 16.5-36.8 36.8 16.5 36.8 36.8 36.8c8.5 0 16.3-2.9 22.5-7.7l99.8 113.5c-16.4 19.3-26.2 44.3-26.2 71.6 0 60.5 49.1 109.7 109.7 109.7s109.7-49.1 109.7-109.7c0-55.8-41.8-101.9-95.5-108.7z"/></svg> },
-  { name: "Airtable", svg: <svg viewBox="0 0 200 170" width="22" height="20"><path d="M90.039 12.368L24.079 38.66c-4.418 1.748-4.39 7.985.045 9.694l66.26 25.455c6.027 2.314 12.719 2.314 18.746 0l66.261-25.455c4.435-1.71 4.462-7.946.045-9.694L109.416 12.368c-6.231-2.45-13.146-2.45-19.377 0z" fill="#FFBF00"/><path d="M105.382 95.387v67.79c0 3.225 3.245 5.388 6.222 4.19l73.394-28.593c1.73-.674 2.86-2.35 2.86-4.19V66.794c0-3.225-3.246-5.388-6.222-4.19l-73.395 28.593c-1.73.675-2.86 2.35-2.86 4.19z" fill="#18BFFF"/><path d="M88.198 99.55L65.862 89.22l-2.584-1.21L18.8 68.906c-3.006-1.395-6.442.748-6.442 4.08v67.765c0 1.77.963 3.393 2.54 4.205l7.478 3.868 59.868 30.992c3.149 1.63 6.822-.625 6.822-4.205V103.63a4.663 4.663 0 00-2.868-4.08z" fill="#F82B60"/></svg> },
-];
-
-// ── Features ───────────────────────────────────────────────────────────────────
 const FEATURES = [
   {
-    badge: "Email & Agenda",
-    title: "Inbox zéro, sans effort",
-    desc: "Ton assistant trie tes emails, propose des réponses et prépare tes réunions — automatiquement.",
-    items: ["Triage & réponses suggérées", "Brief pré-réunion", "Comptes-rendus auto", "Suivi des relances"],
-    accent: "violet",
+    icon: "✉️",
+    title: "Email & Agenda",
+    desc: "Trie tes mails, propose des réponses, prépare tes réunions. Zéro effort.",
   },
   {
-    badge: "WhatsApp 24/7",
-    title: "Disponible sur ton téléphone",
-    desc: "WhatsApp Business natif — le canal n°1 des PME françaises. Répond à ta place 24h/24.",
-    items: ["WhatsApp Business natif", "Chat web en temps réel", "Email reply auto", "Slack DM (Pro)"],
-    accent: "emerald",
+    icon: "💬",
+    title: "SMS & WhatsApp",
+    desc: "Brief du matin par SMS, bot qui répond à ta place — même téléphone éteint.",
   },
   {
-    badge: "Workflows métier",
-    title: "20+ intégrations prêtes",
-    desc: "Slack, Notion, GitHub, Airtable — connecte tous tes outils en 1 clic via OAuth sécurisé.",
-    items: ["Relance prospect auto", "Rapport hebdo business", "Rappel RDV (−60% no-show)", "Devis en 1 clic"],
-    accent: "blue",
+    icon: "⚡",
+    title: "Automatisations",
+    desc: "Relances, rapports, rappels — tout tourne en arrière-plan sans que tu touches à rien.",
   },
 ];
 
-// ── Pricing ────────────────────────────────────────────────────────────────────
-const PLANS = [
-  { name: "Gratuit", price: "0€", period: "7 jours", desc: "Tout tester sans carte", features: ["Toutes les fonctionnalités", "100 messages", "1 assistant", "Chat web"], cta: "Démarrer l'essai", highlight: false, href: "/assistant" },
-  { name: "Solo", price: "9€", period: "/mois", desc: "Pour les indépendants", features: ["Messages illimités", "Gmail + Google Calendar", "10+ templates", "Support email"], cta: "Choisir Solo", highlight: false, href: "/pricing" },
-  { name: "Pro", price: "19€", period: "/mois", desc: "WhatsApp + toutes intégrations", features: ["Tout Solo inclus", "WhatsApp Business", "20+ intégrations OAuth", "30+ templates", "Support prioritaire"], cta: "Choisir Pro", highlight: true, badge: "Populaire", href: "/pricing" },
-  { name: "Équipe", price: "49€", period: "/mois", desc: "Pour les petites équipes", features: ["Tout Pro inclus", "5 utilisateurs", "API access", "Onboarding 30 min"], cta: "Choisir Équipe", highlight: false, href: "/pricing" },
-];
-
-const COMPARE = [
-  ["", "Orbe 🇫🇷", "Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"],
-  ["Prix/mois", "9 €", "50 $", "10 €", "30 $"],
-  ["Langue française", "✅ Native", "❌", "❌", "❌"],
-  ["WhatsApp Business", "✅ Natif", "❌", "⚠️ via Twilio", "⚠️ payant"],
-  ["Conversation IA", "✅ Inclus", "✅ Inclus", "❌ Workflow", "❌ Workflow"],
-  ["Données RGPD EU", "✅ Hébergé France", "❌ US", "✅ EU", "❌ US"],
-  ["Self-hosted", "✅ Docker", "❌", "❌", "❌"],
-  ["Templates PME FR", "✅ Kinés, artisans…", "❌ Templates US", "❌", "❌"],
-  ["Support FR", "✅ Email + chat", "❌ Anglais", "⚠️", "⚠️"],
-];
-
-const CHAT_MSGS = [
-  { role: "user", text: "Montre-moi mes emails urgents" },
-  { role: "assistant", text: "Tu as 3 emails urgents :\n• 📨 Marie Dupont – Devis en attente\n• 🔴 Facture impayée – Relancer avant 17h\n• 📋 Appel demain – Brief préparé ✓" },
-  { role: "user", text: "Relance Marie automatiquement" },
-  { role: "assistant", text: "✅ Email envoyé à Marie avec ton template. Rappel dans 48h si pas de réponse." },
-];
+const INTEGRATIONS = ["Gmail", "Google Calendar", "WhatsApp", "Slack", "Notion", "GitHub", "HubSpot", "Airtable"];
 
 export default function Home() {
   return (
     <>
       <Navbar />
-      <main className="bg-white">
+      <main className="bg-white min-h-screen">
 
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden pt-16 bg-white">
-          {/* Subtle gradient top */}
+        <section className="relative overflow-hidden pt-32 pb-24 px-6">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-blue-100/60 rounded-full blur-[120px]" />
-            <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-blue-100/40 rounded-full blur-[100px]" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-blue-100/50 rounded-full blur-[120px]" />
           </div>
-
-          <div className="relative max-w-7xl mx-auto px-6 pt-16 pb-20">
-            <div className="grid lg:grid-cols-2 gap-14 items-center">
-
-              {/* Left */}
-              <div className="animate-fade-up">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-8">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                  Essai gratuit 7 jours · Aucune carte requise
-                </div>
-                <h1 className="text-5xl md:text-6xl font-bold text-slate-900 leading-[1.06] tracking-tight mb-6">
-                  Ton assistant IA
-                  <br />
-                  <span className="gradient-text">personnel.</span>
-                  <br />
-                  <span className="text-slate-500">Données chez toi.</span>
-                </h1>
-                <p className="text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
-                  Gmail, WhatsApp, Slack — ton assistant automatise tout à ta place.
-                  RGPD-friendly, self-hostable, 5× moins cher que Lindy.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                  <Link href="/assistant"
-                    className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-7 py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(59,130,246,0.35)] hover:shadow-[0_6px_30px_rgba(59,130,246,0.45)] text-base">
-                    Démarrer gratuitement
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </Link>
-                  <Link href="/marketplace"
-                    className="inline-flex items-center justify-center gap-2 text-slate-700 font-semibold px-6 py-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-base">
-                    Voir le marketplace
-                  </Link>
-                </div>
-                <div className="flex flex-wrap gap-5 text-sm text-slate-500">
-                  {["RGPD-friendly", "Auto-hébergeable", "Sans engagement"].map(t => (
-                    <span key={t} className="flex items-center gap-1.5">
-                      <svg width="14" height="14" fill="none" stroke="#3b82f6" strokeWidth="2.5"><path d="M2 7l3 3 7-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right — chat preview */}
-              <div className="hidden lg:flex justify-center animate-fade-up-2">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-blue-100/50 rounded-3xl blur-2xl scale-105" />
-                  <div className="relative bg-white rounded-2xl overflow-hidden w-[360px] shadow-xl border border-slate-200">
-                    {/* Header */}
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
-                      <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400/70"/><div className="w-3 h-3 rounded-full bg-amber-400/70"/><div className="w-3 h-3 rounded-full bg-emerald-400/70"/></div>
-                      <div className="flex-1 flex items-center justify-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full status-connected" />
-                        <span className="text-xs text-slate-500 font-medium">Orbe Assistant</span>
-                      </div>
-                    </div>
-                    {/* Messages */}
-                    <div className="px-4 py-5 space-y-4 min-h-[280px] bg-white">
-                      {CHAT_MSGS.map((m, i) => (
-                        <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                          {m.role === "assistant" && (
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mr-2 mt-0.5 shrink-0">
-                              <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            </div>
-                          )}
-                          <div className={`rounded-2xl px-3.5 py-2.5 max-w-[240px] text-xs leading-relaxed ${
-                            m.role === "user" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-slate-100 text-slate-700 rounded-tl-sm"
-                          }`} style={{ whiteSpace: "pre-line" }}>{m.text}</div>
-                        </div>
-                      ))}
-                      <div className="flex gap-1.5 items-center">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
-                          <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M2 7h4l2-5 2 10 2-5h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </div>
-                        <div className="bg-slate-100 rounded-2xl rounded-tl-sm px-3.5 py-3 flex gap-1.5">
-                          {[0,150,300].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }}/>)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="px-4 pb-4 bg-white">
-                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                        <span className="flex-1 text-xs text-slate-400">Tape un message…</span>
-                        <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
-                          <svg width="10" height="10" fill="none" stroke="white" strokeWidth="2"><path d="M2 5h6M5 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute -right-6 top-8 bg-white border border-slate-200 shadow-lg rounded-xl px-3 py-2 animate-float text-xs font-medium text-slate-700">✅ Email envoyé</div>
-                  <div className="absolute -left-6 bottom-12 bg-white border border-slate-200 shadow-lg rounded-xl px-3 py-2 animate-float-delayed text-xs font-medium text-slate-700">📅 RDV planifié</div>
-                </div>
-              </div>
+          <div className="relative max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              Essai gratuit · Aucune carte requise
             </div>
+            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 leading-[1.08] tracking-tight mb-6">
+              Ton chief of staff IA.<br />
+              <span className="gradient-text">Toujours disponible.</span>
+            </h1>
+            <p className="text-xl text-slate-500 leading-relaxed mb-10 max-w-2xl mx-auto">
+              Un assistant personnel qui gère tes emails, ton agenda et tes automatisations.
+              Par SMS, WhatsApp ou chat — même quand ton PC est éteint.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/assistant"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-7 py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(59,130,246,0.35)] text-base">
+                Démarrer gratuitement
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7h8M7 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </Link>
+              <Link href="/pricing"
+                className="inline-flex items-center justify-center gap-2 text-slate-600 font-semibold px-6 py-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-base">
+                Voir les tarifs
+              </Link>
+            </div>
+            <p className="mt-6 text-sm text-slate-400">RGPD-friendly · 5× moins cher que Lindy · Données chez toi</p>
           </div>
         </section>
-
-        {/* ── STATS BAR ──────────────────────────────────────────────────────── */}
-        <section className="py-8 px-6 bg-blue-600">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              {[
-                { value: "5×", label: "Moins cher que Lindy" },
-                { value: "20+", label: "Intégrations OAuth" },
-                { value: "2 min", label: "Pour démarrer" },
-                { value: "100%", label: "Données chez vous" },
-              ].map(s => (
-                <div key={s.label}>
-                  <p className="text-3xl font-black text-white mb-1">{s.value}</p>
-                  <p className="text-xs text-blue-200 font-medium">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── LOGOS ─────────────────────────────────────────────────────────── */}
-        <section className="py-12 px-6 bg-slate-50 border-y border-slate-200">
-          <div className="max-w-5xl mx-auto">
-            <p className="text-xs text-slate-400 uppercase tracking-[0.2em] text-center mb-8 font-semibold">Compatible avec</p>
-            <div className="flex items-center justify-center flex-wrap gap-8">
-              {LOGOS.map(l => (
-                <div key={l.name} className="flex flex-col items-center gap-2 group cursor-default">
-                  <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center transition-all group-hover:shadow-md group-hover:-translate-y-0.5">
-                    {l.svg}
-                  </div>
-                  <span className="text-xs text-slate-400 group-hover:text-slate-600 transition-colors">{l.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── INTEGRATION ORBIT ───────────────────────────────────────────────── */}
-        <IntegrationOrbit />
 
         {/* ── FEATURES ────────────────────────────────────────────────────────── */}
-        <section id="fonctions" className="py-24 px-6 bg-white">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Fonctionnalités</p>
-              <h2 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-4">
-                Tout ce dont tu as besoin,<br /><span className="gradient-text">rien de superflu</span>
-              </h2>
-              <p className="text-slate-500 text-lg max-w-xl mx-auto">Un assistant IA qui comprend ton contexte et agit — conçu pour les indépendants et PME français.</p>
-            </div>
+        <section id="fonctions" className="py-20 px-6 bg-slate-50 border-y border-slate-100">
+          <div className="max-w-5xl mx-auto">
             <div className="grid md:grid-cols-3 gap-6">
               {FEATURES.map(f => (
-                <div key={f.badge} className={`rounded-2xl border p-7 flex flex-col gap-5 bg-white hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md ${
-                  f.accent === "violet" ? "border-blue-100" : f.accent === "emerald" ? "border-emerald-100" : "border-blue-100"
-                }`}>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full w-fit ${
-                    f.accent === "violet" ? "bg-blue-50 text-blue-700" : f.accent === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
-                  }`}>{f.badge}</span>
-                  <div>
-                    <h3 className="text-slate-900 font-bold text-lg mb-2">{f.title}</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
-                  </div>
-                  <ul className="space-y-2">
-                    {f.items.map(item => (
-                      <li key={item} className="flex items-center gap-2 text-xs text-slate-600">
-                        <svg className={`shrink-0 ${f.accent === "violet" ? "text-blue-500" : f.accent === "emerald" ? "text-emerald-500" : "text-blue-500"}`} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M2 6l3 3 6-5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
+                <div key={f.title} className="bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:-translate-y-1 transition-all">
+                  <div className="text-3xl mb-4">{f.icon}</div>
+                  <h3 className="text-slate-900 font-bold text-lg mb-2">{f.title}</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── HOW IT WORKS ───────────────────────────────────────────────────── */}
-        <section id="comment" className="py-24 px-6 bg-slate-50 border-y border-slate-200">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Simple</p>
-              <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">Opérationnel en <span className="gradient-text">2 minutes</span></h2>
-              <p className="text-slate-500 text-lg">Pas de code, pas de setup technique. Connecte, parle, automatise.</p>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                { n: "01", title: "Connecte tes outils", desc: "Gmail, WhatsApp, Slack — connexion OAuth en 30 secondes depuis la page Intégrations. Tes données restent chez toi.", icon: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" },
-                { n: "02", title: "Parle à ton assistant", desc: "Via WhatsApp, chat web ou email. \"Quel est mon agenda demain ?\", \"Réponds à cet email\", \"Génère un devis\".", icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
-                { n: "03", title: "Il agit à ta place", desc: "L'assistant envoie, planifie, relance et te rapporte. Tu te concentres sur ce qui compte.", icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" },
-              ].map(s => (
-                <div key={s.n} className="bg-white rounded-2xl border border-slate-200 p-7 flex flex-col gap-4 shadow-sm">
-                  <div className="flex items-start justify-between">
-                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 w-fit">
-                      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d={s.icon}/>
-                      </svg>
-                    </div>
-                    <span className="text-5xl font-black text-slate-100 select-none">{s.n}</span>
-                  </div>
-                  <h3 className="text-slate-900 font-bold text-lg">{s.title}</h3>
-                  <p className="text-slate-500 text-sm leading-relaxed">{s.desc}</p>
-                </div>
+        {/* ── INTEGRATIONS ──────────────────────────────────────────────────── */}
+        <section className="py-16 px-6">
+          <div className="max-w-3xl mx-auto text-center">
+            <p className="text-xs text-slate-400 uppercase tracking-widest mb-8 font-semibold">Compatible avec</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              {INTEGRATIONS.map(name => (
+                <span key={name} className="text-sm text-slate-600 bg-slate-50 border border-slate-200 px-4 py-2 rounded-full font-medium">
+                  {name}
+                </span>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── USE CASES ───────────────────────────────────────────────────────── */}
-        <section className="py-24 px-6 bg-white">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Qui utilise Orbe ?</p>
-              <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">
-                Conçu pour les <span className="gradient-text">pros français</span>
-              </h2>
-              <p className="text-slate-500 text-lg max-w-xl mx-auto">Pas un outil généraliste US. Un assistant pensé pour vos vrais usages quotidiens.</p>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[
-                {
-                  emoji: "💆",
-                  role: "Kinésithérapeute",
-                  quote: "Je reçois les confirmations de RDV sur WhatsApp et mon agenda Google se remplit automatiquement. Fini les doubles réservations.",
-                  saves: "2h/semaine",
-                },
-                {
-                  emoji: "🔧",
-                  role: "Artisan plombier",
-                  quote: "Les clients m'envoient des photos sur WhatsApp, Orbe analyse et crée un devis dans Notion. Je valide en 30 secondes.",
-                  saves: "5h/semaine",
-                },
-                {
-                  emoji: "📊",
-                  role: "Consultant indépendant",
-                  quote: "Brief du matin à 8h dans ma boîte mail : résumé des emails urgents + agenda du jour + suivi des relances clients.",
-                  saves: "3h/semaine",
-                },
-                {
-                  emoji: "🏪",
-                  role: "Gérant de commerce",
-                  quote: "Mon assistant répond aux questions courantes sur Instagram et WhatsApp 24h/24. Je ne rate plus aucune commande la nuit.",
-                  saves: "4h/semaine",
-                },
-                {
-                  emoji: "🎓",
-                  role: "Formateur",
-                  quote: "Envoi automatique des supports de cours après chaque session, relance des participants qui n'ont pas rendu le devoir.",
-                  saves: "3h/semaine",
-                },
-                {
-                  emoji: "🏡",
-                  role: "Agent immobilier",
-                  quote: "Chaque nouveau lead Instagram est automatiquement ajouté dans HubSpot avec un email de bienvenue. Taux de contact ×3.",
-                  saves: "6h/semaine",
-                },
-              ].map(uc => (
-                <div key={uc.role} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-2xl">{uc.emoji}</span>
-                    <div>
-                      <p className="font-semibold text-slate-900 text-sm">{uc.role}</p>
-                      <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
-                        Économise {uc.saves}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-slate-600 text-sm leading-relaxed italic">&ldquo;{uc.quote}&rdquo;</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── TÉMOIGNAGES ──────────────────────────────────────────────────────── */}
-        <section className="py-20 px-6 bg-white">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Témoignages</p>
-              <h2 className="text-3xl font-bold text-slate-900">Ce qu&apos;ils en disent</h2>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                { name: "Sophie M.", role: "Kinésithérapeute libérale, Lyon", quote: "Avant je passais 2h/jour sur mes emails. Maintenant Orbe les trie, répond aux demandes de RDV et m'envoie un résumé le matin. Je reprends ce temps pour mes patients.", stars: 5, avatar: "SM" },
-                { name: "Thomas R.", role: "Consultant IT indépendant, Paris", quote: "J'ai connecté Gmail, Notion et WhatsApp en 5 minutes. L'assistant rédige mes devis automatiquement avec TVA. C'est devenu mon bras droit numérique.", stars: 5, avatar: "TR" },
-                { name: "Julie C.", role: "Gérante d'agence web, Bordeaux", quote: "Le prix est imbattable comparé à Lindy. Et en français natif — ça change tout pour les emails pro et les relances clients. Mon équipe adore.", stars: 5, avatar: "JC" },
-              ].map(t => (
-                <div key={t.name} className="bg-slate-50 border border-slate-100 rounded-2xl p-6 flex flex-col gap-4">
-                  <div className="flex gap-0.5">
-                    {Array(t.stars).fill(0).map((_, i) => (
-                      <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    ))}
-                  </div>
-                  <p className="text-slate-700 text-sm leading-relaxed italic">&ldquo;{t.quote}&rdquo;</p>
-                  <div className="flex items-center gap-3 mt-auto">
-                    <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">{t.avatar}</div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                      <p className="text-xs text-slate-500">{t.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-10 flex flex-wrap justify-center gap-8 text-center">
-              {[
-                { value: "4.9/5", label: "Note moyenne", sub: "sur 47 avis" },
-                { value: "3.2h", label: "Économisées/jour", sub: "en moyenne" },
-                { value: "98%", label: "Satisfaits", sub: "après 30 jours" },
-              ].map(s => (
-                <div key={s.label}>
-                  <p className="text-2xl font-black text-blue-600">{s.value}</p>
-                  <p className="text-sm font-semibold text-slate-900">{s.label}</p>
-                  <p className="text-xs text-slate-500">{s.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── PRICING ─────────────────────────────────────────────────────────── */}
-        <section id="tarifs" className="py-24 px-6 bg-white">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Tarifs</p>
-              <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">5× moins cher <span className="gradient-text">que Lindy</span></h2>
-              <p className="text-slate-500 text-lg">Lindy commence à 50 $/mois. Orbe commence à 9 €. Vos données restent chez vous.</p>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {PLANS.map(p => (
-                <div key={p.name} className={`relative rounded-2xl border p-6 flex flex-col gap-5 transition-all ${
-                  p.highlight ? "border-blue-300 bg-blue-50 shadow-lg shadow-blue-100" : "border-slate-200 bg-white shadow-sm"
-                }`}>
-                  {"badge" in p && p.badge && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full shadow-sm">{p.badge}</span>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-slate-500 text-sm font-medium mb-1">{p.name}</p>
-                    <div className="flex items-end gap-1">
-                      <span className="text-4xl font-bold text-slate-900">{p.price}</span>
-                      <span className="text-slate-400 text-sm mb-1">{p.period}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">{p.desc}</p>
-                  </div>
-                  <ul className="space-y-2.5 flex-1">
-                    {p.features.map(f => (
-                      <li key={f} className="flex items-start gap-2 text-xs text-slate-600">
-                        <svg className="text-blue-500 shrink-0 mt-0.5" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M2 6l3 3 6-5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href={p.href} className={`text-center text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
-                    p.highlight ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm" : "bg-slate-900 hover:bg-slate-800 text-white"
-                  }`}>{p.cta}</Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── RGPD TRUST ──────────────────────────────────────────────────────── */}
-        <section className="py-20 px-6 bg-slate-50 border-y border-slate-200">
-          <div className="max-w-5xl mx-auto">
-            <div className="rounded-3xl bg-white border border-blue-100 p-10 md:p-14 relative overflow-hidden shadow-sm">
-              <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, #3b82f6 1px, transparent 0)", backgroundSize: "28px 28px" }} />
-              <div className="relative grid md:grid-cols-2 gap-12 items-center">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-6">
-                    🇪🇺 Conforme RGPD — Hébergé en France
-                  </div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
-                    Vos données vous<br /><span className="gradient-text">appartiennent.</span>
-                  </h2>
-                  <p className="text-slate-600 text-base leading-relaxed mb-6">
-                    Chez Lindy et Zapier, vos emails, agendas et contacts transitent par des serveurs américains soumis au Cloud Act. Avec Orbe, tout reste en Europe.
-                  </p>
-                  <div className="space-y-3">
-                    {[
-                      "Hébergement Vercel EU (Frankfurt) par défaut",
-                      "Option self-hosted : Docker sur vos propres serveurs",
-                      "Aucune revente ni analyse de vos données",
-                      "Suppression complète à la désinscription",
-                    ].map(item => (
-                      <div key={item} className="flex items-center gap-2.5 text-sm text-slate-600">
-                        <svg className="text-blue-500 shrink-0" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 8l4 4 8-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { icon: "🔒", title: "Chiffrement TLS", desc: "Toutes les communications chiffrées en transit" },
-                    { icon: "🇪🇺", title: "RGPD Art. 25", desc: "Privacy by design — données minimales collectées" },
-                    { icon: "🏠", title: "Self-hosted", desc: "Docker disponible — vos serveurs, vos règles" },
-                    { icon: "🗑️", title: "Droit à l'oubli", desc: "Suppression complète en 1 clic, immédiate" },
-                  ].map(card => (
-                    <div key={card.title} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 hover:border-blue-200 hover:bg-blue-50/50 transition-all">
-                      <span className="text-2xl mb-2 block">{card.icon}</span>
-                      <p className="text-sm font-semibold text-slate-900 mb-1">{card.title}</p>
-                      <p className="text-xs text-slate-500 leading-relaxed">{card.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── WA SHOWCASE ─────────────────────────────────────────────────────── */}
-        <section className="py-20 px-6 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold mb-6">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                  WhatsApp Business — fonctionnalité phare
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
-                  Ton assistant répond<br /><span className="gradient-text">24h/24 sur WhatsApp</span>
-                </h2>
-                <p className="text-slate-600 text-base leading-relaxed mb-6">
-                  Configure des règles en 30 secondes : &ldquo;Si le message contient <em>devis</em>, envoie le tarif automatiquement&rdquo;. Pour les autres questions, l&apos;IA répond intelligemment en ton nom.
-                </p>
-                <div className="space-y-3">
-                  {[
-                    { rule: "\"devis\" ou \"tarif\"", response: "→ Envoie ta grille tarifaire", color: "emerald" },
-                    { rule: "\"rdv\" ou \"disponible\"", response: "→ Partage le lien Calendly", color: "blue" },
-                    { rule: "Toute autre question", response: "→ Réponse IA contextuelle", color: "violet" },
-                  ].map(r => (
-                    <div key={r.rule} className={`flex items-center gap-3 px-4 py-3 rounded-xl bg-${r.color}-50 border border-${r.color}-100`}>
-                      <code className={`text-xs font-mono text-${r.color}-700 bg-${r.color}-100 px-2 py-0.5 rounded`}>{r.rule}</code>
-                      <span className={`text-xs text-${r.color}-700 font-medium`}>{r.response}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-100/60 rounded-3xl blur-2xl scale-110" />
-                  <div className="relative bg-white rounded-2xl overflow-hidden w-[320px] shadow-xl border border-slate-200">
-                    <div className="px-4 py-3 bg-emerald-500 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">Orbe Business</p>
-                        <p className="text-xs text-emerald-100">en ligne</p>
-                      </div>
-                    </div>
-                    <div className="px-4 py-5 space-y-3 min-h-[280px] bg-slate-50">
-                      {[
-                        { from: "Sophie M.", msg: "Bonjour, vous avez des tarifs pour un devis peinture ?", me: false, time: "14:02" },
-                        { from: "Orbe", msg: "Bonjour Sophie ! Voici notre grille tarifaire 2024 :\n🎨 Peinture intérieure : 25–40 €/m²\n🏠 Ravalement façade : 35–60 €/m²\nSouhaitez-vous un devis personnalisé ?", me: true, time: "14:02", auto: true },
-                        { from: "Sophie M.", msg: "Oui s'il vous plaît ! Quand êtes-vous disponible ?", me: false, time: "14:03" },
-                        { from: "Orbe", msg: "Je vous envoie le lien pour choisir un créneau : calendly.com/artisan 📅", me: true, time: "14:03", auto: true },
-                      ].map((m, i) => (
-                        <div key={i} className={`flex ${m.me ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[220px] rounded-xl px-3 py-2 text-xs leading-relaxed relative ${m.me ? "bg-emerald-500 text-white rounded-tr-sm" : "bg-white text-slate-700 rounded-tl-sm border border-slate-200 shadow-sm"}`} style={{ whiteSpace: "pre-line" }}>
-                            {m.msg}
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                              <span className="text-[10px] opacity-60">{m.time}</span>
-                              {m.me && m.auto && <span className="text-[10px] text-emerald-100 opacity-80">⚡ auto</span>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="absolute -right-4 top-6 bg-white border border-slate-200 shadow-lg rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-700 animate-float">
-                    ⚡ Réponse en 0.3s
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── COMPARE ─────────────────────────────────────────────────────────── */}
-        <section className="py-24 px-6 bg-white border-b border-slate-100">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-3">Comparaison</p>
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-3">Pourquoi Orbe ?</h2>
-              <p className="text-slate-500">Le seul assistant IA français conçu pour les PME et indépendants.</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
-              <table className="w-full min-w-[560px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="p-4 text-left text-sm text-slate-400 font-medium w-[28%]" />
-                    <th className="p-4 text-center">
-                      <span className="text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">Orbe 🇫🇷</span>
-                    </th>
-                    {["Lindy 🇺🇸", "Make 🇸🇰", "Zapier 🇺🇸"].map(c => (
-                      <th key={c} className="p-4 text-center border-l border-slate-100">
-                        <span className="text-xs text-slate-500 font-medium">{c}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMPARE.slice(1).map(([feature, Orbe, lindy, make, zapier], i) => (
-                    <tr key={feature} className={`hover:bg-slate-50 transition-colors ${i < COMPARE.length - 2 ? "border-b border-slate-100" : ""}`}>
-                      <td className="p-4 text-sm text-slate-600 font-medium">{feature}</td>
-                      <td className="p-4 text-sm text-center font-semibold text-slate-900">{Orbe}</td>
-                      <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{lindy}</td>
-                      <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{make}</td>
-                      <td className="p-4 text-sm text-center text-slate-400 border-l border-slate-100">{zapier}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-slate-400 text-center mt-4">Tarifs indicatifs constatés en juin 2026. ✅ = inclus · ⚠️ = partiel · ❌ = non disponible.</p>
-          </div>
-        </section>
-
-        {/* ── CTA ─────────────────────────────────────────────────────────────── */}
-        <section className="py-24 px-6 bg-white">
+        {/* ── CTA ────────────────────────────────────────────────────────────── */}
+        <section className="py-20 px-6 bg-blue-600">
           <div className="max-w-2xl mx-auto text-center">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-14 relative overflow-hidden shadow-2xl shadow-blue-200">
-              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "24px 24px" }} />
-              <div className="relative">
-                <h2 className="text-4xl font-bold text-white mb-3">Prêt à déléguer à ton IA ?</h2>
-                <p className="text-blue-200 mb-10 text-lg">7 jours gratuits · Sans carte · Annulable en 1 clic</p>
-                <Link href="/assistant"
-                  className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-blue-700 font-bold px-8 py-4 rounded-xl transition-all shadow-lg hover:shadow-xl text-base">
-                  Démarrer gratuitement
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </Link>
-              </div>
-            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Prêt à reprendre le contrôle de ton temps ?
+            </h2>
+            <p className="text-blue-200 mb-8">7 jours gratuits, sans carte bancaire.</p>
+            <Link href="/assistant"
+              className="inline-flex items-center gap-2 bg-white text-blue-600 font-bold px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-all shadow-lg text-base">
+              Démarrer maintenant
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 7h8M7 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
           </div>
         </section>
 

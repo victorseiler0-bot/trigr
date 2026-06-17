@@ -44,28 +44,30 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Send via WhatsApp if configured
-      const waToken = process.env.WHATSAPP_TOKEN;
-      const waPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-      const waNumber = meta.briefWaNumber as string | undefined;
+      // Send via Twilio SMS
+      const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+      const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+      const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
+      const smsTo = (meta.briefSmsNumber as string | undefined) ?? process.env.BRIEF_SMS_NUMBER;
 
-      if (waToken && waPhoneId && waNumber) {
-        await fetch(`https://graph.facebook.com/v21.0/${waPhoneId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${waToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: waNumber,
-            type: "text",
-            text: { body: brief },
-          }),
-        });
-        results.push({ userId, status: "sent via WhatsApp" });
+      if (twilioSid && twilioToken && twilioFrom && smsTo) {
+        const smsRes = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${Buffer.from(`${twilioSid}:${twilioToken}`).toString("base64")}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({ To: smsTo, From: twilioFrom, Body: brief }).toString(),
+          }
+        );
+        results.push({ userId, status: smsRes.ok ? "sent via SMS" : `sms error ${smsRes.status}` });
       } else {
         await clerk.users.updateUserMetadata(userId, {
           privateMetadata: { lastBrief: brief, lastBriefDate: new Date().toISOString() },
         });
-        results.push({ userId, status: "stored in metadata" });
+        results.push({ userId, status: "stored in metadata (no SMS config)" });
       }
 
       // Push notification

@@ -759,37 +759,82 @@ async function executeTool(
   if (name === "recherche_web") {
     const { query } = args as { query: string };
     try {
-      const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
-      const r = await fetch(ddgUrl, { headers: { "User-Agent": "Orbe/1.0" } });
-      const data = await r.json() as Record<string, unknown>;
-      const results: string[] = [];
-      if (data.AbstractText) results.push(`**Résumé :** ${data.AbstractText}`);
-      if (data.AbstractSource) results.push(`Source : ${data.AbstractSource}`);
-      if (Array.isArray(data.RelatedTopics)) {
-        const topics = (data.RelatedTopics as Array<Record<string, unknown>>)
-          .filter(t => t.Text)
-          .slice(0, 5)
-          .map(t => `- ${t.Text}`);
-        if (topics.length) results.push("**Résultats associés :**\n" + topics.join("\n"));
-      }
-      if (data.Answer) results.push(`**Réponse directe :** ${data.Answer}`);
-      // Fallback: Wikipedia FR when DuckDuckGo returns nothing
-      if (results.length === 0) {
-        try {
-          const wikiUrl = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-          const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Orbe/1.0" } });
-          if (wr.ok) {
-            const wd = await wr.json() as { extract?: string; title?: string; content_urls?: { desktop?: { page?: string } } };
-            if (wd.extract) {
-              results.push(`**${wd.title ?? query}** (Wikipedia)\n${wd.extract.slice(0, 600)}${wd.extract.length > 600 ? "..." : ""}`);
-              if (wd.content_urls?.desktop?.page) results.push(`Source : ${wd.content_urls.desktop.page}`);
+      // 1) Tavily — IA-native, meilleurs résultats (TAVILY_API_KEY requis, gratuit sur tavily.com)
+      const tavilyKey = process.env.TAVILY_API_KEY;
+      if (tavilyKey) {
+        const tv = await fetch("https://api.tavily.com/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: tavilyKey, query, search_depth: "basic", include_answer: true, max_results: 6 }),
+        });
+        if (tv.ok) {
+          const td = await tv.json() as { answer?: string; results?: Array<{ title: string; url: string; content: string; score: number }> };
+          const lines: string[] = [];
+          if (td.answer) lines.push(`**Réponse :** ${td.answer}`);
+          if (td.results?.length) {
+            lines.push("**Sources :**");
+            for (const r of td.results.slice(0, 5)) {
+              lines.push(`- **${r.title}** — ${r.content.slice(0, 200).replace(/\n/g, " ")}…\n  ${r.url}`);
             }
           }
-        } catch { /* ignore wiki fallback error */ }
+          if (lines.length > 0) return lines.join("\n\n");
+        }
       }
-      return results.length > 0
-        ? results.join("\n\n")
-        : `Aucun résultat pour "${query}". Essaie une formulation différente.`;
+
+      // 2) Brave Search (BRAVE_SEARCH_API_KEY requis, gratuit sur brave.com/search/api/)
+      const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+      if (braveKey) {
+        const br = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=6&country=fr&search_lang=fr`, {
+          headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": braveKey },
+        });
+        if (br.ok) {
+          const bd = await br.json() as { web?: { results?: Array<{ title: string; url: string; description: string }> } };
+          const items = bd.web?.results ?? [];
+          if (items.length) {
+            const lines = ["**Résultats web :**"];
+            for (const it of items.slice(0, 5)) {
+              lines.push(`- **${it.title}** — ${(it.description ?? "").slice(0, 200)}\n  ${it.url}`);
+            }
+            return lines.join("\n\n");
+          }
+        }
+      }
+
+      // 3) Jina AI Search — gratuit sans clé (https://jina.ai/search/)
+      try {
+        const jinaR = await fetch(`https://s.jina.ai/${encodeURIComponent(query)}`, {
+          headers: { "Accept": "application/json", "X-Respond-With": "no-content" },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (jinaR.ok) {
+          const jd = await jinaR.json() as { data?: Array<{ title: string; url: string; description?: string; content?: string }> };
+          const items = jd.data ?? [];
+          if (items.length) {
+            const lines = ["**Résultats web :**"];
+            for (const it of items.slice(0, 5)) {
+              const snippet = (it.description || it.content || "").slice(0, 200).replace(/\n/g, " ");
+              lines.push(`- **${it.title}** — ${snippet}…\n  ${it.url}`);
+            }
+            return lines.join("\n\n");
+          }
+        }
+      } catch { /* ignore jina timeout */ }
+
+      // 4) Wikipedia FR — fallback connaissance générale
+      try {
+        const wikiUrl = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+        const wr = await fetch(wikiUrl, { headers: { "User-Agent": "Orbe/1.0" } });
+        if (wr.ok) {
+          const wd = await wr.json() as { extract?: string; title?: string; content_urls?: { desktop?: { page?: string } } };
+          if (wd.extract) {
+            const lines = [`**${wd.title ?? query}** (Wikipedia)\n${wd.extract.slice(0, 800)}${wd.extract.length > 800 ? "…" : ""}`];
+            if (wd.content_urls?.desktop?.page) lines.push(`Source : ${wd.content_urls.desktop.page}`);
+            return lines.join("\n\n");
+          }
+        }
+      } catch { /* ignore */ }
+
+      return `Aucun résultat trouvé pour "${query}". Pour activer la recherche web complète, ajoute TAVILY_API_KEY dans les variables d'environnement (gratuit sur tavily.com).`;
     } catch {
       return `Erreur lors de la recherche web.`;
     }
