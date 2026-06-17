@@ -225,18 +225,11 @@ export default function DashboardPage() {
                 <p className="text-2xl font-black text-blue-400">{(data.gainTempsMinutes ?? data.totalWeek * 5) >= 60 ? `${((data.gainTempsMinutes ?? data.totalWeek * 5) / 60).toFixed(1)}h` : `${data.gainTempsMinutes ?? data.totalWeek * 5} min`}</p>
                 <p className="text-xs text-zinc-600 mt-0.5">≈ {Math.round((data.gainTempsMinutes ?? data.totalWeek * 5) * 0.5)} € économisés</p>
               </div>
-              {data.crm && data.crm.dealsActifs + data.crm.dealsGagnes > 0 ? (
-                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl p-4">
-                  <p className="text-xs text-zinc-500 mb-1">💼 Pipeline CRM</p>
-                  <p className="text-2xl font-black text-emerald-400">{data.crm.caGagne > 0 ? `${data.crm.caGagne.toLocaleString("fr-FR")} €` : `${data.crm.dealsActifs} deal${data.crm.dealsActifs > 1 ? "s" : ""}`}</p>
-                  <p className="text-xs text-zinc-600 mt-0.5">{data.crm.caGagne > 0 ? `${data.crm.dealsActifs} actifs` : "en cours"} · {data.crm.dealsGagnes} gagné{data.crm.dealsGagnes > 1 ? "s" : ""}</p>
-                </div>
-              ) : (
-                <Link href="/crm" className="bg-white/[0.02] border border-dashed border-white/[0.08] rounded-2xl p-4 flex flex-col items-center justify-center gap-1 hover:border-white/[0.15] transition-all group">
-                  <span className="text-2xl">💼</span>
-                  <p className="text-xs text-zinc-600 group-hover:text-zinc-400 transition-colors">Ouvrir le CRM →</p>
-                </Link>
-              )}
+              <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl p-4">
+                <p className="text-xs text-zinc-500 mb-1">🤖 Agents actifs</p>
+                <p className="text-2xl font-black text-emerald-400">n8n</p>
+                <p className="text-xs text-zinc-600 mt-0.5">SMS · WA · Gmail · Agenda</p>
+              </div>
             </div>
 
             {/* Rappels en retard */}
@@ -289,19 +282,14 @@ export default function DashboardPage() {
                   { icon: "📅", label: "Agenda du jour", prompt: "Quels sont mes événements du jour ?" },
                   { icon: "💬", label: "Messages WA", prompt: "Quels sont mes derniers messages WhatsApp non lus ?" },
                   { icon: "✍️", label: "Rédiger un email", prompt: "Aide-moi à rédiger un email professionnel" },
-                  { icon: "🏢", label: "Infos entreprise", prompt: "Recherche des informations officielles sur l'entreprise " },
-                  { icon: "👥", label: "Mes contacts", prompt: "/crm" },
+                  { icon: "🔍", label: "Recherche web", prompt: "Fais une recherche sur " },
+                  { icon: "📝", label: "Prendre une note", prompt: "Enregistre cette note : " },
                 ] as { icon: string; label: string; prompt: string }[]).map((item, i) => (
-                  item.prompt.startsWith("/")
-                    ? <Link key={i} href={item.prompt} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-blue-500/20 transition-all">
-                        <span className="text-base">{item.icon}</span>
-                        <span className="text-xs text-zinc-300">{item.label}</span>
-                      </Link>
-                    : <Link key={i} href={"/assistant?prefill=" + encodeURIComponent(item.prompt)}
-                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-blue-500/20 transition-all">
-                        <span className="text-base">{item.icon}</span>
-                        <span className="text-xs text-zinc-300">{item.label}</span>
-                      </Link>
+                  <Link key={i} href={"/assistant?prefill=" + encodeURIComponent(item.prompt)}
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-blue-500/20 transition-all">
+                    <span className="text-base">{item.icon}</span>
+                    <span className="text-xs text-zinc-300">{item.label}</span>
+                  </Link>
                 ))}
               </div>
             </div>

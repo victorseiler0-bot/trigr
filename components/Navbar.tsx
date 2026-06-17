@@ -61,9 +61,9 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-[0_2px_8px_rgba(59,130,246,0.35)]">
-            <span className="text-white font-black text-sm leading-none">A</span>
+            <span className="text-white font-black text-sm leading-none">T</span>
           </div>
-          <span className="font-bold text-slate-900 text-base tracking-tight">Auto<span className="text-blue-500">zen</span></span>
+          <span className="font-bold text-slate-900 text-base tracking-tight">Tri<span className="text-blue-500">gr</span></span>
         </Link>
 
         {/* Desktop nav */}
